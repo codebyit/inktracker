@@ -1,0 +1,17 @@
+{
+  "name": "inktracker",
+  "version": "0.8.16",
+  "description": "UV Print Cost Tracker — Self-hosted production and costing tracker",
+  "scripts": {
+    "build:css": "tailwindcss -i ./tailwind.input.css -o ./static/app.css --minify",
+    "dev:css": "tailwindcss -i ./tailwind.input.css -o ./static/app.css --watch",
+    "vendor:jsqr": "node -e \"const fs=require('fs');fs.mkdirSync('static/vendor',{recursive:true});fs.copyFileSync('node_modules/jsqr/dist/jsQR.js','static/vendor/jsqr.js')\""
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.1",
+    "jsqr": "^1.4.0"
+  }
+}
