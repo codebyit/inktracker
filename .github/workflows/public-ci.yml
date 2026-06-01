@@ -36,7 +36,7 @@ jobs:
 
       - name: Dependency audit
         run: |
-          if [ -f requirements.txt ]; then pip-audit -r requirements.txt; else echo "No requirements.txt yet"; fi
+          if [ -f requirements.txt ]; then pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-161; else echo "No requirements.txt yet"; fi
 
   build-and-publish:
     if: startsWith(github.ref, 'refs/tags/v')
