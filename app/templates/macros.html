@@ -1,0 +1,43 @@
+{# ── InkTrack Jinja2 Macros ──────────────────────────────────────────────── #}
+{# Import with: {% from "macros.html" import macro_name %}                   #}
+
+{# Status color maps ─────────────────────────────────────────────────────── #}
+{% set _BADGE = {
+  'Draft':     'bg-slate-100 text-slate-600',
+  'Queued':    'bg-amber-100 text-amber-700',
+  'Printing':  'bg-blue-100 text-blue-700',
+  'Completed': 'bg-emerald-100 text-emerald-700',
+  'Cancelled': 'bg-orange-100 text-orange-700',
+  'Failed':    'bg-red-100 text-red-600',
+} %}
+
+{% set _DOT = {
+  'Draft':     'bg-slate-400',
+  'Queued':    'bg-amber-400',
+  'Printing':  'bg-blue-500',
+  'Completed': 'bg-emerald-500',
+  'Cancelled': 'bg-orange-400',
+  'Failed':    'bg-red-500',
+} %}
+
+{# status_pill(status) ───────────────────────────────────────────────────── #}
+{# Renders a complete pill <span> for a project status.                      #}
+{# Usage: {{ status_pill(p.status) }}                                        #}
+{% macro status_pill(status) %}
+<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {{ _BADGE.get(status or 'Draft', 'bg-slate-100 text-slate-600') }}">{{ status or 'Draft' }}</span>
+{% endmacro %}
+
+{# status_pill_class(status) ─────────────────────────────────────────────── #}
+{# Returns only the background+text color classes for a status pill.         #}
+{# Usage: class="... {{ status_pill_class(p.status) }}"                      #}
+{% macro status_pill_class(status) %}{{ _BADGE.get(status or 'Draft', 'bg-slate-100 text-slate-600') }}{% endmacro %}
+
+{# status_dot_class(status) ──────────────────────────────────────────────── #}
+{# Returns the dot color class for a status indicator dot.                   #}
+{# Usage: class="w-2 h-2 rounded-full {{ status_dot_class(p.status) }}"     #}
+{% macro status_dot_class(status) %}{{ _DOT.get(status or 'Draft', 'bg-slate-400') }}{% endmacro %}
+
+{# card(padding, extra) ──────────────────────────────────────────────────── #}
+{# Returns base card classes with optional responsive padding and extras.    #}
+{# Usage: class="{{ card() }}" or class="{{ card('p-4 sm:p-6', 'shadow-sm') }}" #}
+{% macro card(padding='p-4 sm:p-5', extra='') %}bg-white rounded-xl border border-slate-200 {{ padding }}{% if extra %} {{ extra }}{% endif %}{% endmacro %}

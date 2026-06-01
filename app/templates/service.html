@@ -1,0 +1,579 @@
+{% extends "base.html" %}
+{% block title %}Service{% endblock %}
+{% block page_title %}Service{% endblock %}
+
+{% block content %}
+
+{% if auto_sync_status %}
+<section class="mb-6">
+  <div class="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div>
+      <p class="text-sm font-semibold text-emerald-800">Auto Maintenance Sync</p>
+      <p class="text-xs text-emerald-700">
+        Last run: {{ auto_sync_status.occurred_at.strftime('%Y-%m-%d %H:%M') }}
+        · Action: {{ auto_sync_status.name }}
+        {% if next_auto_run %}· Next run: {{ next_auto_run.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+      </p>
+    </div>
+    <span class="text-xs font-medium text-emerald-800 bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg">
+      {{ auto_sync_status.trigger_label }}
+    </span>
+  </div>
+</section>
+{% endif %}
+
+<section class="mb-8"
+         x-data="{
+           corr: { {% for ch in ink_channels %}'{{ ch }}': 0{% if not loop.last %}, {% endif %}{% endfor %} },
+           weight_g: '',
+           apply_channel: '{{ ink_channels[0] if ink_channels else "C" }}',
+           get net(){ return Object.values(this.corr).reduce((a,b)=>a+(parseFloat(b)||0),0); },
+           get remainingMlByWeight(){
+             const raw = (parseFloat(this.weight_g) || 0) - 75;
+             return Math.min(100, Math.max(0, raw));
+           },
+           get weightStatus(){
+             const ml = this.remainingMlByWeight;
+             if (ml < 25) return 'CRITICAL';
+             if (ml <= 30) return 'LOW';
+             return 'OK';
+           },
+           get lowThresholdGrams(){
+             return 105;
+           },
+           get criticalThresholdGrams(){
+             return 100;
+           },
+           applyEstimateToChannel(){
+             const target = this.apply_channel;
+             if (!target || !(target in this.corr)) return;
+             this.corr[target] = Number(this.remainingMlByWeight.toFixed(2));
+           }
+         }">
+  <div class="bg-white rounded-xl border border-slate-200 p-5">
+    <div class="mb-3">
+      <h2 class="text-lg font-semibold text-slate-800">Ink Correction</h2>
+      <p class="text-xs text-slate-500">Adjust ink tracking when numbers don't match reality.</p>
+    </div>
+
+    <div class="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-4 leading-relaxed">
+      <p><span class="font-semibold text-emerald-700">+20</span> adds tracked usage (spill or untracked test print).</p>
+      <p><span class="font-semibold text-rose-700">-20</span> subtracts tracked usage (over-estimated project entry).</p>
+      <p class="text-slate-500 mt-1">Positive = less ink remaining. Negative = more ink remaining.</p>
+    </div>
+
+    <div class="mb-4 bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+      <h3 class="text-sm font-semibold text-indigo-800">Weight to Remaining Ink (EufyMake E1)</h3>
+      <p class="text-xs text-indigo-700 mt-0.5">Uses: remaining_ml = weight_g - 75, clamped to 0..100 ml.</p>
+
+      <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <label class="text-xs text-slate-700">
+          Current cartridge weight (g)
+          <input type="number" step="0.01" min="0" x-model="weight_g"
+                 placeholder="e.g. 132"
+                 class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"/>
+        </label>
+        <div class="text-xs text-slate-700">
+          Estimated remaining ink
+          <div class="mt-1 w-full border border-indigo-200 bg-white rounded-lg px-3 py-2 text-sm font-semibold text-indigo-800"
+               x-text="remainingMlByWeight.toFixed(2) + ' ml'"></div>
+        </div>
+      </div>
+
+      <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div class="text-xs text-slate-700">
+          Cartridge status
+          <div class="mt-1 w-full border rounded-lg px-3 py-2 text-sm font-semibold"
+               :class="weightStatus === 'OK' ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : (weightStatus === 'LOW' ? 'border-amber-200 text-amber-700 bg-amber-50' : 'border-rose-200 text-rose-700 bg-rose-50')"
+               x-text="weightStatus"></div>
+        </div>
+        <div class="text-[11px] text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 leading-relaxed">
+          <p>Aligned thresholds by formula ($ml = g - 75$):</p>
+          <p>&gt; 30 ml =&gt; &gt; <span x-text="lowThresholdGrams"></span> g (OK)</p>
+          <p>25-30 ml =&gt; <span x-text="criticalThresholdGrams"></span>-<span x-text="lowThresholdGrams"></span> g (LOW)</p>
+          <p>&lt; 25 ml =&gt; &lt; <span x-text="criticalThresholdGrams"></span> g (CRITICAL)</p>
+        </div>
+      </div>
+
+      <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+        <label class="text-xs text-slate-700">
+          Apply estimate to channel
+          <select x-model="apply_channel" class="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+            {% for ch in ink_channels %}
+            <option value="{{ ch }}">{{ INK_CHANNEL_NAMES[ch] }} ({{ ch }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="button" @click="applyEstimateToChannel()"
+                class="sm:col-span-2 border border-indigo-300 bg-white text-indigo-700 rounded-lg px-3 py-2 text-sm font-medium hover:bg-indigo-100">
+          Apply Estimated ml to Selected Correction Field
+        </button>
+      </div>
+    </div>
+
+    {% if correction_error %}
+    <div class="mb-4 px-3 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 text-xs font-medium">
+      {% if correction_error == 'nonzero_required' %}
+      Add at least one non-zero ink amount.
+      {% elif correction_error == 'reason_required' %}
+      A reason is required for ink correction.
+      {% else %}
+      Ink correction could not be saved.
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/service/ink-correction" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+        {% for ch in ink_channels %}
+        <label class="text-xs">
+          <span class="flex items-center gap-1.5 text-slate-600 mb-1">
+            <span class="w-2.5 h-2.5 rounded-full" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+            {{ INK_CHANNEL_NAMES[ch] }}
+          </span>
+          <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-violet-400">
+            <input type="number" step="0.01" name="corr_{{ ch }}" x-model.number="corr['{{ ch }}']"
+                   class="flex-1 text-sm focus:outline-none" placeholder="0"/>
+            <span class="text-[11px] text-slate-400">ml</span>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-violet-50 border border-violet-100">
+        <span class="text-violet-700 font-medium">Net Adjustment</span>
+        <span class="font-mono font-semibold text-violet-800" x-text="net.toFixed(2) + ' ml'"></span>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Reason for correction</label>
+        <textarea name="reason" rows="2" required
+                  placeholder="e.g. Fat-fingered cyan on Project X or cartridge top-off not tracked"
+                  class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
+      </div>
+
+      <button type="submit"
+              class="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-sm font-semibold py-2 rounded-lg hover:from-violet-600 hover:to-fuchsia-600 transition-colors">
+        Log Correction
+      </button>
+    </form>
+  </div>
+</section>
+
+{% if correction_saved and correction_undo_action_id %}
+<section class="fixed bottom-4 right-4 z-50 max-w-sm">
+  <div class="bg-emerald-600 text-white rounded-xl shadow-lg px-4 py-3 border border-emerald-500">
+    <div class="text-sm font-semibold">Ink correction saved</div>
+    <div class="text-xs text-emerald-50 mt-0.5">Cartridge totals were updated.</div>
+    <form method="POST" action="/service/ink-correction/{{ correction_undo_action_id }}/undo" class="mt-2">
+      <button type="submit" class="text-xs font-semibold underline underline-offset-2 hover:text-emerald-100">Undo</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+{# ─────────────────────────────────────────────────────────────────────────── #}
+{# Quick Actions                                                               #}
+{# ─────────────────────────────────────────────────────────────────────────── #}
+<section class="mb-8"
+         x-data="{
+           edit:null, create:false, log:null, logName:'',
+           logNotes:'', logAt:'',
+           nowLocal(){ const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,16); },
+           openLog(id, name){ this.log=id; this.logName=name; this.logNotes=''; this.logAt=this.nowLocal(); }
+         }">
+  <div class="flex items-end justify-between mb-4">
+    <div>
+      <h2 class="text-lg font-semibold text-slate-800">Quick Actions</h2>
+      <p class="text-xs text-slate-500">Ink-injection and cleaning presets. One click to log ink consumption.</p>
+    </div>
+    <form method="POST" action="/service/presets/reset-defaults"
+          onsubmit="return confirm('Restore the built-in default presets? Your custom presets will be kept.')">
+      <button type="submit" class="text-xs text-slate-500 hover:text-indigo-600 transition-colors">
+        Reset Defaults
+      </button>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {% for p in quick_presets %}
+    {% set vols = quick_volumes[p.id] %}
+    {% set total = vols.values()|sum %}
+    <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col">
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800">{{ p.name }}</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Total: {{ '%.2f'|format(total) }} ml</p>
+        </div>
+        <div class="flex items-center gap-1">
+          <button type="button" @click="edit={{ p.id }}"
+                  class="text-slate-300 hover:text-indigo-600 p-1" title="Edit">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+            </svg>
+          </button>
+          {% if not p.is_system %}
+          <form method="POST" action="/service/preset/{{ p.id }}/delete"
+                onsubmit="return confirm('Delete preset {{ p.name }}?')">
+            <button type="submit" class="text-slate-300 hover:text-red-500 p-1" title="Delete">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-x-3 gap-y-1 mb-3 text-xs">
+        {% for ch in service_channels %}
+        {% if vols.get(ch, 0) %}
+        <div class="flex items-center justify-between">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" title="{{ INK_CHANNEL_NAMES[ch] }}" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+            <span class="text-slate-600">{{ ch }}</span>
+          </span>
+          <span class="text-slate-500 font-mono">{{ '%.2f'|format(vols[ch]) }}</span>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+
+      <button type="button" @click='openLog({{ p.id }}, {{ p.name|tojson }})'
+              class="mt-auto w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-semibold py-2 rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-colors">
+        Log
+      </button>
+    </div>
+
+    {# Edit modal #}
+    <div x-show="edit==={{ p.id }}" x-cloak
+         class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
+         @keydown.escape.window="edit=null">
+      <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6" @click.outside="edit=null">
+        <h3 class="text-base font-semibold text-slate-800 mb-4">Edit “{{ p.name }}”</h3>
+        <form method="POST" action="/service/preset/{{ p.id }}/edit" class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Name</label>
+            <input type="text" name="name" value="{{ p.name }}" {% if p.is_system %}readonly{% endif %}
+                   class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm {% if p.is_system %}bg-slate-50 text-slate-500{% endif %}"/>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            {% for ch in service_channels %}
+            <label class="text-xs">
+              <span class="flex items-center gap-1.5 text-slate-600 mb-1">
+                <span class="w-2 h-2 rounded-full" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+                {{ INK_CHANNEL_NAMES[ch] }} ({{ ch }})
+              </span>
+              <input type="number" step="0.0001" min="0" name="ml_{{ ch }}"
+                     value="{{ '%g'|format(vols.get(ch, 0)) }}"
+                     class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm"/>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" @click="edit=null"
+                    class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+            <button type="submit"
+                    class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700">
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+
+    {# Add preset card #}
+    <button type="button" @click="create=true"
+            class="bg-white rounded-xl border-2 border-dashed border-slate-200 p-4 flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-indigo-400 hover:text-indigo-600 transition-colors min-h-[160px]">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+      <span class="text-xs font-medium">Add Preset</span>
+    </button>
+  </div>
+
+  {# Create modal #}
+  <div x-show="create" x-cloak
+       class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
+       @keydown.escape.window="create=false">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6" @click.outside="create=false">
+      <h3 class="text-base font-semibold text-slate-800 mb-4">New Quick Action Preset</h3>
+      <form method="POST" action="/service/preset/create" class="space-y-3">
+        <input type="hidden" name="kind" value="quick_action"/>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Name</label>
+          <input type="text" name="name" required placeholder="e.g. Mini Clean"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          {% for ch in service_channels %}
+          <label class="text-xs">
+            <span class="flex items-center gap-1.5 text-slate-600 mb-1">
+              <span class="w-2 h-2 rounded-full" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+              {{ INK_CHANNEL_NAMES[ch] }} ({{ ch }})
+            </span>
+            <input type="number" step="0.0001" min="0" name="ml_{{ ch }}" value="0"
+                   class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm"/>
+          </label>
+          {% endfor %}
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" @click="create=false"
+                  class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+          <button type="submit"
+                  class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700">
+            Create Preset
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Log preset modal (shared across all quick-action presets) #}
+  <div x-show="log!==null" x-cloak
+       class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
+       @keydown.escape.window="log=null">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6" @click.outside="log=null">
+      <h3 class="text-base font-semibold text-slate-800 mb-1">Log action</h3>
+      <p class="text-xs text-slate-500 mb-4" x-text="logName"></p>
+      <form :action="'/service/preset/' + log + '/log'" method="POST" class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Timestamp</label>
+          <input type="datetime-local" name="occurred_at" x-model="logAt"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Notes (optional)</label>
+          <textarea name="notes" rows="3" x-model="logNotes" placeholder="e.g. Routine flush"
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" @click="log=null"
+                  class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+          <button type="submit"
+                  class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:from-indigo-600 hover:to-purple-600">
+            Log
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+{# ─────────────────────────────────────────────────────────────────────────── #}
+{# Hardware Events                                                             #}
+{# ─────────────────────────────────────────────────────────────────────────── #}
+<section class="mb-8">
+  <div class="mb-4">
+    <h2 class="text-lg font-semibold text-slate-800">Hardware Events</h2>
+    <p class="text-xs text-slate-500">Log hardware maintenance with per-channel ink consumption.</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    {% for p in hardware_presets %}
+    {% set vols = hardware_volumes[p.id] %}
+    <div class="bg-white rounded-xl border border-slate-200 p-5"
+         x-data="{ vols: { {% for ch in service_channels %}'{{ ch }}': {{ vols.get(ch, 0) }}{% if not loop.last %},{% endif %}{% endfor %} } }">
+      <h3 class="text-sm font-semibold text-slate-800 mb-3">{{ p.name }}</h3>
+      <form method="POST" action="/service/hardware-event" class="space-y-3">
+        <input type="hidden" name="preset_id" value="{{ p.id }}"/>
+
+        {% if p.tracks_ink %}
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {% for ch in service_channels %}
+          <label class="text-xs">
+            <span class="flex items-center gap-1.5 text-slate-600 mb-1">
+              <span class="w-2 h-2 rounded-full" title="{{ INK_CHANNEL_NAMES[ch] }}" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+              {{ ch }}
+            </span>
+            <input type="number" step="0.0001" min="0" name="ml_{{ ch }}"
+                   x-model.number="vols['{{ ch }}']"
+                   value="{{ '%g'|format(vols.get(ch, 0)) }}"
+                   class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm"/>
+          </label>
+          {% endfor %}
+        </div>
+        <div class="text-xs text-slate-500 text-right">
+          Total: <span class="font-mono font-medium text-slate-700"
+                       x-text="Object.values(vols).reduce((a,b)=>a+(parseFloat(b)||0),0).toFixed(2)"></span> ml
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-500 italic">This event does not consume ink. Logging it will also reset the cleaning cartridge level.</p>
+        {% endif %}
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Notes (optional)</label>
+          <textarea name="notes" rows="2" placeholder="Details about the maintenance…"
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
+        </div>
+
+        <button type="submit"
+                class="w-full bg-slate-800 text-white text-sm font-medium py-2 rounded-lg hover:bg-slate-900 transition-colors">
+          Log Event
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+{# ─────────────────────────────────────────────────────────────────────────── #}
+{# Cartridge Replacements                                                      #}
+{# ─────────────────────────────────────────────────────────────────────────── #}
+<section class="mb-8" x-data="{ replace:null, notes:'' }">
+  <div class="mb-4">
+    <h2 class="text-lg font-semibold text-slate-800">Cartridge Replacements</h2>
+    <p class="text-xs text-slate-500">Resets the channel's ink level to full when replaced.</p>
+  </div>
+
+  <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+    {% for ch in service_channels %}
+    {% set lv = ink_levels[ch] %}
+    {% set rep_count = replacement_counts.get(ch, 0) %}
+    <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col items-center gap-2">
+      <span class="absolute top-2 right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300 text-[10px] font-semibold flex items-center justify-center leading-none">
+        {{ rep_count }}
+      </span>
+      <!-- Color indicator with ring for visibility on dark backgrounds -->
+      <span class="w-3 h-3 rounded-full ring-1 ring-slate-300 dark:ring-slate-500" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+      <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 text-center">{{ INK_CHANNEL_NAMES[ch] }}</span>
+      <div class="relative w-6 h-14 bg-slate-100 dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-600 overflow-hidden">
+        <div class="absolute bottom-0 left-0 right-0"
+             style="height:{{ lv.pct }}%;background-color:{{ INK_CHANNEL_HEX[ch] }}"></div>
+      </div>
+      <span class="text-[11px] text-slate-500 dark:text-slate-300 tabular-nums">{{ lv.pct }}%</span>
+      <!-- Button uses neutral dark color for guaranteed contrast on all ink colors -->
+      <button type="button" @click="replace='{{ ch }}'; notes=''"
+              class="w-full text-xs font-medium text-white bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 py-1.5 rounded-lg transition-colors">
+        Replace
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Replacement modal #}
+  <div x-show="replace!==null" x-cloak
+       class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
+       @keydown.escape.window="replace=null">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6" @click.outside="replace=null">
+      <h3 class="text-base font-semibold text-slate-800 mb-3">
+        Replace cartridge: <span class="text-indigo-600" x-text="replace"></span>
+      </h3>
+      <form method="POST" action="/service/cartridge" class="space-y-3">
+        <input type="hidden" name="channel" :value="replace"/>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Notes (optional)</label>
+          <textarea name="notes" rows="2" x-model="notes" placeholder="e.g. Replaced expired cartridge"
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" @click="replace=null"
+                  class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+          <button type="submit"
+                  class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700">
+            Confirm Replacement
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+{# ─────────────────────────────────────────────────────────────────────────── #}
+{# Service History                                                             #}
+{# ─────────────────────────────────────────────────────────────────────────── #}
+<section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+  <div class="bg-white rounded-xl border border-slate-200">
+    <div class="px-6 py-4 border-b border-slate-100">
+      <h2 class="text-sm font-semibold text-slate-700">Service Action Log</h2>
+    </div>
+    {% if actions %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 text-left">Action</th>
+            <th class="px-4 py-3 text-left">Date</th>
+            <th class="px-4 py-3 text-right">Total ml</th>
+            <th class="px-4 py-3 text-left">Notes</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for a in actions %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-3 font-medium text-slate-700">{{ a.name_snapshot }}</td>
+            <td class="px-4 py-3 text-slate-500">{{ a.occurred_at.strftime('%d %b %Y %H:%M') }}</td>
+            <td class="px-4 py-3 text-right font-mono text-slate-600">{{ '%.2f'|format(a.total_ml or 0) if (a.total_ml or 0) else '—' }}</td>
+            <td class="px-4 py-3 text-slate-500">{{ a.notes or '—' }}</td>
+            <td class="px-4 py-3 text-right">
+              <form method="POST" action="/service/action/{{ a.id }}/delete"
+                    onsubmit="return confirm('Remove this log entry?')">
+                <button type="submit" class="text-slate-400 hover:text-red-500 p-1">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="px-6 py-8 text-center text-slate-400 text-sm">No service actions logged yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200">
+    <div class="px-6 py-4 border-b border-slate-100">
+      <h2 class="text-sm font-semibold text-slate-700">Cartridge Replacement Log</h2>
+    </div>
+    {% if replacements %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 text-left">Channel</th>
+            <th class="px-4 py-3 text-left">Date</th>
+            <th class="px-4 py-3 text-left">Notes</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for r in replacements %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full" style="background-color:{{ INK_CHANNEL_HEX[r.channel] }}"></span>
+                <span class="font-medium">{{ INK_CHANNEL_NAMES.get(r.channel, r.channel) }}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-slate-500">{{ r.replaced_at.strftime('%d %b %Y %H:%M') }}</td>
+            <td class="px-4 py-3 text-slate-500">{{ r.notes or '—' }}</td>
+            <td class="px-4 py-3 text-right">
+              <form method="POST" action="/service/cartridge/{{ r.id }}/delete"
+                    onsubmit="return confirm('Remove this log entry?')">
+                <button type="submit" class="text-slate-400 hover:text-red-500 p-1">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="px-6 py-8 text-center text-slate-400 text-sm">No replacements logged yet.</p>
+    {% endif %}
+  </div>
+
+</section>
+
+{% endblock %}

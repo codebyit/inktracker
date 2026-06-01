@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Documentation{% endblock %}
+{% block page_title %}Documentation{% endblock %}
+
+{% block content %}
+
+{% if saved %}
+<div x-data="{ show: true }" x-show="show" x-init="setTimeout(()=>show=false, 3000)"
+     class="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3 rounded-xl">
+  Saved successfully.
+</div>
+{% endif %}
+
+<section class="mb-8"
+         x-data="{
+           addOpen: false,
+           addDate: '',
+           editIdx: null,
+           editName: '',
+           editUrl: '',
+           editDate: '',
+           todayBr(){
+             const d = new Date();
+             const dd = String(d.getDate()).padStart(2, '0');
+             const mm = String(d.getMonth() + 1).padStart(2, '0');
+             const yyyy = d.getFullYear();
+             return `${dd}/${mm}/${yyyy}`;
+           }
+         }">
+
+  <div class="flex items-end justify-between mb-4">
+    <div>
+      <h2 class="text-lg font-semibold text-slate-800">Links &amp; References</h2>
+      <p class="text-xs text-slate-500">Saved documentation links. Click a name to open the resource.</p>
+    </div>
+    <button @click="addDate=todayBr(); addOpen=true"
+            class="flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-3.5 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+      Add Link
+    </button>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200">
+    {% if docs %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 text-left">Name</th>
+            <th class="px-4 py-3 text-left">Date</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for doc in docs %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-3">
+              <a href="{{ doc.url }}" target="_blank" rel="noopener noreferrer"
+                 class="font-medium text-indigo-600 hover:underline break-all">
+                {{ doc.name }}
+              </a>
+            </td>
+            <td class="px-4 py-3 text-slate-500 whitespace-nowrap">{{ doc.document_date or '—' }}</td>
+            <td class="px-4 py-3 text-right">
+              <div class="flex items-center justify-end gap-1">
+                <button type="button"
+                  @click='editIdx={{ loop.index0 }}; editName={{ doc.name|tojson }}; editUrl={{ doc.url|tojson }}; editDate={{ (doc.document_date or "")|tojson }}'
+                  class="text-slate-400 hover:text-indigo-600 p-1" title="Edit">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+                  </svg>
+                </button>
+                <form method="POST" action="/documentation/{{ loop.index0 }}/delete"
+                      onsubmit="return confirm('Remove this link?')">
+                  <button type="submit" class="text-slate-400 hover:text-red-500 p-1" title="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="px-6 py-10 text-center text-slate-400 text-sm">No documentation links saved yet. Use "Add Link" to create one.</p>
+    {% endif %}
+  </div>
+
+  {# Add modal #}
+  <div x-show="addOpen" x-cloak
+       class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
+       @keydown.escape.window="addOpen=false">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6" @click.outside="addOpen=false">
+      <h3 class="text-base font-semibold text-slate-800 mb-4">Add Documentation Link</h3>
+      <form method="POST" action="/documentation/add" class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Name <span class="text-red-500">*</span></label>
+          <input type="text" name="name" required placeholder="e.g. Cleaning and Maintenance Strategy"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Hyperlink <span class="text-red-500">*</span></label>
+          <input type="url" name="url" required placeholder="https://…"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Document date</label>
+          <input type="text" name="document_date" x-model="addDate" placeholder="dd/MM/YYYY"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" @click="addOpen=false"
+                  class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+          <button type="submit"
+                  class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Edit modal #}
+  <div x-show="editIdx !== null" x-cloak
+       class="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
+       @keydown.escape.window="editIdx=null">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6" @click.outside="editIdx=null">
+      <h3 class="text-base font-semibold text-slate-800 mb-4">Edit Link</h3>
+      <form :action="'/documentation/' + editIdx + '/edit'" method="POST" class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Name <span class="text-red-500">*</span></label>
+          <input type="text" name="name" required x-model="editName"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Hyperlink <span class="text-red-500">*</span></label>
+          <input type="url" name="url" required x-model="editUrl"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Document date</label>
+          <input type="text" name="document_date" x-model="editDate" placeholder="dd/MM/YYYY"
+                 class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" @click="editIdx=null"
+                  class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
+          <button type="submit"
+                  class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</section>
+
+{% endblock %}

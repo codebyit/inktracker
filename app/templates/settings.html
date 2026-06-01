@@ -1,0 +1,561 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div x-data="{ tab: '{{ tab }}' }">
+
+<!-- Tab bar -->
+<div class="flex gap-1 bg-slate-100 p-1 rounded-xl mb-6 w-full overflow-x-auto">
+  {% for t, icon_d, label in [
+    ('ink',         'M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z', 'Ink'),
+    ('machine',     'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z', 'Machine'),
+    ('preferences', 'M3.75 6.75h16.5M3.75 12H12m-8.25 5.25h16.5', 'Preferences'),
+    ('data',        'M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125', 'Data'),
+  ] %}
+  <button @click="tab='{{ t }}'"
+          :class="tab==='{{ t }}' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'"
+          class="flex items-center gap-2 flex-1 justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap">
+    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="{{ icon_d }}"/>
+    </svg>
+    {{ label }}
+  </button>
+  {% endfor %}
+</div>
+
+{% if saved %}
+<div class="mb-5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2">
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+  {% if saved == 'reset' %}All data has been permanently deleted.{% else %}Settings saved successfully.{% endif %}
+</div>
+{% endif %}
+
+<!-- INK TAB -->
+<div x-show="tab==='ink'" x-cloak class="space-y-4">
+  <form method="POST" action="/settings/ink">
+    <div class="bg-white rounded-xl border border-slate-200 p-6">
+      <div class="flex items-start gap-3 mb-5">
+        <div class="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center shrink-0 mt-0.5">
+          <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <div class="font-semibold text-slate-900">Cartridge Capacity</div>
+          <div class="text-sm text-slate-500">Applies to all ink cost and usage calculations</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="number" name="cartridge_capacity_ml"
+                 value="{{ ink_global.cartridge_capacity_ml if ink_global else 100 }}"
+                 min="1" step="1"
+                 class="w-24 border border-slate-300 rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+          <span class="text-sm text-slate-500">ml</span>
+        </div>
+      </div>
+      <div class="border-t border-slate-100 pt-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-medium text-slate-800">White ink loaded</div>
+            <div class="text-xs text-slate-500 mt-0.5">Select which white ink cartridge is currently in your printer</div>
+          </div>
+          <div class="flex gap-2">
+            {% for val, label in [('W', 'White'), ('FW', 'Flexible White')] %}
+            <label class="cursor-pointer">
+              <input type="radio" name="white_loaded" value="{{ val }}"
+                     {% if (ink_global.white_loaded if ink_global else 'W') == val %}checked{% endif %}
+                     class="sr-only peer"/>
+              <span class="px-4 py-2 rounded-lg text-sm font-medium border transition-all
+                           peer-checked:bg-sky-500 peer-checked:text-white peer-checked:border-sky-500
+                           border-slate-200 text-slate-600 hover:border-slate-300">
+                {{ label }}
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-6">
+        <div class="flex items-start gap-3 mb-5">
+          <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 mt-0.5 text-slate-500 font-bold text-sm">{{ currency }}</div>
+          <div>
+            <div class="font-semibold text-slate-900">Ink Cost Setup</div>
+            <div class="text-sm text-slate-500">Cost per cartridge for each color ({{ ink_global.cartridge_capacity_ml | int if ink_global else 100 }}ml)</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+          {% for ch in ink_channels %}
+          {% set cfg = ink_cfgs.get(ch) %}
+          {% set price = cfg.price_per_cartridge if cfg else 45 %}
+          {% set cap   = ink_global.cartridge_capacity_ml if ink_global else 100 %}
+          <div>
+            <label class="block text-sm text-slate-600 mb-1.5">{{ ink_channel_names[ch] }}</label>
+            <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-sky-500">
+              <span class="text-slate-400 text-sm">{{ currency }}</span>
+              <input type="number" name="price_{{ ch }}" value="{{ price }}" min="0" step="0.01" class="flex-1 text-sm focus:outline-none"/>
+            </div>
+            <div class="text-xs text-slate-400 mt-1">{{ currency }}{{ '{:.2f}'.format(price / cap) }}/ml</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 p-6"
+           x-data="{
+             preprime: { {% for ch in ink_channels %}{{ ch }}: {{ ink_cfgs[ch].preprime_ml if ink_cfgs.get(ch) else 0 }}{% if not loop.last %}, {% endif %}{% endfor %} },
+             get totalMl() { return Object.values(this.preprime).reduce((a,b)=>a+parseFloat(b||0),0).toFixed(2); },
+             get totalCost() {
+               let t=0;
+               {% for ch in ink_channels %}
+               t += parseFloat(this.preprime['{{ ch }}']||0) * {{ (ink_cfgs[ch].price_per_cartridge / (ink_global.cartridge_capacity_ml or 1)) if ink_cfgs.get(ch) and ink_global else 0 }};
+               {% endfor %}
+               return t.toFixed(2);
+             }
+           }">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <div class="font-semibold text-slate-900">Pre-Prime Inputs</div>
+            <div class="text-sm text-slate-500">Ink used for priming before a print job</div>
+          </div>
+          <div class="flex gap-2 shrink-0">
+            <span class="text-xs font-medium text-sky-600 bg-sky-50 border border-sky-100 px-2 py-1 rounded-lg" x-text="totalMl + ' ml'"></span>
+            <span class="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg" x-text="'{{ currency }}' + totalCost"></span>
+          </div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 text-amber-700 text-xs rounded-lg px-3 py-2.5 mb-4">
+          <strong>Avoid double-counting:</strong> Most UV printers include pre-prime in reported usage. Only enable if your printer reports them separately.
+        </div>
+        <div class="grid grid-cols-2 gap-x-6 gap-y-3">
+          {% for ch in ink_channels %}
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full shrink-0" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+            <label class="text-sm text-slate-600 w-20 shrink-0">{{ ink_channel_names[ch] }}</label>
+            <input type="number" name="preprime_{{ ch }}" x-model="preprime['{{ ch }}']"
+                   min="0" step="0.1" placeholder="0"
+                   class="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit" class="flex items-center gap-2 bg-sky-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors">
+        Save Ink Settings
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- MACHINE TAB -->
+<div x-show="tab==='machine'" x-cloak>
+  <div class="bg-white rounded-xl border border-slate-200 p-6"
+       x-data="{
+         pp: {{ machine.purchase_price }},
+         sc: {{ machine.setup_cost }},
+         lh: {{ machine.lifespan_hours }},
+         ah: {{ machine.annual_hours }},
+         pw: {{ machine.power_watts }},
+         er: {{ machine.electricity_rate }},
+         am: {{ machine.annual_maintenance }},
+         get depreciationHr() { const t=parseFloat(this.pp||0)+parseFloat(this.sc||0); const l=parseFloat(this.lh||1); return l>0?t/l:0; },
+         get electricityHr()  { return (parseFloat(this.pw||0)/1000)*parseFloat(this.er||0); },
+         get maintenanceHr()  { const a=parseFloat(this.ah||1); return a>0?parseFloat(this.am||0)/a:0; },
+         get totalHr()        { return this.depreciationHr+this.electricityHr+this.maintenanceHr; },
+         get totalInvestment(){ return parseFloat(this.pp||0)+parseFloat(this.sc||0); },
+         fmt(v) { return parseFloat(v||0).toFixed(2); }
+       }">
+    <div class="font-semibold text-slate-900 mb-1">Machine Setup</div>
+    <div class="text-sm text-slate-500 mb-6">Printer depreciation, electricity, and maintenance costs</div>
+    <form method="POST" action="/settings/machine">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+        {% set fields = [
+          ('purchase_price',    'Purchase Price',                          'pp', currency, '0.01'),
+          ('setup_cost',        'Setup & Installation',                    'sc', currency, '0.01'),
+          ('lifespan_hours',    'Lifespan (hours)',                        'lh', '',       '1'),
+          ('power_watts',       'Power (watts)',                           'pw', '',       '1'),
+          ('electricity_rate',  'Electricity Rate (' ~ currency ~ '/kWh)','er', currency, '0.001'),
+          ('annual_maintenance','Maintenance Budget (annual)',             'am', currency, '0.01'),
+          ('annual_hours',      'Annual Print Hours',                     'ah', '',       '1'),
+        ] %}
+        {% for fname, label, xref, prefix, step in fields %}
+        <div>
+          <label class="block text-sm text-slate-600 mb-1.5">{{ label }}</label>
+          <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-sky-500">
+            {% if prefix %}<span class="text-slate-400 text-sm">{{ prefix }}</span>{% endif %}
+            <input type="number" name="{{ fname }}" x-model="{{ xref }}" min="0" step="{{ step }}" class="flex-1 text-sm focus:outline-none"/>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div class="bg-sky-50 border border-sky-200 rounded-xl p-4">
+          <div class="text-sm font-semibold text-sky-700 mb-3">Hourly Cost Breakdown</div>
+          <div class="grid grid-cols-3 gap-2 text-xs text-slate-500 mb-3">
+            <div><div class="font-medium text-slate-700">Depreciation</div>{{ currency }}<span x-text="fmt(depreciationHr)"></span>/hr</div>
+            <div><div class="font-medium text-slate-700">Electricity</div>{{ currency }}<span x-text="fmt(electricityHr)"></span>/hr</div>
+            <div><div class="font-medium text-slate-700">Maintenance</div>{{ currency }}<span x-text="fmt(maintenanceHr)"></span>/hr</div>
+          </div>
+          <div class="text-lg font-bold text-sky-700">{{ currency }}<span x-text="fmt(totalHr)"></span><span class="text-sm font-normal">/hr</span></div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <div class="text-sm font-semibold text-slate-700 mb-3">Total Machine Investment</div>
+          <div class="flex justify-between text-sm text-slate-500 mb-1">
+            <span>Purchase Price</span><span>{{ currency }}<span x-text="fmt(pp)"></span></span>
+          </div>
+          <div class="flex justify-between text-sm text-slate-500 mb-3" x-show="parseFloat(sc)>0">
+            <span>Setup &amp; Installation</span><span>{{ currency }}<span x-text="fmt(sc)"></span></span>
+          </div>
+          <div class="font-bold text-slate-900">Total: {{ currency }}<span x-text="fmt(totalInvestment)"></span></div>
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="bg-sky-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors">
+          Save Machine Settings
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- PREFERENCES TAB -->
+<div x-show="tab==='preferences'" x-cloak class="space-y-4">
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="font-semibold text-slate-900 mb-1">Profitability Thresholds</div>
+    <p class="text-sm text-slate-500 mb-5">Margin targets for the Review tab.</p>
+    <form method="POST" action="/settings/preferences">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div class="bg-slate-50 rounded-xl p-4">
+          <div class="text-sm font-semibold text-slate-700 mb-4">Retail</div>
+          {% for fname, label, val, color in [
+            ('retail_minimum', 'Minimum Margin', margins.retail_minimum, 'text-red-500'),
+            ('retail_target',  'Target Margin',  margins.retail_target,  'text-amber-500'),
+            ('retail_strong',  'Strong Margin',  margins.retail_strong,  'text-emerald-500'),
+          ] %}
+          <div class="flex items-center justify-between mb-3">
+            <label class="text-sm font-medium {{ color }}">{{ label }}</label>
+            <div class="flex items-center gap-1.5">
+              <input type="number" name="{{ fname }}" value="{{ val }}" min="0" max="100" step="1"
+                     class="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+              <span class="text-slate-500 text-sm">%</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="bg-slate-50 rounded-xl p-4">
+          <div class="text-sm font-semibold text-slate-700 mb-4">Wholesale</div>
+          {% for fname, label, val, color in [
+            ('wholesale_minimum', 'Minimum Margin', margins.wholesale_minimum, 'text-red-500'),
+            ('wholesale_target',  'Target Margin',  margins.wholesale_target,  'text-amber-500'),
+            ('wholesale_strong',  'Strong Margin',  margins.wholesale_strong,  'text-emerald-500'),
+          ] %}
+          <div class="flex items-center justify-between mb-3">
+            <label class="text-sm font-medium {{ color }}">{{ label }}</label>
+            <div class="flex items-center gap-1.5">
+              <input type="number" name="{{ fname }}" value="{{ val }}" min="0" max="100" step="1"
+                     class="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+              <span class="text-slate-500 text-sm">%</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="mt-5 pt-4 border-t border-slate-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm font-semibold text-slate-800">Inventory Alert Threshold</div>
+            <div class="text-xs text-slate-500 mt-0.5">Low-stock cartridge lot threshold used on Dashboard alerts.</div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input type="number" name="low_inventory_lot_pct"
+                   value="{{ (ink_global.low_inventory_lot_pct if ink_global and ink_global.low_inventory_lot_pct is not none else 25) }}"
+                   min="0" max="100" step="1"
+                   class="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+            <span class="text-slate-500 text-sm">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end mt-5">
+        <button type="submit" class="bg-sky-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors">Save Thresholds</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="font-semibold text-slate-900 mb-4">Display &amp; Regional</div>
+    <form method="POST" action="/settings/preferences/display">
+      <div class="flex items-center justify-between py-2">
+        <div>
+          <div class="text-sm font-medium text-slate-800">Currency</div>
+          <div class="text-xs text-slate-500 mt-0.5">Symbol shown on all prices and cost breakdowns</div>
+        </div>
+        <div class="flex gap-2">
+          {% for val, label in [('€', '€ Euro'), ('$', '$ Dollar')] %}
+          <label class="cursor-pointer">
+            <input type="radio" name="currency" value="{{ val }}"
+                   {% if (ink_global.currency if ink_global else '€') == val %}checked{% endif %}
+                   class="sr-only peer"/>
+            <span class="px-4 py-2 rounded-lg text-sm font-medium border transition-all
+                         peer-checked:bg-sky-500 peer-checked:text-white peer-checked:border-sky-500
+                         border-slate-200 text-slate-600 hover:border-slate-300">
+              {{ label }}
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="flex justify-end mt-4">
+        <button type="submit" class="bg-sky-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="font-semibold text-slate-900 mb-1">Auto Maintenance Sync</div>
+    <p class="text-sm text-slate-500 mb-5">Automatically log scheduled deep-clean/moisturizing events into Service Action Log.</p>
+    <form method="POST" action="/settings/preferences/automation" class="space-y-4">
+      <div class="flex items-center justify-between py-2">
+        <div>
+          <div class="text-sm font-medium text-slate-800">Enable auto logging</div>
+          <div class="text-xs text-slate-500 mt-0.5">Uses machine activity rules to log scheduled maintenance and update cartridge levels.</div>
+        </div>
+        <label class="inline-flex items-center cursor-pointer">
+          <input type="checkbox" name="auto_maintenance_log_enabled" value="true"
+                 {% if automation and automation.auto_maintenance_log_enabled %}checked{% endif %}
+                 class="sr-only peer">
+          <div class="relative w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-sky-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+        </label>
+      </div>
+
+      <div class="flex items-center justify-between py-2 border-t border-slate-100">
+        <div>
+          <div class="text-sm font-medium text-slate-800">Daily run time</div>
+          <div class="text-xs text-slate-500 mt-0.5">Time of day to create the automatic service log entry.</div>
+        </div>
+        <input type="time" name="auto_maintenance_log_time"
+               value="{{ automation.auto_maintenance_log_time if automation else '03:00' }}"
+               class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="bg-sky-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors">Save Auto Sync</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="font-semibold text-slate-900 mb-4">Labor &amp; Overhead</div>
+    <form method="POST" action="/settings/labor" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-slate-600 mb-1.5">Hourly Rate ({{ currency }}/hr)</label>
+          <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-sky-500">
+            <span class="text-slate-400 text-sm">{{ currency }}</span>
+            <input type="number" name="hourly_rate" value="{{ labor.hourly_rate }}" step="0.01" min="0" class="flex-1 text-sm focus:outline-none"/>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm text-slate-600 mb-1.5">Overhead (%)</label>
+          <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-sky-500">
+            <input type="number" name="overhead_pct" value="{{ labor.overhead_pct }}" step="0.1" min="0" max="200" class="flex-1 text-sm focus:outline-none text-right"/>
+            <span class="text-slate-400 text-sm">%</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="bg-sky-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors">Save Labor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DATA TAB -->
+<div x-show="tab==='data'" x-cloak class="space-y-4" x-data="dbPanel()" x-init="$watch('tab', v => { if(v==='data') load() }); if(tab==='data') load()">
+
+  <!-- Connection Status card -->
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div class="font-semibold text-slate-900">Database Connection</div>
+      <button type="button" @click="load()"
+              class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300 rounded-lg px-3 py-1.5 transition-colors">
+        <svg class="w-4 h-4" :class="loading && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+        </svg>
+        Test Connection
+      </button>
+    </div>
+
+    <!-- Status row -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
+        <span class="text-sm text-slate-500">Engine</span>
+        <span class="text-sm font-medium">
+          <template x-if="status">
+            <span :class="status.type==='postgresql' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'"
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <span x-text="status.type==='postgresql' ? '🐘 PostgreSQL' : '🗄️ SQLite'"></span>
+              <template x-if="status.fallback">
+                <span class="bg-amber-200 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full">FALLBACK</span>
+              </template>
+            </span>
+          </template>
+          <template x-if="!status && !loading"><span class="text-slate-400 text-xs">—</span></template>
+        </span>
+      </div>
+      <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
+        <span class="text-sm text-slate-500">URL</span>
+        <code class="text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded" x-text="status ? status.url_display : '…'"></code>
+      </div>
+      <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
+        <span class="text-sm text-slate-500">Status</span>
+        <span x-show="loading" class="text-xs text-slate-400">Testing…</span>
+        <template x-if="!loading && status">
+          <span :class="status.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'"
+                class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full">
+            <span x-text="status.ok ? '✓ Connected' : '✗ Error'"></span>
+          </span>
+        </template>
+      </div>
+      <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
+        <span class="text-sm text-slate-500">Latency</span>
+        <span class="text-sm font-medium text-slate-700" x-text="status && status.latency_ms !== null ? status.latency_ms + ' ms' : '—'"></span>
+      </div>
+      <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
+        <span class="text-sm text-slate-500">Alembic Revision</span>
+        <span class="text-sm font-medium text-slate-700" x-text="status && status.alembic_revision ? status.alembic_revision : 'Not initialized'"></span>
+      </div>
+      <div class="flex items-center justify-between py-2.5">
+        <span class="text-sm text-slate-500">Database Size</span>
+        <span class="text-sm font-medium text-slate-700" x-text="status && status.size_bytes !== null ? fmtSize(status.size_bytes) : '—'"></span>
+      </div>
+    </div>
+
+    <div x-show="status && status.fallback" class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+      <strong>Running on SQLite fallback.</strong>
+      PostgreSQL was unreachable at startup — data written now won't be in PostgreSQL.
+      Restart the app once the database server is available.
+    </div>
+    <div x-show="errorMsg" class="mt-3 text-xs text-red-500" x-text="errorMsg"></div>
+  </div>
+
+  <!-- Current data stats -->
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="text-sm font-medium text-slate-600 mb-3">Current Data</div>
+    <div class="flex flex-wrap gap-3">
+      <span class="bg-indigo-100 text-indigo-700 text-sm font-medium px-3 py-1.5 rounded-lg">
+        {{ stats.projects }} project{% if stats.projects != 1 %}s{% endif %}
+      </span>
+      <span class="bg-indigo-100 text-indigo-700 text-sm font-medium px-3 py-1.5 rounded-lg">
+        {{ stats.replacements }} replacement{% if stats.replacements != 1 %}s{% endif %}
+      </span>
+      <span class="bg-indigo-100 text-indigo-700 text-sm font-medium px-3 py-1.5 rounded-lg">
+        {{ stats.maintenance }} maintenance event{% if stats.maintenance != 1 %}s{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- Backup & Restore card -->
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="font-semibold text-slate-900 mb-4">Backup &amp; Restore</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- Backup -->
+      <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+          </svg>
+          <span class="font-medium text-sm text-slate-700">Download Backup</span>
+        </div>
+        <p class="text-xs text-slate-400 mb-3">Exports all data as a JSON file — projects, settings, templates, materials, and service logs.</p>
+        <a href="/settings/backup"
+           class="inline-flex items-center gap-2 bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+          </svg>
+          Download .json
+        </a>
+      </div>
+
+      <!-- Restore -->
+      <div class="bg-slate-50 rounded-xl border border-slate-200 p-4" x-data="{restoring:false, restoreMsg:'', restoreErr:''}">
+        <div class="flex items-center gap-2 mb-1">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+          </svg>
+          <span class="font-medium text-sm text-slate-700">Restore from Backup</span>
+        </div>
+        <p class="text-xs text-slate-400 mb-3">Upload a previously downloaded backup JSON. <strong class="text-red-500">Replaces all current data.</strong></p>
+        <input type="file" accept=".json" x-ref="restoreFile"
+               class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300 mb-3"/>
+        <button type="button" :disabled="restoring"
+                @click="
+                  const f = $refs.restoreFile.files[0];
+                  if (!f) return;
+                  if (!confirm('This will REPLACE all current data with the backup. Continue?')) return;
+                  restoring=true; restoreMsg=''; restoreErr='';
+                  const fd = new FormData(); fd.append('file', f);
+                  fetch('/settings/restore', {method:'POST', body:fd})
+                    .then(r=>r.json())
+                    .then(d=>{ if(d.ok){ restoreMsg='Restore complete — reloading…'; setTimeout(()=>location.reload(),1200); } else { restoreErr=d.error||'Restore failed'; } })
+                    .catch(e=>{ restoreErr=String(e); })
+                    .finally(()=>{ restoring=false; })"
+                class="flex items-center gap-2 border border-slate-300 bg-white text-slate-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors">
+          <svg class="w-4 h-4" :class="restoring && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+          </svg>
+          <span x-text="restoring ? 'Restoring…' : 'Restore'"></span>
+        </button>
+        <div x-show="restoreMsg" class="mt-2 text-xs text-emerald-600 font-medium" x-text="restoreMsg"></div>
+        <div x-show="restoreErr" class="mt-2 text-xs text-red-500" x-text="restoreErr"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="bg-white rounded-xl border border-red-200 p-6">
+    <div class="flex items-center gap-2 mb-2">
+      <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+      </svg>
+      <span class="font-semibold text-red-600">Danger Zone</span>
+    </div>
+    <p class="text-sm text-red-500 mb-4">Factory reset — permanently delete all projects, maintenance logs, and cartridge replacements. Settings are preserved.</p>
+    <form method="POST" action="/settings/reset"
+          onsubmit="return confirm('This will permanently delete ALL projects, replacements, and maintenance events. Settings are kept. Are you sure?')">
+      <button type="submit" class="flex items-center gap-2 border border-red-300 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+        Reset All Data
+      </button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+function dbPanel() {
+  return {
+    status: null, loading: false, errorMsg: '',
+    async load() {
+      this.loading = true; this.errorMsg = '';
+      try {
+        const r = await fetch('/api/db-status');
+        this.status = await r.json();
+      } catch(e) { this.errorMsg = String(e); }
+      finally { this.loading = false; }
+    },
+    fmtSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+      return (bytes/1048576).toFixed(2) + ' MB';
+    },
+  };
+}
+</script>
+
+</div><!-- end x-data tab container -->
+{% endblock %}
