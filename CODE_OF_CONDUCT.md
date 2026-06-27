@@ -12,4 +12,4 @@ Project maintainers may remove comments, lock threads, or block contributors for
 
 ## Reporting
 
-Report conduct issues to: conduct@codebyit.dev
+Report conduct issues privately by email to: codebyit.conduct@gmail.com

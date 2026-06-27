@@ -4,7 +4,9 @@
 
 Please do not open a public issue for security vulnerabilities.
 
-Report privately by email to: security@codebyit.dev
+Report privately using GitHub's [Private Vulnerability Reporting](https://github.com/codebyit/inktracker/security/advisories/new). This keeps the report confidential and notifies the maintainers directly.
+
+If you are unable to use that channel, you can email: codebyit.conduct@gmail.com
 
 Include:
 - Affected version
