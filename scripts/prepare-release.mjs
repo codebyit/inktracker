@@ -17,7 +17,7 @@
  *
  * It does NOT commit, tag, or push.
  */
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -52,11 +52,16 @@ execFileSync(process.execPath, [join(root, "scripts", "sync-version.mjs")], {
 });
 
 const clPath = join(root, "CHANGELOG.md");
-if (!existsSync(clPath)) {
-  console.warn("CHANGELOG.md not found — skipping changelog update.");
-  process.exit(0);
+let cl;
+try {
+  cl = readFileSync(clPath, "utf8");
+} catch (err) {
+  if (err.code === "ENOENT") {
+    console.warn("CHANGELOG.md not found — skipping changelog update.");
+    process.exit(0);
+  }
+  throw err;
 }
-let cl = readFileSync(clPath, "utf8");
 const heading = `## [${version}] — ${date}`;
 const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
