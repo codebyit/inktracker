@@ -58,7 +58,7 @@ if (!existsSync(clPath)) {
 }
 let cl = readFileSync(clPath, "utf8");
 const heading = `## [${version}] — ${date}`;
-const escaped = version.replace(/\./g, "\\.");
+const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 if (new RegExp(`^##\\s*\\[?${escaped}\\]?`, "im").test(cl)) {
   console.log(`CHANGELOG already has an entry for ${version}; leaving it as-is.`);
