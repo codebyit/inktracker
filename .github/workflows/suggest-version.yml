@@ -1,0 +1,71 @@
+name: Suggest Next Version
+
+# Hybrid release step 1 (see VERSIONING.md): inspects Conventional Commits since the
+# last v* tag and SUGGESTS the next SemVer. It does NOT tag or modify anything.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  suggest:
+    name: Suggest next SemVer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute suggestion
+        run: |
+          set -euo pipefail
+          CURRENT="$(tr -d '\n' < VERSION)"
+          LAST_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)"
+          if [ -z "$LAST_TAG" ]; then
+            RANGE=""
+          else
+            RANGE="${LAST_TAG}..HEAD"
+          fi
+
+          SUBJECTS="$(git log ${RANGE} --pretty=format:'%s' || true)"
+          BODIES="$(git log ${RANGE} --pretty=format:'%b' || true)"
+
+          BUMP="none"
+          if echo "$SUBJECTS" | grep -qE '^[a-z]+(\(.+\))?!:' || echo "$BODIES" | grep -q 'BREAKING CHANGE'; then
+            BUMP="major"
+          elif echo "$SUBJECTS" | grep -qE '^feat(\(.+\))?:'; then
+            BUMP="minor"
+          elif echo "$SUBJECTS" | grep -qE '^(fix|perf)(\(.+\))?:'; then
+            BUMP="patch"
+          fi
+
+          IFS='.' read -r MA MI PA <<< "${CURRENT%%[-+]*}"
+          case "$BUMP" in
+            major) NEXT="$((MA+1)).0.0" ;;
+            minor) NEXT="${MA}.$((MI+1)).0" ;;
+            patch) NEXT="${MA}.${MI}.$((PA+1))" ;;
+            none)  NEXT="$CURRENT" ;;
+          esac
+
+          {
+            echo "## Suggested next version"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Current \`VERSION\` | \`${CURRENT}\` |"
+            echo "| Last release tag | \`${LAST_TAG:-none}\` |"
+            echo "| Detected bump | **${BUMP}** |"
+            echo "| Suggested next | **\`${NEXT}\`** |"
+            echo ""
+            if [ "$BUMP" = "none" ]; then
+              echo "_No \`feat\`/\`fix\`/breaking commits since the last release — no release needed._"
+            else
+              echo "Run the **Release** workflow with \`version=${NEXT}\` to cut it (a human must confirm)."
+            fi
+            echo ""
+            echo "### Commits considered"
+            echo '```'
+            echo "${SUBJECTS:-<none>}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
