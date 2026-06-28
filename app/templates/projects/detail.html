@@ -113,6 +113,36 @@
     </div>
     {% endif %}
 
+    <!-- Craft Faces (multi-craft projects) -->
+    {% if project.has_multiple_crafts %}
+    <div class="bg-white rounded-xl border border-slate-200 p-6">
+      <h2 class="text-sm font-semibold text-slate-700 mb-4">Craft Faces ({{ project.crafts|length }})</h2>
+      <div class="space-y-3">
+        {% for c in project.crafts %}
+        <div class="border border-slate-200 rounded-lg p-4">
+          <div class="flex items-center justify-between mb-2 gap-2">
+            <span class="font-medium text-slate-800">{{ c.variant_name }}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 font-medium shrink-0">
+              {{ c.craft_mode }}{% if c.craft_ink_mode %} &middot; {{ c.craft_ink_mode }}{% endif %}
+            </span>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {% for ch, ml in c.ink_usage.items() %}
+            <div class="flex items-center gap-1.5 bg-slate-50 rounded-lg px-2.5 py-1.5">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+              <span class="text-xs font-medium text-slate-700">{{ INK_CHANNEL_NAMES[ch] }}</span>
+              <span class="text-xs text-slate-500">{{ '{:.2f}'.format(ml) }} ml</span>
+            </div>
+            {% else %}
+            <span class="text-xs text-slate-400 italic">No ink recorded for this face</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     <!-- BOM -->
     {% if project.bom_items %}
     <div class="bg-white rounded-xl border border-slate-200 p-6">

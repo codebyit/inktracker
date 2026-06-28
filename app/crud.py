@@ -1,9 +1,10 @@
 import json
+import os
 from datetime import datetime
 from collections import defaultdict
 from sqlalchemy import func as sa_func
 from sqlalchemy.orm import Session
-from . import models
+from . import models, schemas
 from .models import INK_CHANNELS, SERVICE_CHANNELS, INK_CHANNEL_DEFAULT_CAPACITY
 from .cogs import calculate_cogs, margin_status, ink_level_pct, ink_level_status
 
@@ -241,6 +242,10 @@ def get_settings_json(db: Session) -> dict:
             "strong": margins.retail_strong,
             "target": margins.retail_target,
         },
+        # Feature flag (dark-launch): enables the multi-craft faces UI in the wizard.
+        # Controlled per-environment via the MULTI_CRAFT_ENABLED env var (off by default).
+        "multi_craft_enabled": (os.environ.get("MULTI_CRAFT_ENABLED", "").strip().lower()
+                                in {"1", "true", "yes", "on"}),
     }
 
 
@@ -302,6 +307,57 @@ def get_trash_projects(db: Session) -> list:
     )
 
 
+def _resolve_project_crafts(
+    *,
+    crafts_json: str,
+    ink_usage: dict,
+    craft_mode: str,
+    craft_ink_mode: str,
+    craft_mode_params_json: str,
+    ink_mode: str,
+    layer_stack_json: str,
+    print_time_hours: float,
+) -> tuple[list, dict, dict, str]:
+    """Reconcile multi-craft input with legacy single-craft fields.
+
+    Returns ``(crafts, effective_ink_usage, legacy_fields, crafts_json_store)``.
+
+    - If ``crafts_json`` carries variants, the summed per-craft ink becomes the
+      authoritative project ink usage (keeping ``ProjectInkUsage`` as the
+      cartridge-tracking source of truth) and the legacy single-craft fields are
+      synced from ``crafts[0]``.
+    - Otherwise a single "Primary" variant is synthesized from the legacy fields
+      plus ``ink_usage`` so every project reads back uniformly as a craft list.
+    """
+    crafts = schemas.parse_crafts(crafts_json)
+    if crafts:
+        effective_ink = schemas.sum_ink_across_crafts(crafts)
+        primary = crafts[0]
+        legacy = {
+            "craft_mode": primary.craft_mode,
+            "craft_ink_mode": primary.craft_ink_mode,
+            "craft_mode_params_json": json.dumps(primary.craft_mode_params),
+        }
+    else:
+        primary = schemas.synthesize_primary_craft(
+            craft_mode=craft_mode,
+            craft_ink_mode=craft_ink_mode,
+            craft_mode_params_json=craft_mode_params_json,
+            ink_mode=ink_mode,
+            layer_stack_json=layer_stack_json,
+            ink_usage=ink_usage,
+            print_time_hours=print_time_hours,
+        )
+        crafts = [primary]
+        effective_ink = dict(ink_usage)
+        legacy = {
+            "craft_mode": craft_mode,
+            "craft_ink_mode": craft_ink_mode,
+            "craft_mode_params_json": craft_mode_params_json,
+        }
+    return crafts, effective_ink, legacy, schemas.crafts_to_json(crafts)
+
+
 def create_project(
     db: Session,
     name: str,
@@ -324,10 +380,25 @@ def create_project(
     substrate: str = "",
     white_choke_mm: float = 0.20,
     layer_stack_json: str = "[]",
+    crafts_json: str = "[]",
     status: str = "Draft",
     project_type: str = "commercial",
 ) -> models.Project:
     substrate_normalized = (substrate or "").strip()
+    crafts, ink_usage, _legacy, crafts_store = _resolve_project_crafts(
+        crafts_json=crafts_json,
+        ink_usage=ink_usage,
+        craft_mode=craft_mode,
+        craft_ink_mode=craft_ink_mode,
+        craft_mode_params_json=craft_mode_params_json,
+        ink_mode=ink_mode,
+        layer_stack_json=layer_stack_json,
+        print_time_hours=print_time_hours,
+    )
+    craft_mode             = _legacy["craft_mode"]
+    craft_ink_mode         = _legacy["craft_ink_mode"]
+    craft_mode_params_json = _legacy["craft_mode_params_json"]
+    print_time_hours       = schemas.rolled_up_print_hours(crafts, print_time_hours)
     machine_cfg = get_machine_config(db)
     ink_cfgs    = get_ink_configs(db)
     labor_cfg   = get_labor_config(db)
@@ -368,6 +439,7 @@ def create_project(
         craft_mode=craft_mode, craft_ink_mode=craft_ink_mode,
         craft_mode_params_json=craft_mode_params_json, substrate=substrate_normalized,
         white_choke_mm=white_choke_mm, layer_stack_json=layer_stack_json,
+        crafts_json=crafts_store,
         ink_cost=cogs["ink_cost"],      bom_cost=cogs["bom_cost"],
         machine_cost=cogs["machine_cost"], labor_cost=cogs["labor_cost"],
         overhead_cost=cogs["overhead_cost"], total_cogs=cogs["total_cogs"],
@@ -437,6 +509,7 @@ def update_project(
     substrate: str = "",
     white_choke_mm: float = 0.20,
     layer_stack_json: str = "[]",
+    crafts_json: str = "[]",
     status: str = None,
     project_type: str = None,
 ) -> models.Project | None:
@@ -447,6 +520,21 @@ def update_project(
     old_substrate = (project.substrate or "").strip()
     old_units = int(project.units or 0)
     new_substrate = (substrate or "").strip()
+
+    crafts, ink_usage, _legacy, crafts_store = _resolve_project_crafts(
+        crafts_json=crafts_json,
+        ink_usage=ink_usage,
+        craft_mode=craft_mode,
+        craft_ink_mode=craft_ink_mode,
+        craft_mode_params_json=craft_mode_params_json,
+        ink_mode=ink_mode,
+        layer_stack_json=layer_stack_json,
+        print_time_hours=print_time_hours,
+    )
+    craft_mode             = _legacy["craft_mode"]
+    craft_ink_mode         = _legacy["craft_ink_mode"]
+    craft_mode_params_json = _legacy["craft_mode_params_json"]
+    print_time_hours       = schemas.rolled_up_print_hours(crafts, print_time_hours)
 
     machine_cfg = get_machine_config(db)
     ink_cfgs    = get_ink_configs(db)
@@ -491,6 +579,7 @@ def update_project(
     project.craft_mode          = craft_mode
     project.craft_ink_mode      = craft_ink_mode
     project.craft_mode_params_json = craft_mode_params_json
+    project.crafts_json         = crafts_store
     project.substrate           = new_substrate
     project.white_choke_mm      = white_choke_mm
     project.layer_stack_json    = layer_stack_json
@@ -647,6 +736,7 @@ def duplicate_project(db: Session, project_id: int) -> models.Project | None:
         craft_mode=p.craft_mode or "Flat",
         craft_ink_mode=p.craft_ink_mode or "",
         craft_mode_params_json=p.craft_mode_params_json or "{}",
+        crafts_json=p.crafts_json or "[]",
         substrate=p.substrate or "",
         white_choke_mm=p.white_choke_mm or 0.20,
         layer_stack_json=p.layer_stack_json or "[]",
@@ -667,7 +757,21 @@ def create_template(
     craft_ink_mode: str,
     craft_mode_params_json: str,
     layer_stack_json: str,
+    crafts_json: str = "[]",
 ) -> models.PrintTemplate:
+    crafts, _ink, _legacy, crafts_store = _resolve_project_crafts(
+        crafts_json=crafts_json,
+        ink_usage={},
+        craft_mode=craft_mode,
+        craft_ink_mode=craft_ink_mode,
+        craft_mode_params_json=craft_mode_params_json,
+        ink_mode=ink_mode,
+        layer_stack_json=layer_stack_json,
+        print_time_hours=0.0,
+    )
+    craft_mode             = _legacy["craft_mode"]
+    craft_ink_mode         = _legacy["craft_ink_mode"]
+    craft_mode_params_json = _legacy["craft_mode_params_json"]
     t = models.PrintTemplate(
         name=name, print_bed=print_bed, alignment=alignment,
         material=material, substrate=substrate, print_quality=print_quality,
@@ -675,6 +779,7 @@ def create_template(
         ink_mode=ink_mode, craft_ink_mode=craft_ink_mode,
         craft_mode_params_json=craft_mode_params_json,
         layer_stack_json=layer_stack_json,
+        crafts_json=crafts_store,
     )
     db.add(t)
     db.commit()
