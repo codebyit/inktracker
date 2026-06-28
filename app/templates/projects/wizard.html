@@ -350,7 +350,7 @@ function wizardData() {
     },
 
     printWorksheet() {
-      const esc = s => s==null ? '' : String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const esc = s => (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
       const cur = '{{ currency }}';
       const d   = new Date().toLocaleDateString('en-GB');
       const ptS = `${this.printH||0}h ${this.printM||0}m ${this.printS||0}s`;
