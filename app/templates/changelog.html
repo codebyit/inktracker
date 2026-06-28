@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Changelog{% endblock %}
+
+{% block page_title %}Changelog{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="space-y-8">
+    <!-- v0.9.0 -->
+    <div class="border-l-4 border-sky-600 pl-6 py-4">
+      <h2 class="text-2xl font-bold text-slate-900 mb-2">
+        v0.9.0 – Multi-Craft Support
+      </h2>
+      <p class="text-sm text-slate-500 mb-4">Released 2026-06-28</p>
+
+      <div class="space-y-4">
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">New Features</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li><strong>Multiple craft modes per project</strong> – Define different finishes for each face (e.g., 2-sided case: Side A = Flat Raised, Side B = Flat)</li>
+            <li>Craft variant breakdown in project detail view</li>
+            <li>Enhanced wizard UX for multi-face projects</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Technical Updates</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li>Tailwind CSS v4 for faster builds and improved styling</li>
+            <li>Multi-craft data persistence in SQLAlchemy models</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Security</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li>Hardened the project print worksheet against cross-site scripting (XSS) by escaping all user- and config-derived values</li>
+            <li>Removed a file-access race condition in the release tooling</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Compatibility</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li>All existing single-craft projects work unchanged</li>
+            <li>Multi-craft is opt-in via project toggle in the wizard</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- v0.6.8 -->
+    <div class="border-l-4 border-sky-500 pl-6 py-4">
+      <h2 class="text-2xl font-bold text-slate-900 mb-2">
+        v0.6.8 – Project Metadata Persistence
+      </h2>
+      <p class="text-sm text-slate-500 mb-4">Released 2026-06-15</p>
+
+      <div class="space-y-4">
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Improvements</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li>Project metadata (material, craft mode) now persisted across edits</li>
+            <li>Craft ink mode synced into active ink-mode calculations</li>
+            <li>SQLite migration compatibility fixes</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- v0.6.7 -->
+    <div class="border-l-4 border-sky-500 pl-6 py-4">
+      <h2 class="text-2xl font-bold text-slate-900 mb-2">
+        v0.6.7 – Security &amp; Craft Mode Enhancements
+      </h2>
+      <p class="text-sm text-slate-500 mb-4">Released 2026-06-01</p>
+
+      <div class="space-y-4">
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Improvements</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li>Expanded craft mode controls (Flat Raised, Pattern Texture, Relief Texture, Customize)</li>
+            <li>GitHub Actions security pipeline (Bandit + pip-audit)</li>
+            <li>Startup reliability diagnostics and migration timeout guards</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
