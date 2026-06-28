@@ -350,7 +350,7 @@ function wizardData() {
     },
 
     printWorksheet() {
-      const esc = s => s==null ? '' : String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      const esc = s => (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
       const cur = '{{ currency }}';
       const d   = new Date().toLocaleDateString('en-GB');
       const ptS = `${this.printH||0}h ${this.printM||0}m ${this.printS||0}s`;
@@ -393,7 +393,7 @@ function wizardData() {
   </div>
   <div>
     <div style="margin-bottom:6px"><span class="lbl">Date: </span><span class="val">${d}</span></div>
-    <div style="margin-bottom:6px"><span class="lbl">Units: </span><span class="val">${this.units}</span></div>
+    <div style="margin-bottom:6px"><span class="lbl">Units: </span><span class="val">${esc(this.units)}</span></div>
     <div style="margin-bottom:6px"><span class="lbl">Print Time: </span><span class="val">${ptS}</span></div>
     <div style="margin-bottom:6px"><span class="lbl">Hands-On: </span><span class="val">${hoS}</span></div>
   </div>
@@ -414,7 +414,7 @@ function wizardData() {
     <tr><td><strong>Materials</strong></td><td>Ink Cost + BOM Cost</td><td>${cur}${this.fmt((this.inkCost+this.bomTotal)/u)}</td></tr>
     <tr><td><strong>Machine</strong></td><td>(Print Time &divide; 60) &times; Rate/hr</td><td>${cur}${this.fmt(this.machineCost/u)}</td></tr>
     <tr><td><strong>Labor</strong></td><td>(Hands-On &divide; 60) &times; Rate/hr</td><td>${cur}${this.fmt(this.laborCost/u)}</td></tr>
-    <tr><td><strong>Overhead</strong></td><td>(Sum above) &times; ${this.cfg.labor.overhead_pct}%</td><td>${cur}${this.fmt(this.overheadCost/u)}</td></tr>
+    <tr><td><strong>Overhead</strong></td><td>(Sum above) &times; ${esc(this.cfg.labor.overhead_pct)}%</td><td>${cur}${this.fmt(this.overheadCost/u)}</td></tr>
     <tr><td colspan="2"><strong>TOTAL COGS</strong></td><td><strong>${cur}${this.fmt(this.cogsPerUnit)}</strong></td></tr>
     </table>
     <h2>Pricing</h2>
