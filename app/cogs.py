@@ -37,6 +37,21 @@ def machine_cost_breakdown(cfg: models.MachineConfig) -> dict:
     }
 
 
+def _ink_cost_for_usage(ink_usage: dict, ink_cfgs: dict) -> float:
+    """Ink cost for a {channel: ml} usage map using per-channel cartridge pricing.
+
+    Shared by calculate_cogs (project total) and craft_variant_breakdown
+    (per-variant) so both always use the identical pricing formula. For a
+    single-craft project the variant ink_cost therefore equals the project total.
+    """
+    cost = 0.0
+    for channel, ml in (ink_usage or {}).items():
+        cfg = ink_cfgs.get(channel)
+        if cfg and cfg.cartridge_capacity_ml > 0:
+            cost += float(ml) * (cfg.price_per_cartridge / cfg.cartridge_capacity_ml)
+    return cost
+
+
 def calculate_cogs(
     ink_usage: dict,        # {channel: ml_used} — total for the batch
     bom_total: float,       # total BOM cost for the batch
@@ -48,11 +63,7 @@ def calculate_cogs(
     units: int,
 ) -> dict:
     # Ink cost (batch)
-    ink_cost = 0.0
-    for channel, ml in ink_usage.items():
-        cfg = ink_cfgs.get(channel)
-        if cfg and cfg.cartridge_capacity_ml > 0:
-            ink_cost += float(ml) * (cfg.price_per_cartridge / cfg.cartridge_capacity_ml)
+    ink_cost = _ink_cost_for_usage(ink_usage, ink_cfgs)
 
     # Machine cost (batch)
     cost_per_hr = machine_cost_per_hour(machine_cfg)
@@ -79,6 +90,28 @@ def calculate_cogs(
         "total_cogs":    round(total_cogs, 4),
         "cogs_per_unit": round(cogs_per_unit, 4),
     }
+
+
+def craft_variant_breakdown(crafts, ink_cfgs: dict) -> list:
+    """Per-variant cost breakdown for display (project detail view).
+
+    ``crafts`` is a list of schemas.CraftVariant. Each variant's ink_cost uses
+    _ink_cost_for_usage, the same formula as the project total, so the sum of
+    variant ink costs equals the project ink_cost (regression invariant).
+    """
+    rows = []
+    for c in crafts:
+        usage = getattr(c, "ink_usage", {}) or {}
+        rows.append({
+            "variant_name":     getattr(c, "variant_name", "Primary"),
+            "craft_mode":       getattr(c, "craft_mode", "Flat"),
+            "craft_ink_mode":   getattr(c, "craft_ink_mode", ""),
+            "ink_mode":         getattr(c, "ink_mode", "CMYK"),
+            "ink_ml":           round(sum(float(v) for v in usage.values()), 2),
+            "ink_cost":         round(_ink_cost_for_usage(usage, ink_cfgs), 4),
+            "print_time_hours": round(float(getattr(c, "print_time_hours", 0.0) or 0.0), 4),
+        })
+    return rows
 
 
 def margin_status(margin_pct: float, margin_cfg: models.MarginConfig) -> str:

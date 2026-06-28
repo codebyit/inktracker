@@ -73,6 +73,7 @@ async def project_create(
     substrate:           str   = Form(""),
     white_choke_mm:      float = Form(0.20),
     layer_stack_json:    str   = Form("[]"),
+    crafts_json:         str   = Form("[]"),
     status:              str   = Form("Draft"),
     project_type:        str   = Form("commercial"),
 ):
@@ -106,6 +107,7 @@ async def project_create(
         craft_mode=craft_mode, craft_ink_mode=craft_ink_mode,
         craft_mode_params_json=craft_mode_params_json, substrate=substrate,
         white_choke_mm=white_choke_mm, layer_stack_json=layer_stack_json,
+        crafts_json=crafts_json,
         status=status,
         project_type=project_type,
     )
@@ -150,6 +152,7 @@ def project_edit_form(project_id: int, request: Request, db: Session = Depends(g
         "craft_mode":          project.craft_mode or "Flat",
         "craft_ink_mode":      project.craft_ink_mode or "",
         "craft_mode_params_json": project.craft_mode_params_json or "{}",
+        "crafts_json":         project.crafts_json or "[]",
         "substrate":           project.substrate or "",
         "white_choke_mm":      project.white_choke_mm or 0.20,
         "layer_stack_json":    project.layer_stack_json or "[]",
@@ -195,6 +198,7 @@ async def project_update(
     substrate:           str   = Form(""),
     white_choke_mm:      float = Form(0.20),
     layer_stack_json:    str   = Form("[]"),
+    crafts_json:         str   = Form("[]"),
     status:              str   = Form("Draft"),
     project_type:        str   = Form("commercial"),
 ):
@@ -227,6 +231,7 @@ async def project_update(
         craft_mode=craft_mode, craft_ink_mode=craft_ink_mode,
         craft_mode_params_json=craft_mode_params_json, substrate=substrate,
         white_choke_mm=white_choke_mm, layer_stack_json=layer_stack_json,
+        crafts_json=crafts_json,
         status=status,
         project_type=project_type,
     )
@@ -332,6 +337,7 @@ def template_list_api(db: Session = Depends(get_db)):
         "craft_mode": t.craft_mode, "ink_mode": t.ink_mode,
         "craft_ink_mode": t.craft_ink_mode,
         "craft_mode_params_json": t.craft_mode_params_json,
+        "crafts_json": t.crafts_json,
         "layer_stack_json": t.layer_stack_json,
     } for t in ts])
 
@@ -351,6 +357,7 @@ async def template_create_api(request: Request, db: Session = Depends(get_db)):
         ink_mode=data.get("ink_mode", "CMYK"),
         craft_ink_mode=data.get("craft_ink_mode", ""),
         craft_mode_params_json=data.get("craft_mode_params_json", "{}"),
+        crafts_json=data.get("crafts_json", "[]"),
         layer_stack_json=data.get("layer_stack_json", "[]"),
     )
     return JSONResponse({"ok": True})

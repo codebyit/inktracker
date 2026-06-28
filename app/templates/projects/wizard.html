@@ -76,6 +76,12 @@ function wizardData() {
     inkMode: 'CMYK',
     layerStack: [{name:'CMYK', qty:1}],
 
+    // Multi-craft faces (feature-flagged via MULTI_CRAFT_ENABLED env var).
+    // Side A is defined by the standard controls above; extraCrafts holds Side B, C…
+    multiCraftFlag: cfg.multi_craft_enabled === true,
+    multiCraftEnabled: false,
+    extraCrafts: [],
+
     // Step 2 – Project Details
     name: '',
     units: 1,
@@ -333,6 +339,81 @@ function wizardData() {
     rmBom(i) { this.bomItems.splice(i,1); },
     fmt(v)   { return parseFloat(v||0).toFixed(2); },
     go(n)    { this.step=n; window.scrollTo(0,0); },
+
+    // ── Multi-craft faces ──────────────────────────────────────────────
+    get isMultiCraftActive() {
+      return this.multiCraftFlag && this.multiCraftEnabled && this.extraCrafts.length > 0;
+    },
+    makeExtraCraft(i) {
+      return {
+        variant_name: 'Side ' + String.fromCharCode(66 + i),  // B, C, D…
+        craftMode: 'Flat',
+        craftInkMode: '',
+        inkMode: 'CMYK',
+        thickness: 0.3,
+        inkUsage: {C:0,M:0,Y:0,K:0,W:0,GL:0,FW:0},
+      };
+    },
+    addExtraCraft() { this.extraCrafts.push(this.makeExtraCraft(this.extraCrafts.length)); },
+    removeExtraCraft(i) { this.extraCrafts.splice(i, 1); },
+    extraFaceHasParams(face) {
+      return ['Flat Raised','Pattern Texture','Relief Texture','Customize Texture'].includes(face.craftMode);
+    },
+    extraFaceInkModes(face) {
+      return this.craftModeSettings[face.craftMode]?.availableInkModes || [];
+    },
+    setExtraCraftMode(face, mode) {
+      face.craftMode = mode;
+      const settings = this.craftModeSettings[mode];
+      if (settings && settings.availableInkModes.length) {
+        face.craftInkMode = settings.defaultInkMode || '';
+        face.inkMode = this.craftInkModeMap[face.craftInkMode] || 'CMYK';
+      } else {
+        face.craftInkMode = '';
+        face.inkMode = 'CMYK';
+      }
+    },
+    setExtraCraftInkMode(face, im) {
+      face.craftInkMode = im;
+      face.inkMode = this.craftInkModeMap[im] || 'CMYK';
+    },
+    extraFaceChannels(face) {
+      const base = this.inkModeChannels[face.inkMode] || ['C','M','Y','K'];
+      const wl = this.whiteLoaded;
+      return base.map(ch => (ch==='W'&&wl==='FW')?'FW':(ch==='FW'&&wl==='W')?'W':ch);
+    },
+    cleanInk(obj) {
+      const out = {};
+      for (const [ch, ml] of Object.entries(obj || {})) {
+        const v = parseFloat(ml || 0);
+        if (v > 0) out[ch] = v;
+      }
+      return out;
+    },
+    buildCraftsJson() {
+      if (!this.isMultiCraftActive) return '[]';
+      const primary = {
+        variant_name: 'Side A',
+        craft_mode: this.craftMode,
+        craft_ink_mode: this.selectedCraftInkMode || '',
+        ink_mode: this.inkMode,
+        craft_mode_params: this.isCraftModeWithParameters
+          ? (this.craftModeParams[this.craftMode]?.[this.selectedCraftInkMode] || {}) : {},
+        layer_stack: this.layerStack,
+        ink_usage: this.cleanInk(this.inkUsage),
+      };
+      const extras = this.extraCrafts.map((f, i) => ({
+        variant_name: (f.variant_name || '').trim() || ('Side ' + String.fromCharCode(66 + i)),
+        craft_mode: f.craftMode,
+        craft_ink_mode: f.craftInkMode || '',
+        ink_mode: f.inkMode,
+        craft_mode_params: this.extraFaceHasParams(f) ? {thickness: parseFloat(f.thickness || 0)} : {},
+        layer_stack: [],
+        ink_usage: this.cleanInk(f.inkUsage),
+      }));
+      return JSON.stringify([primary, ...extras]);
+    },
+
     submit() {
       document.getElementById('ink_usage_json').value = JSON.stringify(this.inkUsage);
       document.getElementById('bom_json').value = JSON.stringify(
@@ -346,6 +427,7 @@ function wizardData() {
       document.getElementById('f_substrate').value   = this.substrate;
       document.getElementById('f_white_choke').value = this.whiteChoke;
       document.getElementById('f_layer_stack').value = JSON.stringify(this.layerStack);
+      document.getElementById('f_crafts_json').value = this.buildCraftsJson();
       document.getElementById('wizard-form').submit();
     },
 
@@ -482,6 +564,23 @@ ${bomRows}
         name: i.name, qty: i.qty, unit: i.unit || 'pcs', unitCost: i.unitCost || 0, category: 'Other'
       }));
       this.projectType = proj.project_type || 'commercial';
+      // Hydrate additional craft faces (Side B+) from crafts_json.
+      if (proj.crafts_json) {
+        try {
+          const arr = JSON.parse(proj.crafts_json || '[]');
+          if (Array.isArray(arr) && arr.length > 1) {
+            this.multiCraftEnabled = true;
+            this.extraCrafts = arr.slice(1).map((c, i) => ({
+              variant_name: c.variant_name || ('Side ' + String.fromCharCode(67 + i)),
+              craftMode: c.craft_mode || 'Flat',
+              craftInkMode: c.craft_ink_mode || '',
+              inkMode: c.ink_mode || 'CMYK',
+              thickness: (c.craft_mode_params && c.craft_mode_params.thickness) || 0.3,
+              inkUsage: Object.assign({C:0,M:0,Y:0,K:0,W:0,GL:0,FW:0}, c.ink_usage || {}),
+            }));
+          }
+        } catch (_) {}
+      }
       }
       if (this.isCraftModeWithParameters && !this.selectedCraftInkMode) {
         this.selectedCraftInkMode = this.craftModeSettings[this.craftMode]?.defaultInkMode || '';
@@ -550,22 +649,22 @@ ${bomRows}
 <div class="max-w-6xl mx-auto" x-data="wizardData()" x-init="init()">
 
   <!-- ── Top Tab Bar ──────────────────────────────────── -->
-  <div class="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 mb-5 w-fit shadow-sm">
+  <div class="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 mb-5 w-fit shadow-xs">
     <button type="button" @click="tab='editor'"
             class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-            :class="tab==='editor' ? 'bg-teal-500 text-white shadow' : 'text-slate-600 hover:bg-slate-100'">
+            :class="tab==='editor' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/></svg>
       Editor
     </button>
     <button type="button" @click="tab='templates'"
             class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-            :class="tab==='templates' ? 'bg-teal-500 text-white shadow' : 'text-slate-600 hover:bg-slate-100'">
+            :class="tab==='templates' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25"/></svg>
       Templates
     </button>
     <button type="button" @click="tab='materials'"
             class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-            :class="tab==='materials' ? 'bg-teal-500 text-white shadow' : 'text-slate-600 hover:bg-slate-100'">
+            :class="tab==='materials' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg>
       Materials
     </button>
@@ -655,7 +754,7 @@ ${bomRows}
         <div class="flex gap-2">
           <input type="text" x-model="newCatName" placeholder="New category name…"
                  @keydown.enter="addCat()"
-                 class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"/>
+                 class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
           <button type="button" @click="addCat()" :disabled="!newCatName.trim()"
                   class="flex items-center gap-1.5 bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 disabled:opacity-40 transition-colors">
             <span class="text-base leading-none">+</span> Add
@@ -670,7 +769,7 @@ ${bomRows}
       <div class="flex-1 relative">
         <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
         <input type="text" x-model="filterQ" placeholder="Filter materials…"
-               class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"/>
+               class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
       </div>
       <button type="button" @click="sortDir=sortDir==='asc'?'desc':'asc'"
               class="flex items-center gap-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors shrink-0">
@@ -678,7 +777,7 @@ ${bomRows}
           <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5h18M3 12h12M3 16.5h6"/>
         </svg>
       </button>
-      <select x-model="sortBy" class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+      <select x-model="sortBy" class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
         <option value="category">Category</option>
         <option value="name">Name</option>
         <option value="unit_cost">Cost</option>
@@ -731,15 +830,15 @@ ${bomRows}
               <!-- Edit row -->
               <div x-show="editingId === item.id" class="grid grid-cols-12 gap-2 items-center px-4 py-2.5 bg-violet-50 border-l-2 border-violet-400">
                 <input type="text" x-model="editForm.name" placeholder="Item name"
-                       class="col-span-4 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"/>
+                       class="col-span-4 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
                 <select x-model="editForm.category"
-                        class="col-span-3 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                        class="col-span-3 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
                   <template x-for="cat in categories" :key="cat.name">
                     <option :value="cat.name" x-text="cat.name"></option>
                   </template>
                 </select>
                 <input type="number" x-model="editForm.unit_cost" min="0" step="0.01" placeholder="0.00"
-                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 text-right"/>
+                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 text-right"/>
                 <div class="col-span-3 flex justify-end gap-1.5">
                   <button type="button" @click="saveEdit(item.id)"
                           class="bg-violet-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-colors">Save</button>
@@ -758,15 +857,15 @@ ${bomRows}
         <div x-show="showAddForm" class="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-dashed border-amber-200">
           <input type="text" x-model="addForm.name" placeholder="Material name"
                  @keydown.enter="saveAdd()"
-                 class="col-span-4 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"/>
+                 class="col-span-4 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
           <select x-model="addForm.category"
-                  class="col-span-3 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                  class="col-span-3 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
             <template x-for="cat in categories" :key="cat.name">
               <option :value="cat.name" x-text="cat.name"></option>
             </template>
           </select>
           <input type="number" x-model="addForm.unit_cost" min="0" step="0.01" placeholder="0.00"
-                 class="col-span-2 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 text-right"/>
+                 class="col-span-2 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 text-right"/>
           <div class="col-span-3 flex justify-end gap-1.5">
             <button type="button" @click="saveAdd()" :disabled="!addForm.name.trim()"
                     class="bg-violet-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-700 disabled:opacity-40 transition-colors">Add</button>
@@ -938,6 +1037,7 @@ ${bomRows}
       <input type="hidden" name="substrate"         id="f_substrate"/>
       <input type="hidden" name="white_choke_mm"    id="f_white_choke"/>
       <input type="hidden" name="layer_stack_json"  id="f_layer_stack"/>
+      <input type="hidden" name="crafts_json"       id="f_crafts_json"/>
       <input type="file" name="photo" id="photo-input"
              accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
              @change="photoName = $event.target.files[0]?.name || ''"/>
@@ -1024,13 +1124,13 @@ ${bomRows}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Material (Print Setting) <span class="text-slate-400 font-normal cursor-help" title="The material category you&#39;re printing on (e.g., Ceramics, Wood, Acrylic). Used for analytics grouping and profitability reports.">&#9432;</span></label>
-              <select x-model="material" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+              <select x-model="material" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
                 <template x-for="m in materials" :key="m"><option :value="m" x-text="m"></option></template>
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Substrate (Physical Material) <span class="text-slate-400 font-normal cursor-help" title="The physical item you are printing on. Saved for your records and shown on the project detail page.">&#9432;</span></label>
-              <select x-model="substrate" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+              <select x-model="substrate" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
                 <template x-for="m in materials" :key="m"><option :value="m" x-text="m"></option></template>
               </select>
             </div>
@@ -1045,7 +1145,7 @@ ${bomRows}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Quality <span class="text-slate-400 font-normal cursor-help" title="Print quality affects speed and ink consumption">&#9432;</span></label>
-              <select x-model="printQuality" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+              <select x-model="printQuality" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
                 {% for q in print_qualities %}<option value="{{ q }}">{{ q }}</option>{% endfor %}
               </select>
             </div>
@@ -1100,7 +1200,7 @@ ${bomRows}
                   </div>
                   <div x-show="selectedCraftInkMode==='White (Foil Stamping)'">
                     <label class="block text-sm font-semibold text-violet-700 mb-2">Foil Type</label>
-                    <select x-model="currentCraftModeParams.foilType" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white">
+                    <select x-model="currentCraftModeParams.foilType" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
                       <option value="Gold">Gold</option>
                       <option value="Silver">Silver</option>
                     </select>
@@ -1221,7 +1321,7 @@ ${bomRows}
                     <label class="block text-sm font-semibold text-violet-700 mb-2">Depth Map Notes</label>
                     <input type="text" x-model="currentCraftModeParams.depthMapNotes"
                            placeholder="Filename or notes about the depth map used..."
-                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"/>
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
                   </div>
                 </div>
               </template>
@@ -1232,7 +1332,7 @@ ${bomRows}
           <div x-show="!isCraftModeWithParameters">
             <label class="block text-sm font-medium text-slate-700 mb-1.5">Ink Mode <span class="text-slate-400 font-normal cursor-help" title="Order and combination of ink channels used in this print">&#9432;</span></label>
             <select x-model="inkMode" @change="setInkMode($event.target.value)"
-                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
               {% for mode in ink_modes %}<option value="{{ mode }}">{{ mode }}</option>{% endfor %}
             </select>
           </div>
@@ -1246,7 +1346,7 @@ ${bomRows}
             </div>
             <div x-show="inkMode==='Customize'" class="mb-2">
               <select x-model="customLayerChoice" @change="addCustomLayer()"
-                      class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                      class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
                 <option value="">Add layer type...</option>
                 <template x-for="layerType in customLayerTypes" :key="layerType">
                   <option :value="layerType" x-text="layerType"></option>
@@ -1268,6 +1368,98 @@ ${bomRows}
                   </div>
                 </div>
               </template>
+            </div>
+          </div>
+
+          <!-- ── Multiple Craft Faces (feature-flagged) ── -->
+          <div x-show="multiCraftFlag" class="border-t border-slate-200 pt-4">
+            <label class="flex items-center justify-between cursor-pointer select-none">
+              <span class="text-sm font-medium text-slate-700">
+                Multiple Craft Modes
+                <span class="text-slate-400 font-normal cursor-help" title="Enable when one project has multiple faces/sides with different craft modes (e.g. a 2-sided case where one side is Flat Raised and the other is Flat). Each face tracks its own ink usage; the project cost sums all faces.">&#9432;</span>
+              </span>
+              <button type="button" @click="multiCraftEnabled=!multiCraftEnabled"
+                      class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0"
+                      :class="multiCraftEnabled?'bg-teal-500':'bg-slate-300'">
+                <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                      :class="multiCraftEnabled?'translate-x-6':'translate-x-1'"></span>
+              </button>
+            </label>
+
+            <div x-show="multiCraftEnabled" class="mt-3 space-y-3">
+              <div class="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 leading-relaxed">
+                The settings above define <strong>Side A</strong>. Add more faces below &mdash; each with its own craft mode and ink usage. The project's total ink and cost sum every face.
+              </div>
+
+              <template x-for="(face, fi) in extraCrafts" :key="fi">
+                <div class="border border-violet-200 rounded-lg p-3 space-y-3 bg-violet-50/40">
+                  <div class="flex items-center justify-between gap-2">
+                    <input type="text" x-model="face.variant_name" placeholder="Face name"
+                           class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+                    <button type="button" @click="removeExtraCraft(fi)"
+                            class="text-slate-400 hover:text-red-500 transition-colors shrink-0" title="Remove face">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+
+                  <!-- Craft Mode -->
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="cm in craftModes" :key="cm">
+                      <button type="button" @click="setExtraCraftMode(face, cm)"
+                              class="border rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                              :class="face.craftMode===cm?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'"
+                              x-text="cm"></button>
+                    </template>
+                  </div>
+
+                  <!-- Craft ink mode (param modes) -->
+                  <div x-show="extraFaceHasParams(face)" class="flex flex-wrap gap-2">
+                    <template x-for="im in extraFaceInkModes(face)" :key="im">
+                      <button type="button" @click="setExtraCraftInkMode(face, im)"
+                              class="border rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                              :class="face.craftInkMode===im?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'"
+                              x-text="im"></button>
+                    </template>
+                  </div>
+
+                  <!-- Thickness (param modes) -->
+                  <div x-show="extraFaceHasParams(face)">
+                    <label class="block text-xs font-semibold text-violet-700 mb-1">Thickness
+                      <span class="float-right font-bold" x-text="parseFloat(face.thickness||0).toFixed(1)+'mm'"></span>
+                    </label>
+                    <input type="range" x-model.number="face.thickness" min="0.3" max="5.0" step="0.1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                  </div>
+
+                  <!-- Standard ink mode (Flat) -->
+                  <div x-show="!extraFaceHasParams(face)">
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Ink Mode</label>
+                    <select x-model="face.inkMode"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
+                      {% for mode in ink_modes %}<option value="{{ mode }}">{{ mode }}</option>{% endfor %}
+                    </select>
+                  </div>
+
+                  <!-- Per-channel ink usage -->
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Ink Usage (ml)</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <template x-for="ch in extraFaceChannels(face)" :key="ch">
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-xs font-medium text-slate-500 w-12 shrink-0" x-text="channelNames[ch]||ch"></span>
+                          <input type="number" min="0" step="0.01" x-model.number="face.inkUsage[ch]"
+                                 class="flex-1 min-w-0 border border-slate-300 rounded-lg px-2 py-1 text-sm text-right focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <button type="button" @click="addExtraCraft()"
+                      class="w-full flex items-center justify-center gap-2 py-2 border border-dashed border-violet-300 rounded-lg text-sm font-medium text-violet-600 hover:bg-violet-50 transition-colors">
+                <span class="text-base leading-none font-bold">+</span> Add Craft Face
+              </button>
             </div>
           </div>
 
@@ -1295,7 +1487,7 @@ ${bomRows}
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Project Name *</label>
               <input type="text" x-model="name" placeholder="Enter project name"
-                     class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"/>
+                     class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Project Photo <span class="text-slate-400 font-normal cursor-help" title="Optional photo">&#9432;</span></label>
@@ -1309,30 +1501,30 @@ ${bomRows}
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1.5">Details / Description</label>
             <textarea x-model="notes" maxlength="150" rows="2" placeholder="Enter project details and description"
-                      class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"></textarea>
+                      class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 resize-none"></textarea>
             <div class="text-xs text-slate-400 text-right mt-0.5"><span x-text="notes.length"></span>/150</div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Print Time</label>
               <div class="flex gap-1">
-                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">H</div><input type="number" x-model="printH" min="0" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-center"/></div>
-                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">M</div><input type="number" x-model="printM" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-center"/></div>
-                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">S</div><input type="number" x-model="printS" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">H</div><input type="number" x-model="printH" min="0" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">M</div><input type="number" x-model="printM" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">S</div><input type="number" x-model="printS" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
               </div>
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Hands-on Time</label>
               <div class="flex gap-1">
-                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">H</div><input type="number" x-model="handsH" min="0" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-center"/></div>
-                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">M</div><input type="number" x-model="handsM" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-center"/></div>
-                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">S</div><input type="number" x-model="handsS" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">H</div><input type="number" x-model="handsH" min="0" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">M</div><input type="number" x-model="handsM" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">S</div><input type="number" x-model="handsS" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
               </div>
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Units <span class="text-slate-400 font-normal cursor-help" title="Items produced in this batch">&#9432;</span></label>
               <input type="number" x-model="units" min="1" step="1" placeholder="1"
-                     class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"/>
+                     class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
               <p class="text-xs text-slate-400 mt-1">Required for cost/unit</p>
             </div>
           </div>
@@ -1352,7 +1544,7 @@ ${bomRows}
                 <button type="button" @click="includePreprime=!includePreprime"
                         class="relative inline-flex w-10 h-5 rounded-full transition-colors"
                         :class="includePreprime?'bg-teal-500':'bg-slate-300'">
-                  <span class="inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform mt-0.5"
+                  <span class="inline-block w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform mt-0.5"
                         :class="includePreprime?'translate-x-5':'translate-x-0.5'"></span>
                 </button>
               </div>
@@ -1366,7 +1558,7 @@ ${bomRows}
                     <label class="text-xs font-medium text-slate-600" x-text="channelNames[ch]"></label>
                   </div>
                   <input type="number" x-model="inkUsage[ch]" min="0" step="0.01" placeholder="0.00"
-                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-right"/>
+                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-right"/>
                 </div>
               </template>
             </div>
@@ -1395,16 +1587,16 @@ ${bomRows}
             <template x-for="(item, i) in bomItems" :key="i">
               <div class="grid grid-cols-12 gap-2 items-center">
                 <input type="text" x-model="item.name" placeholder="Item name"
-                       class="col-span-4 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"/>
-                <select x-model="item.category" class="col-span-3 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                       class="col-span-4 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
+                <select x-model="item.category" class="col-span-3 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
                   <template x-for="cat in ['Substrate','Packaging','Finishing','Consumable','Other']" :key="cat">
                     <option :value="cat" x-text="cat"></option>
                   </template>
                 </select>
                 <input type="number" x-model="item.unitCost" min="0" step="0.01" placeholder="0.00"
-                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-right"/>
+                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-right"/>
                 <input type="number" x-model="item.qty" min="0" step="1" placeholder="1"
-                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-right"/>
+                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-right"/>
                 <button @click="rmBom(i)" type="button" class="col-span-1 text-slate-400 hover:text-red-500 transition-colors text-center">&#10005;</button>
               </div>
             </template>
@@ -1445,7 +1637,7 @@ ${bomRows}
             <div class="mb-4" x-show="projectType === 'commercial'">
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Sell Price per Unit ({{ currency }})</label>
               <input type="number" x-model="sellPricePerUnit" min="0" step="0.01"
-                     class="w-full sm:w-48 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"/>
+                     class="w-full sm:w-48 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
             </div>
             <div class="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
               <div class="flex justify-between text-slate-600"><span>Ink cost (batch)</span><span>{{ currency }}<span x-text="fmt(inkCost)"></span></span></div>
@@ -1484,7 +1676,7 @@ ${bomRows}
             <div class="flex gap-2">
               <input type="text" x-model="templateName" placeholder="Template name…"
                      @keydown.enter="saveTemplate()"
-                     class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"/>
+                     class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
               <button type="button" @click="saveTemplate()" :disabled="!templateName.trim()||templateSaving"
                       class="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-600 disabled:opacity-50 transition-colors"
                       x-text="templateSaving?'Saving…':'Save'"></button>

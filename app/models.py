@@ -164,6 +164,9 @@ class Project(Base):
     craft_mode          = Column(String(30), default="Flat")
     craft_ink_mode      = Column(String(50), default="")
     craft_mode_params_json = Column(Text, default="{}")
+    # Multi-craft: JSON array of craft variants (see schemas.CraftVariant).
+    # Authoritative for multi-craft projects; legacy fields above mirror crafts[0].
+    crafts_json         = Column(Text, default="[]")
     substrate           = Column(String(50), default="")
     white_choke_mm      = Column(Float, default=0.20)
     layer_stack_json    = Column(Text, default="[]")
@@ -207,6 +210,32 @@ class Project(Base):
             return f"{m}m {s:02d}s"
         return f"{s}s"
 
+    @property
+    def crafts(self):
+        """Craft variants for this project (parsed from crafts_json).
+
+        Falls back to a synthesized "Primary" variant built from the legacy
+        single-craft fields for rows created before multi-craft support.
+        """
+        from .schemas import parse_crafts, synthesize_primary_craft
+        parsed = parse_crafts(self.crafts_json)
+        if parsed:
+            return parsed
+        return [synthesize_primary_craft(
+            craft_mode=self.craft_mode,
+            craft_ink_mode=self.craft_ink_mode,
+            craft_mode_params_json=self.craft_mode_params_json,
+            ink_mode=self.ink_mode,
+            layer_stack_json=self.layer_stack_json,
+            ink_usage={u.channel: u.ml_used for u in self.ink_usage},
+            print_time_hours=self.print_time_hours or 0.0,
+        )]
+
+    @property
+    def has_multiple_crafts(self) -> bool:
+        from .schemas import parse_crafts
+        return len(parse_crafts(self.crafts_json)) > 1
+
 
 class ProjectInkUsage(Base):
     __tablename__ = "project_ink_usage"
@@ -243,6 +272,8 @@ class PrintTemplate(Base):
     craft_mode       = Column(String(30), default="Flat")
     craft_ink_mode   = Column(String(50), default="")
     craft_mode_params_json = Column(Text, default="{}")
+    # Multi-craft: JSON array of craft variants (see schemas.CraftVariant).
+    crafts_json      = Column(Text, default="[]")
     ink_mode         = Column(String(50), default="CMYK")
     layer_stack_json = Column(Text, default="[]")
 
