@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 ARG VERSION=0.0.0
 ARG COMMIT_SHA=unknown
