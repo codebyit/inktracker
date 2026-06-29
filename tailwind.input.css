@@ -1,0 +1,171 @@
+@import 'tailwindcss';
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+/* ============================================================
+   InkTrack custom theme — preserved through Tailwind builds
+   ============================================================ */
+
+:root {
+	--ink-bg: #020617;
+	--ink-surface: #0c1524;
+	--ink-surface-soft: #121e30;
+	--ink-border: #2a3f5a;
+	--ink-text: #e8edf2;
+	--ink-text-dim: #9ab0c8;
+	--ink-accent: #22d3ee;
+}
+
+html.light {
+	--ink-bg: #f1f5f9;
+	--ink-surface: #ffffff;
+	--ink-surface-soft: #f8fafc;
+	--ink-border: #e2e8f0;
+	--ink-text: #0f172a;
+	--ink-text-dim: #475569;
+	--ink-accent: #0891b2;
+}
+html.light body {
+	background: #f1f5f9;
+	color: #0f172a;
+}
+html.light header {
+	background-color: rgba(248, 250, 252, 0.95) !important;
+	border-color: #e2e8f0 !important;
+}
+html.light header [class*="text-slate-100"],
+html.light header [class*="text-slate-200"],
+html.light header h1 {
+	color: #0f172a !important;
+}
+html.light header [class*="text-slate-400"] {
+	color: #64748b !important;
+}
+html.light header button:hover {
+	background-color: #e2e8f0 !important;
+}
+html.light aside [class*="text-slate-400"],
+html.light aside [class*="text-slate-500"] {
+	color: #94a3b8 !important;
+}
+html.light #bottom-nav {
+	background-color: #f8fafc !important;
+	border-color: #e2e8f0 !important;
+}
+html.light #bottom-nav [class*="text-slate-500"] {
+	color: #64748b !important;
+}
+html.light #bottom-nav [class*="text-cyan-300"] {
+	color: #0891b2 !important;
+}
+
+body {
+	font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+	background: radial-gradient(1200px 700px at 20% -10%, #0f172a 0%, var(--ink-bg) 58%);
+	color: var(--ink-text);
+}
+
+[class*="bg-white"],
+[class*="bg-slate-50"],
+[class*="bg-slate-100"] {
+	background-color: var(--ink-surface) !important;
+}
+
+[class*="text-slate-900"],
+[class*="text-slate-800"],
+[class*="text-slate-700"] {
+	color: var(--ink-text) !important;
+}
+
+[class*="text-slate-600"],
+[class*="text-slate-500"],
+[class*="text-slate-400"] {
+	color: var(--ink-text-dim) !important;
+}
+
+[class*="border-slate-200"],
+[class*="border-slate-300"],
+[class*="border-slate-700"] {
+	border-color: var(--ink-border) !important;
+}
+
+input,
+select,
+textarea {
+	background-color: var(--ink-surface-soft) !important;
+	color: var(--ink-text) !important;
+	border-color: var(--ink-border) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+	color: var(--ink-text-dim) !important;
+}
+
+button,
+a[class*="bg-"] {
+	transition: all 180ms ease;
+}
+
+a[class*="bg-indigo"],
+button[class*="bg-indigo"] {
+	background-color: var(--ink-accent) !important;
+	color: #082f49 !important;
+}
+
+[class*="hover:bg-indigo"]:hover {
+	background-color: #67e8f9 !important;
+}
+
+/* ── Table row / cell hover visibility (dark mode fix) ───────────────────── */
+/* The substrate selector [class*="bg-slate-50/100"] makes hover:bg-slate-50  */
+/* and hover:bg-slate-100 resolve to the same colour as the card background.  */
+/* These rules restore a perceptible hover highlight.                         */
+[class*="hover:bg-slate-50"]:hover,
+[class*="hover:bg-slate-100"]:hover {
+	background-color: var(--ink-surface-soft) !important;
+}
+html.light [class*="hover:bg-slate-50"]:hover {
+	background-color: #f8fafc !important;
+}
+html.light [class*="hover:bg-slate-100"]:hover {
+	background-color: #f1f5f9 !important;
+}
+
+/* ── Ink bar entrance animations ─────────────────────────────────────────── */
+
+@keyframes inkRise {
+	from { transform: scaleY(0); }
+	to   { transform: scaleY(1); }
+}
+
+@keyframes inkFill {
+	from { transform: scaleX(0); }
+	to   { transform: scaleX(1); }
+}
+
+.ink-bar-fill {
+	animation: inkRise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+	transform-origin: bottom;
+}
+
+.ink-bar-h-fill {
+	animation: inkFill 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+	transform-origin: left;
+}

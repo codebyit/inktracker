@@ -1,0 +1,65 @@
+name: Release
+
+# Hybrid release step 2 (see VERSIONING.md): a human runs this with the version
+# confirmed from "Suggest Next Version". It bumps VERSION + package.json, updates
+# CHANGELOG.md, commits, and creates the annotated v* tag.
+#
+# NOTE: a push made with the default GITHUB_TOKEN does not trigger other workflows,
+# and `main` is branch-protected. Add a repo secret RELEASE_PAT — a PAT belonging to
+# an admin who can bypass protection (enforce_admins is currently off) — so the bump
+# commit and tag can be pushed. Otherwise run this on a branch and open a release PR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (SemVer, no leading v), e.g. 0.10.0"
+        required: true
+        type: string
+      date:
+        description: "Release date (YYYY-MM-DD); blank = today"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Cut release v${{ inputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Prepare release (VERSION + package.json + CHANGELOG)
+        run: node scripts/prepare-release.mjs "${{ inputs.version }}" "${{ inputs.date }}"
+
+      - name: Validate guards
+        run: npm run version:check
+
+      - name: Commit, tag, and push
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add VERSION package.json CHANGELOG.md
+          git commit -m "chore(release): v${VERSION}"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin HEAD
+          git push origin "v${VERSION}"
+
+      - name: Summary
+        run: |
+          echo "Released **v${{ inputs.version }}**." >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "${{ secrets.RELEASE_PAT }}" ]; then
+            echo "> ⚠️ Tag pushed with GITHUB_TOKEN — re-push it to trigger downstream CI." >> "$GITHUB_STEP_SUMMARY"
+          fi

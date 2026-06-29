@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Runtime
+*.log
+uploads/
+postgres_data/
+redis_data/
+
+# Node
+node_modules/
+
+# generated wiki build
+build/
+
+# local db
+*.db

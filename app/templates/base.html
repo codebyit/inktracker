@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}{{ app_name }}{% endblock %}{% if app_owner %} — {{ app_owner }}{% endif %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/app.css"/>
+  <script data-cfasync="false">
+    // Apply saved theme before any layout paint
+    (function(){if(localStorage.getItem('inktrack-theme')==='light')document.documentElement.classList.add('light');})();
+  </script>
+  <link rel="manifest" href="/manifest.json"/>
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png"/>
+  <meta name="theme-color" content="#4f46e5"/>
+  
+  <!-- iOS/Apple PWA Support -->
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="{{ app_name }}"/>
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png"/>
+  
+  <!-- Windows Tile Support -->
+  <meta name="msapplication-TileColor" content="#4f46e5"/>
+  <meta name="msapplication-TileImage" content="/static/icons/icon-192.png"/>
+  
+  <script data-cfasync="false" src="/static/vendor/chart.umd.min.js"></script>
+  <script data-cfasync="false" defer src="/static/vendor/alpine.min.js"></script>
+  <script data-cfasync="false" defer src="/static/vendor/jsqr.js"></script>
+  <script data-cfasync="false">
+    if (window.Chart) {
+      Chart.defaults.color = '#cbd5e1';
+      Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.2)';
+      Chart.defaults.plugins.legend.labels.color = '#cbd5e1';
+      Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+      Chart.defaults.plugins.tooltip.titleColor = '#f8fafc';
+      Chart.defaults.plugins.tooltip.bodyColor = '#e2e8f0';
+      Chart.defaults.plugins.tooltip.borderColor = 'rgba(100, 116, 139, 0.5)';
+      Chart.defaults.plugins.tooltip.borderWidth = 1;
+    }
+  </script>
+  {% block head %}{% endblock %}
+  <script data-cfasync="false">
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then((reg) => {
+        console.log('[PWA] Service Worker registered successfully');
+        console.log('[PWA] Scope:', reg.scope);
+        // Listen for updates
+        reg.addEventListener('updatefound', () => {
+          console.log('[PWA] New service worker version available');
+        });
+      }).catch((err) => {
+        console.log('[PWA] Service Worker registration failed:', err);
+      });
+    } else {
+      console.log('[PWA] Service Workers not supported in this browser');
+    }
+  </script>
+</head>
+<body class="bg-slate-950 min-h-screen flex text-slate-100 antialiased"
+      x-data="{
+        mobileMenuOpen: false,
+        themeLight: localStorage.getItem('inktrack-theme') === 'light',
+        toggleTheme() {
+          this.themeLight = !this.themeLight;
+          localStorage.setItem('inktrack-theme', this.themeLight ? 'light' : 'dark');
+          document.documentElement.classList.toggle('light', this.themeLight);
+        },
+        isOnline: true,
+        async probeConnectivity() {
+          if (!navigator.onLine) {
+            this.isOnline = false;
+            return;
+          }
+          try {
+            // Heartbeat against same-origin static asset to avoid false
+            // offline flags in some DEV browser/network setups.
+            const response = await fetch('/manifest.json', {
+              method: 'GET',
+              cache: 'no-store',
+              headers: { 'x-inktracker-probe': '1' },
+            });
+            this.isOnline = response.ok;
+          } catch (_) {
+            this.isOnline = false;
+          }
+        },
+        initConnectivity() {
+          this.probeConnectivity();
+          window.addEventListener('online', () => this.probeConnectivity());
+          window.addEventListener('offline', () => { this.isOnline = false; });
+          window.addEventListener('focus', () => this.probeConnectivity());
+          setInterval(() => this.probeConnectivity(), 30000);
+        },
+      }"
+      x-init="initConnectivity()">
+
+  <!-- Offline banner -->
+  <div x-show="!isOnline" x-cloak x-transition.opacity
+       class="fixed top-0 left-0 right-0 z-[60] bg-amber-500 text-white text-center text-sm font-medium py-2 px-4 shadow-lg flex items-center justify-center gap-2">
+    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m-3.536-3.536a4 4 0 010-5.656M12 12h.01M5.636 18.364a9 9 0 010-12.728M9.172 14.828a4 4 0 010-5.656"/>
+    </svg>
+    <span>You're offline. Changes won't be saved until reconnected.</span>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="hidden lg:flex w-56 bg-slate-950 text-white flex-col fixed inset-y-0 left-0 z-20 shrink-0 border-r border-slate-800/80">
+    <div class="px-4 py-3 border-b border-slate-800/90">
+      <div class="flex items-center gap-3">
+        <img src="/static/intrack_logo.png" alt="{{ app_name }}" class="w-10 h-10 rounded-lg shrink-0 object-contain"/>
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-bold text-white leading-tight">{{ app_name }}</div>
+          <div class="text-[10px] text-slate-500 mt-0.5">@codeby_lt</div>
+        </div>
+        <a href="https://ko-fi.com/codebylt" target="_blank" rel="noopener noreferrer"
+           title="Buy me a coffee"
+           class="shrink-0 p-1 rounded text-[#FF5E5B] hover:text-[#ff7b78] hover:bg-slate-900 transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.5 3H6c-1.1 0-2 .9-2 2v5.71c0 3.83 2.95 7.18 6.78 7.29 3.96.12 7.22-3.06 7.22-7v-1h.5c1.93 0 3.5-1.57 3.5-3.5S20.43 3 18.5 3zm0 5H18V5h.5c.83 0 1.5.67 1.5 1.5S19.33 8 18.5 8zM4 19h16v2H4v-2z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto text-sm">
+      {% set nav = [
+        ('/', 'Dashboard',
+         'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'),
+        ('/projects', 'Projects',
+         'M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z'),
+        ('/projects/new', 'New Project',
+         'M12 4.5v15m7.5-7.5h-15'),
+        ('/analytics', 'Analytics',
+         'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z'),
+        ('/service', 'Service',
+         'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z'),
+        ('/inventory', 'Inventory',
+         'M3.75 3h16.5A1.5 1.5 0 0121.75 4.5v15a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5v-15A1.5 1.5 0 013.75 3zm2.25 4.5h12m-12 4.5h12m-12 4.5h7.5'),
+        ('/settings', 'Settings',
+         'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z'),
+        ('/documentation', 'Documentation',
+         'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25'),
+      ] %}
+      {% for href, label, icon_d in nav %}
+      <a href="{{ href }}"
+         class="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+         {% if active == href %}bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/30{% else %}text-slate-400 hover:bg-slate-900 hover:text-slate-100{% endif %}">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="{{ icon_d }}"/>
+        </svg>
+        {{ label }}
+      </a>
+      {% endfor %}
+    </nav>
+
+    <div class="px-5 py-4 border-t border-slate-800/90 text-xs text-slate-500">
+      <div class="font-medium mb-1">{{ app_name }}</div>
+      <a href="/changelog" class="text-[10px] text-sky-400 hover:text-sky-300 hover:underline transition-colors">
+        {{ app_version if app_version else 'unknown' }} (changelog)
+      </a>
+    </div>
+  </aside>
+
+  <!-- Mobile slide-in drawer -->
+  <div x-show="mobileMenuOpen" x-cloak
+       class="lg:hidden fixed inset-0 z-40"
+       @keydown.escape.window="mobileMenuOpen=false">
+    <div class="absolute inset-0 bg-slate-900/60" @click="mobileMenuOpen=false"></div>
+    <div class="absolute inset-y-0 left-0 w-64 bg-slate-950 text-white flex flex-col shadow-2xl border-r border-slate-800/80"
+         @click.stop>
+      <div class="px-4 py-3 border-b border-slate-800/90">
+        <div class="flex items-center gap-3">
+          <img src="/static/intrack_logo.png" alt="{{ app_name }}" class="w-10 h-10 rounded-lg shrink-0 object-contain"/>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-bold text-white leading-tight">{{ app_name }}</div>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="text-[10px] text-slate-500">@codeby_lt</span>
+              <a href="https://ko-fi.com/codebylt" target="_blank" rel="noopener noreferrer"
+                 title="Buy me a coffee"
+                 class="text-[#FF5E5B] hover:text-[#ff7b78] transition-colors">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.5 3H6c-1.1 0-2 .9-2 2v5.71c0 3.83 2.95 7.18 6.78 7.29 3.96.12 7.22-3.06 7.22-7v-1h.5c1.93 0 3.5-1.57 3.5-3.5S20.43 3 18.5 3zm0 5H18V5h.5c.83 0 1.5.67 1.5 1.5S19.33 8 18.5 8zM4 19h16v2H4v-2z"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+          <button @click="mobileMenuOpen=false" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-900 shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto text-sm">
+        {% for href, label, icon_d in nav %}
+        <a href="{{ href }}" @click="mobileMenuOpen=false"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
+           {% if active == href %}bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/30{% else %}text-slate-400 hover:bg-slate-900 hover:text-slate-100{% endif %}">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="{{ icon_d }}"/>
+          </svg>
+          {{ label }}
+        </a>
+        {% endfor %}
+      </nav>
+      <div class="px-5 py-4 border-t border-slate-800/90 text-xs text-slate-500">
+        <div class="font-medium mb-1">{{ app_name }}</div>
+        <a href="/changelog" @click="mobileMenuOpen=false" class="text-[10px] text-sky-400 hover:text-sky-300 hover:underline transition-colors">
+          {{ app_version if app_version else 'unknown' }} (changelog)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- DB fallback warning -->
+  {% if db_info and db_info.fallback %}
+  <div class="bg-amber-400 text-amber-900 text-sm font-medium text-center py-2 px-4">
+    ⚠️ PostgreSQL unavailable — running on local SQLite fallback. Restart the app once the database server is restored.
+  </div>
+  {% endif %}
+
+  <!-- Main content -->
+  <div class="lg:pl-56 flex-1 flex flex-col min-h-screen">
+
+    <!-- Top bar -->
+    <header class="sticky top-0 z-10 bg-slate-950/90 backdrop-blur border-b border-slate-800 flex items-center justify-between px-4 sm:px-6 py-3 gap-4">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <button @click="mobileMenuOpen=true"
+                class="lg:hidden p-1.5 -ml-1 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-900 shrink-0"
+                aria-label="Open navigation">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+          </svg>
+        </button>
+        <h1 class="font-semibold text-slate-100 text-base truncate">{% block page_title %}{% endblock %}</h1>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Theme toggle -->
+        <button @click="toggleTheme()"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+                :title="themeLight ? 'Switch to dark mode' : 'Switch to light mode'">
+          <svg x-show="!themeLight" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/>
+          </svg>
+          <svg x-show="themeLight" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/>
+          </svg>
+        </button>
+        {% block header_actions %}{% endblock %}
+        {% if active == '/projects/new' %}
+        <a href="/projects/new"
+           class="flex items-center gap-1.5 bg-cyan-500 text-slate-950 text-sm px-3.5 py-2 rounded-lg hover:bg-cyan-400 transition-colors font-semibold">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+          </svg>
+          New Project
+        </a>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="flex-1 px-4 sm:px-6 py-6 max-w-7xl w-full mx-auto pb-24 lg:pb-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- Mobile bottom tab bar -->
+  <nav id="bottom-nav" class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-slate-950 border-t border-slate-800 flex items-stretch h-16">
+    {% set tab_items = [
+      ('/', 'Dashboard',
+       'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'),
+      ('/projects', 'Projects',
+       'M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z'),
+      ('/service', 'Service',
+       'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z'),
+      ('/inventory', 'Inventory',
+       'M3.75 3h16.5A1.5 1.5 0 0121.75 4.5v15a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5v-15A1.5 1.5 0 013.75 3zm2.25 4.5h12m-12 4.5h12m-12 4.5h7.5'),
+      ('/analytics', 'Analytics',
+       'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z'),
+      ('/settings', 'Settings',
+       'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z'),
+    ] %}
+    {% for href, label, icon_d in tab_items %}
+    <a href="{{ href }}"
+       class="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors
+      {% if active == href %}text-cyan-300{% else %}text-slate-500 hover:text-slate-200{% endif %}">
+      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="{{ icon_d }}"/>
+      </svg>
+      {{ label }}
+    </a>
+    {% endfor %}
+  </nav>
+
+</body>
+</html>

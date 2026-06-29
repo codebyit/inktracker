@@ -1,0 +1,1782 @@
+{% extends "base.html" %}
+{% block title %}{% if edit_id %}Edit Project{% else %}New Project{% endif %}{% endblock %}
+{% block page_title %}{% if edit_id %}Edit Project{% else %}New Project{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  background: #ddd6fe;
+  border-radius: 9999px;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 0.5rem;
+  background: #ddd6fe;
+  border-radius: 9999px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background: #7c3aed;
+  border: 0;
+  margin-top: -0.375rem;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  background: #7c3aed;
+  border: 0;
+}
+</style>
+<script id="wizard-settings-json" type="application/json">{{ settings_json | safe }}</script>
+<script id="wizard-ink-hex-json" type="application/json">{{ INK_CHANNEL_HEX | tojson | safe }}</script>
+{% if edit_id %}
+<script id="wizard-project-json" type="application/json">{{ project_json | safe }}</script>
+{% endif %}
+<script>
+function parseEmbeddedJson(id, fallback = {}) {
+  try {
+    const node = document.getElementById(id);
+    if (!node) return fallback;
+    return JSON.parse(node.textContent || '{}');
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function wizardData() {
+  const cfg = parseEmbeddedJson('wizard-settings-json', {});
+  const inkHex = parseEmbeddedJson('wizard-ink-hex-json', {});
+  const editProject = parseEmbeddedJson('wizard-project-json', null);
+  return {
+    tab: 'editor',
+    step: 1,
+
+    // Step 1 – Print Settings
+    printBed: 'Standard',
+    alignment: 'Photo',
+    material: 'Ceramics',
+    substrate: 'Ceramics',
+    printQuality: 'Standard',
+    whiteChoke: 0.20,
+    craftMode: 'Flat',
+    inkMode: 'CMYK',
+    layerStack: [{name:'CMYK', qty:1}],
+
+    // Multi-craft faces (feature-flagged via MULTI_CRAFT_ENABLED env var).
+    // Side A is defined by the standard controls above; extraCrafts holds Side B, C…
+    multiCraftFlag: cfg.multi_craft_enabled === true,
+    multiCraftEnabled: false,
+    extraCrafts: [],
+
+    // Step 2 – Project Details
+    name: '',
+    units: 1,
+    printH: 0, printM: 0, printS: 0,
+    handsH: 0, handsM: 0, handsS: 0,
+    notes: '',
+    inkUsage: {C:0,M:0,Y:0,K:0,W:0,GL:0,FW:0},
+    includePreprime: true,
+    whiteLoaded: cfg.white_loaded || 'W',
+    photoName: '',
+
+    // Step 3 – BOM
+    bomItems: [],
+
+    // Step 4 – Pricing
+    sellPricePerUnit: 0,
+    projectType: 'commercial',
+
+    // Template management
+    savedTemplates: [],
+    showTemplateSave: false,
+    templateName: '',
+    templateSaving: false,
+
+    // Constants
+    cfg: cfg,
+    inkHex: inkHex,
+    customLayerChoice: '',
+
+    inkModeChannels: {
+      'None':                        [],
+      'White>CMYK':                  ['W','C','M','Y','K'],
+      'CMYK':                        ['C','M','Y','K'],
+      'Gloss Varnish':               ['GL'],
+      'White':                       ['W'],
+      'CMYK>White':                  ['C','M','Y','K','W'],
+      'CMYK>White>CMYK':             ['C','M','Y','K','W'],
+      'CMYK>Gloss Varnish':          ['C','M','Y','K','GL'],
+      'White>CMYK>Gloss Varnish':    ['W','C','M','Y','K','GL'],
+      'Sticker':                     ['C','M','Y','K'],
+      'Customize':                   ['C','M','Y','K'],
+    },
+    inkModeGroups: {
+      'CMYK':                        [{name:'CMYK', qty:1}],
+      'None':                        [],
+      'White>CMYK':                  [{name:'White', qty:2},{name:'CMYK', qty:1}],
+      'Gloss Varnish':               [{name:'Gloss Varnish', qty:1}],
+      'White':                       [{name:'White', qty:1}],
+      'CMYK>White':                  [{name:'CMYK', qty:1},{name:'White', qty:2}],
+      'CMYK>White>CMYK':             [{name:'CMYK', qty:1},{name:'White', qty:2},{name:'CMYK', qty:1}],
+      'CMYK>Gloss Varnish':          [{name:'CMYK', qty:1},{name:'Gloss Varnish', qty:2}],
+      'White>CMYK>Gloss Varnish':    [{name:'White', qty:2},{name:'CMYK', qty:1},{name:'Gloss Varnish', qty:2}],
+      'Sticker':                     [{name:'Sticker', qty:1}],
+      'Customize':                   [],
+    },
+    modeAliases: {
+      'White\u2192CMYK':             'White>CMYK',
+      'CMYK\u2192White':             'CMYK>White',
+      'CMYK\u2192Gloss':             'CMYK>Gloss Varnish',
+      'White\u2192CMYK\u2192Gloss':  'White>CMYK>Gloss Varnish',
+    },
+    customLayerTypes: ['White', 'CMYK', 'Gloss Varnish', 'Sticker'],
+    customLayerChannels: {
+      'White': ['W'],
+      'CMYK': ['C', 'M', 'Y', 'K'],
+      'Gloss Varnish': ['GL'],
+      'Sticker': ['C', 'M', 'Y', 'K'],
+    },
+    channelNames: {C:'Cyan',M:'Magenta',Y:'Yellow',K:'Black',W:'White',GL:'Gloss',FW:'Flex White'},
+    materials: ['Acrylic','Ceramics','Fabric','Glass','Leather','Metal','Paper','Plastic','Wood','Other'],
+    craftModes: ['Flat','Flat Raised','Pattern Texture','Relief Texture','Customize Texture'],
+
+    // Craft Mode Specific Configurations
+    craftModeSettings: {
+      'Flat Raised': {
+        availableInkModes: ['Color Raised', 'Gloss Raised', 'White (Foil Stamping)'],
+        defaultInkMode: 'Color Raised',
+      },
+      'Pattern Texture': {
+        availableInkModes: ['Color Raised'],
+        defaultInkMode: 'Color Raised',
+      },
+      'Relief Texture': {
+        availableInkModes: ['Color Raised'],
+        defaultInkMode: 'Color Raised',
+      },
+      'Customize Texture': {
+        availableInkModes: ['Color Raised', 'Gloss Raised'],
+        defaultInkMode: 'Color Raised',
+      },
+      'Flat': {
+        availableInkModes: [],
+        defaultInkMode: '',
+      },
+    },
+
+    // Storage for craft mode specific parameters
+    selectedCraftInkMode: '',
+    craftInkModeMap: {
+      'Color Raised': 'CMYK',
+      'Gloss Raised': 'Gloss Varnish',
+      'White (Foil Stamping)': 'White',
+    },
+    craftModeParams: {
+      'Flat Raised': {
+        'Color Raised': { thickness: 0.3 },
+        'Gloss Raised': { thickness: 0.3 },
+        'White (Foil Stamping)': { thickness: 0.3, foilType: 'Gold' },
+      },
+      'Pattern Texture': {
+        'Color Raised': { thickness: 0.3, smoothness: 5, inkSavingMode: 0, textureOption: 'Default' },
+      },
+      'Relief Texture': {
+        'Color Raised': { thickness: 0.3, smoothness: 5, inkSavingMode: 0 },
+      },
+      'Customize Texture': {
+        'Color Raised': { thickness: 0.3, smoothness: 5, inkSavingMode: 0, textureOption: 'Default', depthMapNotes: '' },
+        'Gloss Raised': { thickness: 0.3, smoothness: 5, inkSavingMode: 0, textureOption: 'Default', depthMapNotes: '' },
+      },
+    },
+
+    get isCraftModeWithParameters() {
+      return ['Flat Raised', 'Pattern Texture', 'Relief Texture', 'Customize Texture'].includes(this.craftMode);
+    },
+
+    get availableCraftInkModes() {
+      return this.craftModeSettings[this.craftMode]?.availableInkModes || [];
+    },
+
+    get currentCraftModeParams() {
+      if (!this.selectedCraftInkMode) return {};
+      return this.craftModeParams[this.craftMode]?.[this.selectedCraftInkMode] || {};
+    },
+
+    normalizeInkMode(mode) {
+      return this.modeAliases[mode] || mode;
+    },
+    setCraftMode(mode) {
+      this.craftMode = mode;
+      // Reset craft-specific selections if switching to a craft mode with parameters
+      if (this.isCraftModeWithParameters) {
+        this.selectedCraftInkMode = this.craftModeSettings[mode]?.defaultInkMode || '';
+        this.syncInkModeFromCraft();
+      } else {
+        this.selectedCraftInkMode = '';
+      }
+    },
+    setCraftInkMode(mode) {
+      this.selectedCraftInkMode = mode;
+      this.syncInkModeFromCraft();
+    },
+    syncInkModeFromCraft() {
+      if (!this.isCraftModeWithParameters || !this.selectedCraftInkMode) return;
+      const mapped = this.craftInkModeMap[this.selectedCraftInkMode] || 'CMYK';
+      this.setInkMode(mapped);
+    },
+    get selectedCraftModeParamsJson() {
+      if (!this.isCraftModeWithParameters || !this.selectedCraftInkMode) {
+        return '{}';
+      }
+      const params = this.craftModeParams[this.craftMode]?.[this.selectedCraftInkMode] || {};
+      return JSON.stringify(params);
+    },
+    setInkMode(mode) {
+      const normalized = this.normalizeInkMode(mode);
+      this.inkMode = normalized;
+      const g = this.inkModeGroups[normalized];
+      if (normalized === 'Customize') {
+        this.layerStack = [];
+        return;
+      }
+      this.layerStack = g ? g.map(x => ({name:x.name, qty:x.qty})) : [];
+    },
+    addCustomLayer() {
+      if (!this.customLayerChoice || this.totalLayers >= 12) return;
+      const existing = this.layerStack.find(g => g.name === this.customLayerChoice);
+      if (existing) {
+        if (this.totalLayers < 12) existing.qty++;
+      } else {
+        this.layerStack.push({name: this.customLayerChoice, qty: 1});
+      }
+      this.customLayerChoice = '';
+    },
+    removeLayer(index) {
+      this.layerStack.splice(index, 1);
+    },
+    get totalLayers() { return this.layerStack.reduce((s,g)=>s+g.qty, 0); },
+
+    get printTimeHours() { return parseInt(this.printH||0)+parseInt(this.printM||0)/60+parseInt(this.printS||0)/3600; },
+    get handsOnHours()   { return parseInt(this.handsH||0)+parseInt(this.handsM||0)/60+parseInt(this.handsS||0)/3600; },
+
+    get activeChannels() {
+      let base = [];
+      if (this.inkMode === 'Customize') {
+        const set = new Set();
+        for (const group of this.layerStack) {
+          const channels = this.customLayerChannels[group.name] || [];
+          channels.forEach(ch => set.add(ch));
+        }
+        base = [...set];
+      } else {
+        base = this.inkModeChannels[this.inkMode] || ['C','M','Y','K'];
+      }
+      const wl = this.whiteLoaded;
+      return base.map(ch => (ch==='W'&&wl==='FW')?'FW':(ch==='FW'&&wl==='W')?'W':ch);
+    },
+    get hasWhiteChannel() { return this.activeChannels.some(ch=>ch==='W'||ch==='FW'); },
+
+    chMl(ch)   { return parseFloat(this.inkUsage[ch]||0)+(this.includePreprime?(this.cfg.ink[ch]?.preprime_ml||0):0); },
+    chCost(ch) { const c=this.cfg.ink[ch]; return (c&&c.capacity>0)?this.chMl(ch)*c.price/c.capacity:0; },
+    get maxChannelMl() { let m=0.001; for(const ch of this.activeChannels) m=Math.max(m,this.chMl(ch)); return m; },
+
+    get primeTotal() {
+      if(!this.includePreprime) return {ml:0,cost:0};
+      let ml=0,cost=0;
+      for(const ch of this.activeChannels){
+        const p=this.cfg.ink[ch]?.preprime_ml||0, c=this.cfg.ink[ch];
+        ml+=p; if(c&&c.capacity>0) cost+=p*c.price/c.capacity;
+      }
+      return {ml,cost};
+    },
+    get projectInkMl()   { let t=0; for(const ch of this.activeChannels) t+=parseFloat(this.inkUsage[ch]||0); return t; },
+    get projectInkCost() {
+      let t=0;
+      for(const ch of this.activeChannels){const c=this.cfg.ink[ch]; if(c&&c.capacity>0) t+=parseFloat(this.inkUsage[ch]||0)*c.price/c.capacity;}
+      return t;
+    },
+    get bomTotal()    { return this.bomItems.reduce((s,i)=>s+parseFloat(i.qty||0)*parseFloat(i.unitCost||0),0); },
+    get inkCost()     { return this.projectInkCost+this.primeTotal.cost; },
+    get mCostHr() {
+      const m=this.cfg.machine;
+      if(!m||m.lifespan_hours<=0||m.annual_hours<=0) return 0;
+      return (m.purchase_price+m.setup_cost)/m.lifespan_hours+(m.power_watts/1000)*m.electricity_rate+m.annual_maintenance/m.annual_hours;
+    },
+    get machineCost()  { return this.mCostHr*this.printTimeHours; },
+    get laborCost()    { return this.cfg.labor.hourly_rate*this.handsOnHours; },
+    get directCost()   { return this.inkCost+this.bomTotal+this.machineCost+this.laborCost; },
+    get overheadCost() { return this.directCost*(this.cfg.labor.overhead_pct/100); },
+    get totalCogs()    { return this.directCost+this.overheadCost; },
+    get cogsPerUnit()  { return this.units>0?this.totalCogs/this.units:0; },
+    get totalRev()     { return parseFloat(this.sellPricePerUnit||0)*this.units; },
+    get marginPct()    { const sp=parseFloat(this.sellPricePerUnit||0); return sp>0?(sp-this.cogsPerUnit)/sp*100:0; },
+    get marginStatus() {
+      const m=this.cfg.margins;
+      if(this.marginPct>=m.strong) return 'Strong';
+      if(this.marginPct>=m.target) return 'Target';
+      if(this.marginPct>=0)        return 'Minimum';
+      return 'Loss';
+    },
+    get marginClass() {
+      return {Strong:'bg-emerald-100 text-emerald-700',Target:'bg-blue-100 text-blue-700',
+              Minimum:'bg-amber-100 text-amber-700',Loss:'bg-red-100 text-red-700'}[this.marginStatus]||'';
+    },
+    addBom() { this.bomItems.push({name:'',qty:1,unit:'pcs',unitCost:0,category:'Other'}); },
+    rmBom(i) { this.bomItems.splice(i,1); },
+    fmt(v)   { return parseFloat(v||0).toFixed(2); },
+    go(n)    { this.step=n; window.scrollTo(0,0); },
+
+    // ── Multi-craft faces ──────────────────────────────────────────────
+    get isMultiCraftActive() {
+      return this.multiCraftFlag && this.multiCraftEnabled && this.extraCrafts.length > 0;
+    },
+    makeExtraCraft(i) {
+      return {
+        variant_name: 'Side ' + String.fromCharCode(66 + i),  // B, C, D…
+        craftMode: 'Flat',
+        craftInkMode: '',
+        inkMode: 'CMYK',
+        thickness: 0.3,
+        inkUsage: {C:0,M:0,Y:0,K:0,W:0,GL:0,FW:0},
+      };
+    },
+    addExtraCraft() { this.extraCrafts.push(this.makeExtraCraft(this.extraCrafts.length)); },
+    removeExtraCraft(i) { this.extraCrafts.splice(i, 1); },
+    extraFaceHasParams(face) {
+      return ['Flat Raised','Pattern Texture','Relief Texture','Customize Texture'].includes(face.craftMode);
+    },
+    extraFaceInkModes(face) {
+      return this.craftModeSettings[face.craftMode]?.availableInkModes || [];
+    },
+    setExtraCraftMode(face, mode) {
+      face.craftMode = mode;
+      const settings = this.craftModeSettings[mode];
+      if (settings && settings.availableInkModes.length) {
+        face.craftInkMode = settings.defaultInkMode || '';
+        face.inkMode = this.craftInkModeMap[face.craftInkMode] || 'CMYK';
+      } else {
+        face.craftInkMode = '';
+        face.inkMode = 'CMYK';
+      }
+    },
+    setExtraCraftInkMode(face, im) {
+      face.craftInkMode = im;
+      face.inkMode = this.craftInkModeMap[im] || 'CMYK';
+    },
+    extraFaceChannels(face) {
+      const base = this.inkModeChannels[face.inkMode] || ['C','M','Y','K'];
+      const wl = this.whiteLoaded;
+      return base.map(ch => (ch==='W'&&wl==='FW')?'FW':(ch==='FW'&&wl==='W')?'W':ch);
+    },
+    cleanInk(obj) {
+      const out = {};
+      for (const [ch, ml] of Object.entries(obj || {})) {
+        const v = parseFloat(ml || 0);
+        if (v > 0) out[ch] = v;
+      }
+      return out;
+    },
+    buildCraftsJson() {
+      if (!this.isMultiCraftActive) return '[]';
+      const primary = {
+        variant_name: 'Side A',
+        craft_mode: this.craftMode,
+        craft_ink_mode: this.selectedCraftInkMode || '',
+        ink_mode: this.inkMode,
+        craft_mode_params: this.isCraftModeWithParameters
+          ? (this.craftModeParams[this.craftMode]?.[this.selectedCraftInkMode] || {}) : {},
+        layer_stack: this.layerStack,
+        ink_usage: this.cleanInk(this.inkUsage),
+      };
+      const extras = this.extraCrafts.map((f, i) => ({
+        variant_name: (f.variant_name || '').trim() || ('Side ' + String.fromCharCode(66 + i)),
+        craft_mode: f.craftMode,
+        craft_ink_mode: f.craftInkMode || '',
+        ink_mode: f.inkMode,
+        craft_mode_params: this.extraFaceHasParams(f) ? {thickness: parseFloat(f.thickness || 0)} : {},
+        layer_stack: [],
+        ink_usage: this.cleanInk(f.inkUsage),
+      }));
+      return JSON.stringify([primary, ...extras]);
+    },
+
+    submit() {
+      document.getElementById('ink_usage_json').value = JSON.stringify(this.inkUsage);
+      document.getElementById('bom_json').value = JSON.stringify(
+        this.bomItems.map(i=>({name:i.name,quantity:parseFloat(i.qty||1),unit:i.unit||'pcs',unit_cost:parseFloat(i.unitCost||0)}))
+      );
+      document.getElementById('f_print_bed').value   = this.printBed;
+      document.getElementById('f_alignment').value   = this.alignment;
+      document.getElementById('f_craft_mode').value  = this.craftMode;
+      document.getElementById('f_craft_ink_mode').value = this.selectedCraftInkMode || '';
+      document.getElementById('f_craft_mode_params_json').value = this.selectedCraftModeParamsJson;
+      document.getElementById('f_substrate').value   = this.substrate;
+      document.getElementById('f_white_choke').value = this.whiteChoke;
+      document.getElementById('f_layer_stack').value = JSON.stringify(this.layerStack);
+      document.getElementById('f_crafts_json').value = this.buildCraftsJson();
+      document.getElementById('wizard-form').submit();
+    },
+
+    printWorksheet() {
+      const esc = s => (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+      const cur = '{{ currency }}';
+      const d   = new Date().toLocaleDateString('en-GB');
+      const ptS = `${this.printH||0}h ${this.printM||0}m ${this.printS||0}s`;
+      const hoS = `${this.handsH||0}h ${this.handsM||0}m ${this.handsS||0}s`;
+      const inkRows = this.activeChannels.map(ch =>
+        `<tr><td>${esc(this.channelNames[ch]||ch)}</td><td>${this.fmt(this.inkUsage[ch]||0)}</td><td>${this.fmt(this.cfg.ink[ch]?.preprime_ml||0)}</td></tr>`
+      ).join('');
+      const bomRows = this.bomItems.length
+        ? this.bomItems.map(i=>`<tr><td>${esc(i.name||'')}</td><td>${esc(i.category||'Other')}</td><td>${cur}${this.fmt(i.unitCost)}</td><td>${i.qty}</td><td>${cur}${this.fmt(parseFloat(i.qty||0)*parseFloat(i.unitCost||0))}</td></tr>`).join('')
+        : `<tr><td colspan="5" style="color:#aaa;font-style:italic">No materials added</td></tr>`;
+      const chkBed   = ['Mini','Standard','Rotary','Roll-To-Film'].map(b=>`<span style="margin-right:10px"><input type="checkbox" ${this.printBed===b?'checked':''} disabled> ${b}</span>`).join('');
+      const chkQual  = ['Draft','Standard','High'].map(q=>`<span style="margin-right:10px"><input type="checkbox" ${this.printQuality===q?'checked':''} disabled> ${q}</span>`).join('');
+      const chkCraft = ['Flat','Flat Raised','Pattern','Relief','Custom'].map(c=>`<span style="margin-right:10px"><input type="checkbox" ${this.craftMode.startsWith(c)?'checked':''} disabled> ${c}</span>`).join('');
+      const u = Math.max(1,this.units);
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Project Planning Worksheet</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:10pt;margin:24px;color:#222}
+  h1{font-size:15pt;margin:0 0 2px} h2{font-size:11pt;color:#0ea5e9;margin:14px 0 5px;border-bottom:1px solid #bde;padding-bottom:2px}
+  table{border-collapse:collapse;width:100%}
+  th{text-align:left;background:#f0f9ff;padding:4px 8px;border:1px solid #bdd;font-size:9pt}
+  td{padding:4px 8px;border:1px solid #ddd;font-size:9pt}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .lbl{font-weight:bold;font-size:9pt;color:#444}
+  .val{border-bottom:1px solid #bbb;display:inline-block;min-width:100px;padding-bottom:1px}
+  .foot{margin-top:20px;font-size:8pt;color:#888;border-top:1px solid #ddd;padding-top:6px;text-align:center}
+  @media print{body{margin:0}}
+</style></head><body>
+<div style="display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid #0ea5e9;padding-bottom:8px;margin-bottom:12px">
+  <div><h1>Project Planning Worksheet</h1><span style="color:#888;font-size:9pt">InkTrack &middot; UV Print Cost Tracker</span></div>
+  <span style="font-size:9pt;color:#0ea5e9;font-weight:bold">inktracker.local</span>
+</div>
+<h2>Project Information</h2>
+<div class="g2">
+  <div>
+    <div style="margin-bottom:6px"><span class="lbl">Project Name: </span><span class="val">${esc(this.name)||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span></div>
+    <div style="margin-bottom:6px"><span class="lbl">Ink Mode: </span><span class="val">${esc(this.inkMode)}</span></div>
+    <div style="margin-bottom:6px"><span class="lbl">Craft Mode: </span>${chkCraft}</div>
+    <div style="margin-bottom:6px"><span class="lbl">Quality: </span>${chkQual}</div>
+  </div>
+  <div>
+    <div style="margin-bottom:6px"><span class="lbl">Date: </span><span class="val">${d}</span></div>
+    <div style="margin-bottom:6px"><span class="lbl">Units: </span><span class="val">${esc(this.units)}</span></div>
+    <div style="margin-bottom:6px"><span class="lbl">Print Time: </span><span class="val">${ptS}</span></div>
+    <div style="margin-bottom:6px"><span class="lbl">Hands-On: </span><span class="val">${hoS}</span></div>
+  </div>
+</div>
+<div style="margin-bottom:6px"><span class="lbl">Layout: </span>${chkBed}&nbsp;&nbsp;<span class="lbl">Alignment: </span><span class="val">${esc(this.alignment)}</span></div>
+<div style="margin-bottom:6px"><span class="lbl">Description: </span><span class="val" style="min-width:300px">${esc(this.notes||'')}</span></div>
+<div class="g2" style="margin-top:12px">
+  <div>
+    <h2>Ink Usage</h2>
+    <table><tr><th>Color</th><th>Proj (ml)</th><th>Pre-Prime</th></tr>
+    ${inkRows}
+    <tr><td><strong>TOTAL</strong></td><td><strong>${this.fmt(this.projectInkMl)}</strong></td><td><strong>${this.fmt(this.primeTotal.ml)}</strong></td></tr>
+    </table>
+  </div>
+  <div>
+    <h2>COGS Calculation</h2>
+    <table><tr><th>Bucket</th><th>Formula</th><th>${cur}/Unit</th></tr>
+    <tr><td><strong>Materials</strong></td><td>Ink Cost + BOM Cost</td><td>${cur}${this.fmt((this.inkCost+this.bomTotal)/u)}</td></tr>
+    <tr><td><strong>Machine</strong></td><td>(Print Time &divide; 60) &times; Rate/hr</td><td>${cur}${this.fmt(this.machineCost/u)}</td></tr>
+    <tr><td><strong>Labor</strong></td><td>(Hands-On &divide; 60) &times; Rate/hr</td><td>${cur}${this.fmt(this.laborCost/u)}</td></tr>
+    <tr><td><strong>Overhead</strong></td><td>(Sum above) &times; ${esc(this.cfg.labor.overhead_pct)}%</td><td>${cur}${this.fmt(this.overheadCost/u)}</td></tr>
+    <tr><td colspan="2"><strong>TOTAL COGS</strong></td><td><strong>${cur}${this.fmt(this.cogsPerUnit)}</strong></td></tr>
+    </table>
+    <h2>Pricing</h2>
+    <div style="margin-bottom:5px"><span class="lbl">Sell Price/Unit: </span>${cur} <span class="val">${this.fmt(this.sellPricePerUnit)}</span></div>
+    <div style="margin-bottom:4px"><span class="lbl">Revenue</span> = Price &times; Units = ${cur}${this.fmt(this.totalRev)}</div>
+    <div><span class="lbl">Profit</span> = ${cur}${this.fmt(this.totalRev-this.totalCogs)} &nbsp; <span class="lbl">Margin:</span> ${this.fmt(this.marginPct)}%</div>
+  </div>
+</div>
+<h2>Bill of Materials (BOM)</h2>
+<p style="font-size:8pt;color:#666;margin:2px 0 4px;font-style:italic">Categories: Substrate, Packaging, Finishing, Consumable, Other</p>
+<table><tr><th>Item Name</th><th>Category</th><th>${cur}/Unit</th><th>Qty</th><th>Total</th></tr>
+${bomRows}
+<tr><td colspan="3" style="text-align:right"><strong>BOM Subtotal</strong></td><td></td><td><strong>${cur}${this.fmt(this.bomTotal)}</strong></td></tr>
+</table>
+<h2>Notes</h2>
+<div style="border:1px solid #ddd;min-height:50px;padding:6px;font-size:9pt">${esc(this.notes||'')}</div>
+<div class="foot">Generated by InkTrack &nbsp;&middot;&nbsp; ${new Date().toLocaleString()} &nbsp;&middot;&nbsp; Page 1 of 1</div>
+</body></html>`;
+      const w = window.open('','_blank','width=960,height=800');
+      if(w){ w.document.write(html); w.document.close(); setTimeout(()=>w.print(),600); }
+    },
+    async init() {
+      await this.loadTemplates();
+      if (editProject) {
+      const proj = editProject;
+      this.name              = proj.name;
+      this.units             = proj.units;
+      this.sellPricePerUnit  = proj.sell_price_per_unit;
+      this.notes             = proj.notes || '';
+      this.printBed          = proj.print_bed || 'Standard';
+      this.alignment         = proj.alignment || 'Photo';
+      this.material          = proj.material || 'Ceramics';
+      this.craftMode         = proj.craft_mode || 'Flat';
+      this.selectedCraftInkMode = proj.craft_ink_mode || '';
+      if (proj.craft_mode_params_json) {
+        try {
+          const params = JSON.parse(proj.craft_mode_params_json || '{}');
+          if (this.craftModeParams[this.craftMode] && this.selectedCraftInkMode && this.craftModeParams[this.craftMode][this.selectedCraftInkMode]) {
+            this.craftModeParams[this.craftMode][this.selectedCraftInkMode] = {
+              ...this.craftModeParams[this.craftMode][this.selectedCraftInkMode],
+              ...params,
+            };
+          }
+        } catch (_) {}
+      }
+      this.substrate         = proj.substrate || '';
+      this.whiteChoke        = proj.white_choke_mm || 0.20;
+      this.printQuality      = proj.print_quality || 'Standard';
+      this.setInkMode(proj.ink_mode || 'CMYK');
+      try { const ls = JSON.parse(proj.layer_stack_json || '[]'); if (ls.length) this.layerStack = ls; } catch(e) {}
+      const pth = proj.print_time_hours || 0;
+      this.printH = Math.floor(pth);
+      this.printM = Math.floor((pth - this.printH) * 60);
+      this.printS = Math.round(((pth - this.printH) * 60 - this.printM) * 60);
+      const hoh = proj.hands_on_hours || 0;
+      this.handsH = Math.floor(hoh);
+      this.handsM = Math.floor((hoh - this.handsH) * 60);
+      this.handsS = Math.round(((hoh - this.handsH) * 60 - this.handsM) * 60);
+      if (proj.ink_usage) {
+        for (const [ch, ml] of Object.entries(proj.ink_usage)) {
+          this.inkUsage[ch] = ml;
+        }
+      }
+      this.bomItems = (proj.bom_items || []).map(i => ({
+        name: i.name, qty: i.qty, unit: i.unit || 'pcs', unitCost: i.unitCost || 0, category: 'Other'
+      }));
+      this.projectType = proj.project_type || 'commercial';
+      // Hydrate additional craft faces (Side B+) from crafts_json.
+      if (proj.crafts_json) {
+        try {
+          const arr = JSON.parse(proj.crafts_json || '[]');
+          if (Array.isArray(arr) && arr.length > 1) {
+            this.multiCraftEnabled = true;
+            this.extraCrafts = arr.slice(1).map((c, i) => ({
+              variant_name: c.variant_name || ('Side ' + String.fromCharCode(67 + i)),
+              craftMode: c.craft_mode || 'Flat',
+              craftInkMode: c.craft_ink_mode || '',
+              inkMode: c.ink_mode || 'CMYK',
+              thickness: (c.craft_mode_params && c.craft_mode_params.thickness) || 0.3,
+              inkUsage: Object.assign({C:0,M:0,Y:0,K:0,W:0,GL:0,FW:0}, c.ink_usage || {}),
+            }));
+          }
+        } catch (_) {}
+      }
+      }
+      if (this.isCraftModeWithParameters && !this.selectedCraftInkMode) {
+        this.selectedCraftInkMode = this.craftModeSettings[this.craftMode]?.defaultInkMode || '';
+      }
+      this.syncInkModeFromCraft();
+    },
+    async loadTemplates() {
+      try { const r = await fetch('/templates/list'); this.savedTemplates = await r.json(); } catch(e) {}
+    },
+    applyTemplate(t) {
+      this.printBed     = t.print_bed;
+      this.alignment    = t.alignment;
+      this.material     = t.material;
+      this.substrate    = t.substrate;
+      this.printQuality = t.print_quality;
+      this.whiteChoke   = t.white_choke_mm;
+      this.craftMode    = t.craft_mode;
+      this.selectedCraftInkMode = t.craft_ink_mode || '';
+      if (t.craft_mode_params_json) {
+        try {
+          const params = JSON.parse(t.craft_mode_params_json || '{}');
+          if (this.craftModeParams[this.craftMode] && this.selectedCraftInkMode && this.craftModeParams[this.craftMode][this.selectedCraftInkMode]) {
+            this.craftModeParams[this.craftMode][this.selectedCraftInkMode] = {
+              ...this.craftModeParams[this.craftMode][this.selectedCraftInkMode],
+              ...params,
+            };
+          }
+        } catch (_) {}
+      }
+      this.setInkMode(t.ink_mode);
+      if (this.isCraftModeWithParameters && !this.selectedCraftInkMode) {
+        this.selectedCraftInkMode = this.craftModeSettings[this.craftMode]?.defaultInkMode || '';
+      }
+      this.syncInkModeFromCraft();
+      try { const ls=JSON.parse(t.layer_stack_json||'[]'); if(ls.length) this.layerStack=ls; } catch(e){}
+    },
+    async saveTemplate() {
+      if(!this.templateName.trim()) return;
+      this.templateSaving = true;
+      await fetch('/templates', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          name: this.templateName, print_bed: this.printBed,
+          alignment: this.alignment, material: this.material,
+          substrate: this.substrate, print_quality: this.printQuality,
+          white_choke_mm: this.whiteChoke, craft_mode: this.craftMode,
+          ink_mode: this.inkMode, craft_ink_mode: this.selectedCraftInkMode || '',
+          craft_mode_params_json: this.selectedCraftModeParamsJson,
+          layer_stack_json: JSON.stringify(this.layerStack),
+        }),
+      });
+      this.templateSaving = false;
+      this.showTemplateSave = false;
+      this.templateName = '';
+      await this.loadTemplates();
+    },
+    async deleteTemplate(id) {
+      await fetch('/templates/'+id, {method:'DELETE'});
+      await this.loadTemplates();
+    },
+  };
+}
+</script>
+
+<div class="max-w-6xl mx-auto" x-data="wizardData()" x-init="init()">
+
+  <!-- ── Top Tab Bar ──────────────────────────────────── -->
+  <div class="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 mb-5 w-fit shadow-xs">
+    <button type="button" @click="tab='editor'"
+            class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="tab==='editor' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/></svg>
+      Editor
+    </button>
+    <button type="button" @click="tab='templates'"
+            class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="tab==='templates' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25"/></svg>
+      Templates
+    </button>
+    <button type="button" @click="tab='materials'"
+            class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+            :class="tab==='materials' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42"/></svg>
+      Materials
+    </button>
+  </div>
+
+  <!-- ── Templates tab ── -->
+  <div x-show="tab==='templates'">
+    <div x-show="savedTemplates.length===0" class="bg-white rounded-xl border border-slate-200 p-14 text-center">
+      <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25"/></svg>
+      <div class="font-semibold text-slate-600 mb-1">No templates yet</div>
+      <p class="text-sm text-slate-400">Go to the <button @click="tab='editor'" class="text-teal-600 underline">Editor</button> tab, configure your print settings, then click "Save as Template".</p>
+    </div>
+    <div x-show="savedTemplates.length>0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <template x-for="t in savedTemplates" :key="t.id">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-3">
+          <div class="flex items-start justify-between">
+            <div class="font-semibold text-slate-900" x-text="t.name"></div>
+            <button type="button" @click="deleteTemplate(t.id)"
+                    class="text-slate-300 hover:text-red-500 transition-colors shrink-0 ml-2" title="Delete">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <dl class="text-xs space-y-1 text-slate-500 flex-1">
+            <div class="flex justify-between"><dt>Bed</dt><dd class="font-medium text-slate-700" x-text="t.print_bed"></dd></div>
+            <div class="flex justify-between"><dt>Alignment</dt><dd class="font-medium text-slate-700" x-text="t.alignment"></dd></div>
+            <div class="flex justify-between"><dt>Material</dt><dd class="font-medium text-slate-700" x-text="t.material"></dd></div>
+            <div class="flex justify-between"><dt>Ink Mode</dt><dd class="font-medium text-slate-700" x-text="t.ink_mode"></dd></div>
+            <div class="flex justify-between"><dt>Craft Mode</dt><dd class="font-medium text-slate-700" x-text="t.craft_mode"></dd></div>
+            <div class="flex justify-between"><dt>Quality</dt><dd class="font-medium text-slate-700" x-text="t.print_quality"></dd></div>
+            <div class="flex justify-between"><dt>Choke</dt><dd class="font-medium text-slate-700" x-text="parseFloat(t.white_choke_mm).toFixed(2)+' mm'"></dd></div>
+          </dl>
+          <button type="button" @click="applyTemplate(t); tab='editor'"
+                  class="w-full bg-teal-500 text-white text-sm font-semibold py-2 rounded-lg hover:bg-teal-600 transition-colors">
+            Apply &amp; Edit
+          </button>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ── Materials Library tab ── -->
+  <div x-show="tab==='materials'" x-data="materialsData()" x-init="load()">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/>
+        </svg>
+      </div>
+      <div>
+        <div class="font-semibold text-slate-900 flex items-center gap-1.5">
+          Materials Library
+          <span class="text-slate-400 text-sm font-normal cursor-help" title="Build a reusable library of materials (substrates, packaging, consumables) with saved costs. Add items from your library when building project BOMs.">&#9432;</span>
+        </div>
+        <div class="text-sm text-slate-400">Pre-configure materials for quick use in projects</div>
+      </div>
+    </div>
+
+    <!-- Manage Categories (collapsible) -->
+    <div class="bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
+      <button type="button" @click="showCats=!showCats"
+              class="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+        <svg class="w-4 h-4 text-slate-400 transition-transform" :class="showCats?'rotate-0':'-rotate-90'"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+        </svg>
+        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/>
+        </svg>
+        Manage Categories
+      </button>
+      <div x-show="showCats" class="px-4 pb-4 space-y-3 border-t border-slate-100">
+        <!-- Category chips -->
+        <div class="flex flex-wrap gap-2 pt-3">
+          <template x-for="cat in categories" :key="cat.name">
+            <span class="flex items-center gap-1.5 bg-slate-100 text-slate-700 text-xs font-medium px-3 py-1.5 rounded-full">
+              <span x-text="cat.name"></span>
+              <button type="button" @click="deleteCat(cat.name)"
+                      class="text-slate-400 hover:text-red-500 transition-colors leading-none"
+                      title="Remove category">&#10005;</button>
+            </span>
+          </template>
+        </div>
+        <!-- Add new category -->
+        <div class="flex gap-2">
+          <input type="text" x-model="newCatName" placeholder="New category name…"
+                 @keydown.enter="addCat()"
+                 class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+          <button type="button" @click="addCat()" :disabled="!newCatName.trim()"
+                  class="flex items-center gap-1.5 bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-slate-700 disabled:opacity-40 transition-colors">
+            <span class="text-base leading-none">+</span> Add
+          </button>
+        </div>
+        <div x-show="catError" class="text-xs text-red-500" x-text="catError"></div>
+      </div>
+    </div>
+
+    <!-- Filter + Sort bar -->
+    <div class="flex items-center gap-3 mb-3">
+      <div class="flex-1 relative">
+        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <input type="text" x-model="filterQ" placeholder="Filter materials…"
+               class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+      </div>
+      <button type="button" @click="sortDir=sortDir==='asc'?'desc':'asc'"
+              class="flex items-center gap-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5h18M3 12h12M3 16.5h6"/>
+        </svg>
+      </button>
+      <select x-model="sortBy" class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
+        <option value="category">Category</option>
+        <option value="name">Name</option>
+        <option value="unit_cost">Cost</option>
+      </select>
+    </div>
+
+    <!-- Table header -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+        <span class="col-span-5 text-xs font-medium text-slate-500 uppercase tracking-wide">Name</span>
+        <span class="col-span-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Category</span>
+        <span class="col-span-2 text-xs font-medium text-slate-500 uppercase tracking-wide text-right">{{ currency }}/Unit</span>
+        <span class="col-span-2"></span>
+      </div>
+
+      <!-- Grouped rows -->
+      <div x-show="filteredGrouped.length === 0" class="px-4 py-8 text-center text-sm text-slate-400">
+        No materials yet. Click "+ Add Material" below.
+      </div>
+
+      <template x-for="group in filteredGrouped" :key="group.category">
+        <div>
+          <!-- Category header -->
+          <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 first:border-t-0">
+            <span class="text-[10px] font-bold tracking-widest uppercase text-slate-500"
+                  x-text="group.category + ' (' + group.items.length + ')'"></span>
+          </div>
+          <!-- Items -->
+          <template x-for="item in group.items" :key="item.id">
+            <div class="border-t border-slate-100">
+              <!-- View row -->
+              <div x-show="editingId !== item.id" class="grid grid-cols-12 gap-3 items-center px-4 py-3 hover:bg-slate-50 transition-colors">
+                <span class="col-span-5 text-sm text-slate-800" x-text="item.name"></span>
+                <span class="col-span-3">
+                  <span class="inline-block text-xs font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full" x-text="item.category"></span>
+                </span>
+                <span class="col-span-2 text-sm text-slate-700 text-right font-medium"
+                      x-text="'{{ currency }}' + parseFloat(item.unit_cost).toFixed(2)"></span>
+                <div class="col-span-2 flex justify-end gap-2">
+                  <button type="button" @click="startEdit(item)"
+                          class="text-slate-400 hover:text-violet-600 transition-colors" title="Edit">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                  </button>
+                  <button type="button" @click="deleteItem(item.id)"
+                          class="text-slate-400 hover:text-red-500 transition-colors" title="Delete">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                  </button>
+                </div>
+              </div>
+              <!-- Edit row -->
+              <div x-show="editingId === item.id" class="grid grid-cols-12 gap-2 items-center px-4 py-2.5 bg-violet-50 border-l-2 border-violet-400">
+                <input type="text" x-model="editForm.name" placeholder="Item name"
+                       class="col-span-4 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+                <select x-model="editForm.category"
+                        class="col-span-3 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
+                  <template x-for="cat in categories" :key="cat.name">
+                    <option :value="cat.name" x-text="cat.name"></option>
+                  </template>
+                </select>
+                <input type="number" x-model="editForm.unit_cost" min="0" step="0.01" placeholder="0.00"
+                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 text-right"/>
+                <div class="col-span-3 flex justify-end gap-1.5">
+                  <button type="button" @click="saveEdit(item.id)"
+                          class="bg-violet-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-700 transition-colors">Save</button>
+                  <button type="button" @click="editingId=null"
+                          class="text-slate-500 text-xs px-2 py-1.5 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Add Material button -->
+      <div class="border-t border-dashed border-amber-300 bg-amber-50/40">
+        <!-- Inline add form -->
+        <div x-show="showAddForm" class="grid grid-cols-12 gap-2 items-center px-4 py-3 border-b border-dashed border-amber-200">
+          <input type="text" x-model="addForm.name" placeholder="Material name"
+                 @keydown.enter="saveAdd()"
+                 class="col-span-4 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+          <select x-model="addForm.category"
+                  class="col-span-3 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
+            <template x-for="cat in categories" :key="cat.name">
+              <option :value="cat.name" x-text="cat.name"></option>
+            </template>
+          </select>
+          <input type="number" x-model="addForm.unit_cost" min="0" step="0.01" placeholder="0.00"
+                 class="col-span-2 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 text-right"/>
+          <div class="col-span-3 flex justify-end gap-1.5">
+            <button type="button" @click="saveAdd()" :disabled="!addForm.name.trim()"
+                    class="bg-violet-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-violet-700 disabled:opacity-40 transition-colors">Add</button>
+            <button type="button" @click="showAddForm=false"
+                    class="text-slate-500 text-xs px-2 py-1.5 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
+          </div>
+        </div>
+        <button type="button" @click="showAddForm=true; addForm={name:'',category:categories[0]?.name||'Other',unit_cost:0,unit:'pcs'}"
+                class="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 transition-colors">
+          <span class="text-lg leading-none font-bold">+</span> Add Material
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+  function materialsData() {
+    return {
+      categories: [],
+      items: [],
+      showCats: false,
+      newCatName: '',
+      catError: '',
+      filterQ: '',
+      sortBy: 'category',
+      sortDir: 'asc',
+      editingId: null,
+      editForm: {},
+      showAddForm: false,
+      addForm: {name:'', category:'Other', unit_cost:0, unit:'pcs'},
+
+      async load() {
+        const r = await fetch('/materials/data');
+        const d = await r.json();
+        this.categories = d.categories;
+        this.items = d.items;
+      },
+
+      get filteredItems() {
+        let list = this.items;
+        if (this.filterQ.trim()) {
+          const q = this.filterQ.toLowerCase();
+          list = list.filter(i => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
+        }
+        list = [...list].sort((a,b) => {
+          const av = this.sortBy === 'unit_cost' ? a[this.sortBy] : a[this.sortBy].toLowerCase();
+          const bv = this.sortBy === 'unit_cost' ? b[this.sortBy] : b[this.sortBy].toLowerCase();
+          return this.sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+        });
+        return list;
+      },
+
+      get filteredGrouped() {
+        const items = this.filteredItems;
+        const order = this.categories.map(c => c.name);
+        const grouped = {};
+        for (const item of items) {
+          if (!grouped[item.category]) grouped[item.category] = [];
+          grouped[item.category].push(item);
+        }
+        return Object.entries(grouped)
+          .sort(([a],[b]) => {
+            const ai = order.indexOf(a), bi = order.indexOf(b);
+            return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+          })
+          .map(([category, items]) => ({category, items}));
+      },
+
+      async addCat() {
+        this.catError = '';
+        const name = this.newCatName.trim();
+        if (!name) return;
+        const r = await fetch('/materials/categories', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({name}),
+        });
+        if (r.ok) { this.newCatName = ''; await this.load(); }
+        else { const d = await r.json(); this.catError = d.error || 'Error'; }
+      },
+
+      async deleteCat(name) {
+        const protected_ = ['Substrate','Packaging','Finishing','Consumable','Other'];
+        if (protected_.includes(name)) { this.catError = `"${name}" is a default category`; return; }
+        await fetch(`/materials/categories/${encodeURIComponent(name)}`, {method:'DELETE'});
+        await this.load();
+      },
+
+      startEdit(item) {
+        this.editingId = item.id;
+        this.editForm = {name: item.name, category: item.category, unit_cost: item.unit_cost, unit: item.unit};
+      },
+
+      async saveEdit(id) {
+        await fetch(`/materials/items/${id}`, {
+          method: 'PUT', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(this.editForm),
+        });
+        this.editingId = null;
+        await this.load();
+      },
+
+      async deleteItem(id) {
+        await fetch(`/materials/items/${id}`, {method:'DELETE'});
+        await this.load();
+      },
+
+      async saveAdd() {
+        if (!this.addForm.name.trim()) return;
+        await fetch('/materials/items', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(this.addForm),
+        });
+        this.showAddForm = false;
+        this.addForm = {name:'', category: this.categories[0]?.name||'Other', unit_cost:0, unit:'pcs'};
+        await this.load();
+      },
+    };
+  }
+  </script>
+
+  <!-- ── EDITOR TAB ──────────────────────────────────── -->
+  <div x-show="tab==='editor'">
+
+    <!-- Progress steps + arrow nav -->
+    <div class="flex items-center justify-between mb-5">
+      <div class="flex items-center gap-2 flex-1">
+        {% for n, label in [(1,'Print Settings'),(2,'Project Details'),(3,'Materials'),(4,'Pricing')] %}
+        <div class="flex items-center gap-2 {% if not loop.last %}flex-1{% endif %}">
+          <button type="button" @click="go({{ n }})"
+                  class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
+                  :class="step==={{ n }} ? 'bg-teal-500 text-white ring-2 ring-teal-300 ring-offset-1'
+                         : step>{{ n }} ? 'bg-teal-100 text-teal-700' : 'bg-slate-200 text-slate-400'">
+            {{ n }}
+          </button>
+          <span class="text-xs font-medium hidden sm:block"
+                :class="step==={{ n }} ? 'text-slate-900' : step>{{ n }} ? 'text-teal-600' : 'text-slate-400'">{{ label }}</span>
+              {% if not loop.last %}<div class="flex-1 h-px" :class="step>{{ n }} ? 'bg-teal-300' : 'bg-slate-200'"></div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="flex gap-1 ml-4 shrink-0">
+        <button type="button" @click="if(step>1) go(step-1)" :disabled="step===1"
+                class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-30 transition-colors text-lg">&#8249;</button>
+        <button type="button" @click="if(step<4) go(step+1)" :disabled="step===4"
+                class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-30 transition-colors text-lg">&#8250;</button>
+      </div>
+    </div>
+
+    <!-- Hidden submission form -->
+    <form id="wizard-form" method="POST" action="{% if edit_id %}/projects/{{ edit_id }}/edit{% else %}/projects/new{% endif %}" enctype="multipart/form-data">
+      <input type="hidden" name="ink_usage_json"    id="ink_usage_json"/>
+      <input type="hidden" name="bom_json"           id="bom_json"/>
+      <input type="hidden" name="ink_mode"               :value="inkMode"/>
+      <input type="hidden" name="print_quality"          :value="printQuality"/>
+      <input type="hidden" name="material"               :value="material"/>
+      <input type="hidden" name="name"                   :value="name"/>
+      <input type="hidden" name="units"                  :value="units"/>
+      <input type="hidden" name="print_time_hours"       :value="printTimeHours"/>
+      <input type="hidden" name="hands_on_hours"         :value="handsOnHours"/>
+      <input type="hidden" name="sell_price_per_unit"    :value="sellPricePerUnit"/>
+      <input type="hidden" name="project_type"             :value="projectType"/>
+      <input type="hidden" name="notes"                  :value="notes"/>
+      <input type="hidden" name="print_bed"         id="f_print_bed"/>
+      <input type="hidden" name="alignment"         id="f_alignment"/>
+      <input type="hidden" name="craft_mode"        id="f_craft_mode"/>
+      <input type="hidden" name="craft_ink_mode"    id="f_craft_ink_mode"/>
+      <input type="hidden" name="craft_mode_params_json" id="f_craft_mode_params_json"/>
+      <input type="hidden" name="substrate"         id="f_substrate"/>
+      <input type="hidden" name="white_choke_mm"    id="f_white_choke"/>
+      <input type="hidden" name="layer_stack_json"  id="f_layer_stack"/>
+      <input type="hidden" name="crafts_json"       id="f_crafts_json"/>
+      <input type="file" name="photo" id="photo-input"
+             accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"
+             @change="photoName = $event.target.files[0]?.name || ''"/>
+    </form>
+
+    <!-- Two-column: main steps + persistent sidebar -->
+    <div class="flex gap-5 items-start">
+
+      <!-- Main content column -->
+      <div class="flex-1 min-w-0">
+
+        <!-- STEP 1 · Print Settings -->
+        <div x-show="step===1" class="bg-white rounded-xl border border-slate-200 p-5 space-y-5">
+
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-slate-900">Print Settings</div>
+              <div class="text-sm text-slate-400">Print bed and print settings</div>
+            </div>
+            <button type="button" @click="printWorksheet()"
+                    class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-teal-600 border border-slate-200 hover:border-teal-400 rounded-lg px-3 py-1.5 transition-colors"
+                    title="Download and print our planning worksheet to forecast your project costs and ink usage before filling in the form.">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+              </svg>
+              Worksheet
+            </button>
+          </div>
+
+          <!-- Start from Template -->
+          <div class="border border-slate-200 rounded-lg overflow-hidden">
+            <div class="px-4 py-2.5 bg-slate-50 flex items-center gap-2 text-sm font-medium text-teal-700">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25"/></svg>
+              Start from Template
+            </div>
+            <div x-show="savedTemplates.length===0" class="px-4 py-3 text-sm text-slate-400">No templates yet. Use "Save as Template" at the end of the wizard.</div>
+            <div x-show="savedTemplates.length>0" class="divide-y divide-slate-100">
+              <template x-for="t in savedTemplates" :key="t.id">
+                <div class="flex items-center justify-between px-4 py-2.5">
+                  <div>
+                    <div class="text-sm font-medium text-slate-800" x-text="t.name"></div>
+                    <div class="text-xs text-slate-400" x-text="t.ink_mode+' · '+t.craft_mode+' · '+t.print_bed"></div>
+                  </div>
+                  <div class="flex gap-2 shrink-0">
+                    <button type="button" @click="applyTemplate(t)"
+                            class="text-xs font-medium bg-teal-50 text-teal-700 hover:bg-teal-100 px-3 py-1 rounded-lg transition-colors">Apply</button>
+                    <button type="button" @click="deleteTemplate(t.id)"
+                            class="text-xs text-slate-400 hover:text-red-500 transition-colors px-1" title="Delete">&#10005;</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Print Bed + Design Alignment -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Print Bed <span class="text-slate-400 font-normal cursor-help" title="Your printer's bed configuration for this job.">&#9432;</span></label>
+              <div class="grid grid-cols-2 gap-2">
+                <template x-for="bed in ['Mini Bed','Standard Bed','Rotary','Roll-To-Film']" :key="bed">
+                  <button type="button"
+                          @click="printBed = bed==='Mini Bed'?'Mini': bed==='Standard Bed'?'Standard': bed"
+                          class="border rounded-lg px-3 py-2 text-xs font-medium transition-colors text-center"
+                          :class="(printBed==='Mini'&&bed==='Mini Bed')||(printBed==='Standard'&&bed==='Standard Bed')||(printBed===bed)
+                                  ?'border-teal-500 bg-teal-50 text-teal-700':'border-slate-200 text-slate-600 hover:border-slate-300'"
+                          x-text="bed"></button>
+                </template>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Design Alignment <span class="text-slate-400 font-normal cursor-help" title="How the design is positioned on the bed">&#9432;</span></label>
+              <div class="flex flex-col gap-2">
+                <template x-for="al in ['Photo','Zero Point']" :key="al">
+                  <button type="button" @click="alignment=al"
+                          class="border rounded-lg px-3 py-2 text-xs font-medium transition-colors text-center"
+                          :class="alignment===al?'border-teal-500 bg-teal-50 text-teal-700':'border-slate-200 text-slate-600 hover:border-slate-300'"
+                          x-text="al+' Alignment'"></button>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Material + Substrate -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Material (Print Setting) <span class="text-slate-400 font-normal cursor-help" title="The material category you&#39;re printing on (e.g., Ceramics, Wood, Acrylic). Used for analytics grouping and profitability reports.">&#9432;</span></label>
+              <select x-model="material" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
+                <template x-for="m in materials" :key="m"><option :value="m" x-text="m"></option></template>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Substrate (Physical Material) <span class="text-slate-400 font-normal cursor-help" title="The physical item you are printing on. Saved for your records and shown on the project detail page.">&#9432;</span></label>
+              <select x-model="substrate" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
+                <template x-for="m in materials" :key="m"><option :value="m" x-text="m"></option></template>
+              </select>
+            </div>
+          </div>
+
+          <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700 leading-relaxed">
+            <span class="font-semibold">&#128161; Substrate vs. Bill of Materials:</span>
+            Choose a substrate category above for analytics grouping. Then add specific items (e.g. "Ceramic coaster, &#8364;0.50") to your Bill of Materials in Step 3.
+          </div>
+
+          <!-- Quality + White Underbase Choke -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Quality <span class="text-slate-400 font-normal cursor-help" title="Print quality affects speed and ink consumption">&#9432;</span></label>
+              <select x-model="printQuality" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
+                {% for q in print_qualities %}<option value="{{ q }}">{{ q }}</option>{% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                White Underbase Choke <span class="text-slate-400 font-normal cursor-help" title="Shrinks the white layer inward to prevent white edges showing around your design.">&#9432;</span>
+                <span class="float-right font-bold text-slate-900" x-text="parseFloat(whiteChoke).toFixed(2)+' mm'"></span>
+              </label>
+              <input type="range" x-model="whiteChoke" min="0" max="0.50" step="0.01"
+                     class="w-full h-2 rounded-full appearance-none cursor-pointer accent-teal-500 mt-1"/>
+              <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0.00 mm</span><span>0.50 mm</span></div>
+            </div>
+          </div>
+
+          <!-- Craft Mode -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Craft Mode <span class="text-slate-400 font-normal cursor-help" title="The craft mode from your printer software (eufyMake Studio). This is metadata for your records — it doesn&#39;t change cost calculations.">&#9432;</span></label>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="cm in craftModes" :key="cm">
+                <button type="button" @click="setCraftMode(cm)"
+                        class="border rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                        :class="craftMode===cm?'border-teal-500 bg-teal-50 text-teal-700':'border-slate-200 text-slate-600 hover:border-slate-300'"
+                        x-text="cm"></button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Craft-Mode-Specific Ink Mode Selection -->
+          <div x-show="isCraftModeWithParameters" class="border-l-2 border-violet-200 pl-4">
+            <label class="block text-sm font-semibold text-violet-700 mb-2">Ink Mode</label>
+            <div class="flex flex-wrap gap-2 mb-4">
+              <template x-for="im in availableCraftInkModes" :key="im">
+                <button type="button" @click="setCraftInkMode(im)"
+                        class="border rounded-lg px-4 py-2 text-xs font-medium transition-colors"
+                        :class="selectedCraftInkMode===im?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'"
+                        x-text="im"></button>
+              </template>
+            </div>
+
+            <div x-show="selectedCraftInkMode" class="space-y-4">
+              <!-- Flat Raised -->
+              <template x-if="craftMode==='Flat Raised'">
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">
+                      Thickness
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.thickness.toFixed(1)+'mm'"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.thickness" min="0.3" max="3.0" step="0.1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0.3mm</span><span>3.0mm</span></div>
+                  </div>
+                  <div x-show="selectedCraftInkMode==='White (Foil Stamping)'">
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Foil Type</label>
+                    <select x-model="currentCraftModeParams.foilType" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
+                      <option value="Gold">Gold</option>
+                      <option value="Silver">Silver</option>
+                    </select>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Pattern Texture -->
+              <template x-if="craftMode==='Pattern Texture'">
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Thickness
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.thickness.toFixed(1)+'mm'"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.thickness" min="0.3" max="2.0" step="0.1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0.3mm</span><span>2.0mm</span></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Smoothness
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.smoothness"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.smoothness" min="1" max="10" step="1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>1</span><span>10</span></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Ink Saving Mode
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.inkSavingMode+'%'"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.inkSavingMode" min="0" max="100" step="1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0%</span><span>100%</span></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Texture Option</label>
+                    <div class="flex gap-2">
+                      <button type="button" @click="currentCraftModeParams.textureOption='Default'"
+                              class="border rounded-lg px-4 py-2 text-xs font-medium transition-colors"
+                              :class="currentCraftModeParams.textureOption==='Default'?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'">Default</button>
+                      <button type="button" @click="currentCraftModeParams.textureOption='Invert'"
+                              class="border rounded-lg px-4 py-2 text-xs font-medium transition-colors"
+                              :class="currentCraftModeParams.textureOption==='Invert'?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'">Invert</button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Relief Texture -->
+              <template x-if="craftMode==='Relief Texture'">
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Thickness
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.thickness.toFixed(1)+'mm'"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.thickness" min="0.3" max="5.0" step="0.1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0.3mm</span><span>5.0mm</span></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Smoothness
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.smoothness"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.smoothness" min="1" max="10" step="1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>1</span><span>10</span></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Ink Saving Mode
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.inkSavingMode+'%'"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.inkSavingMode" min="0" max="100" step="1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0%</span><span>100%</span></div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Customize Texture -->
+              <template x-if="craftMode==='Customize Texture'">
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Thickness
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.thickness.toFixed(1)+'mm'"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.thickness" min="0.3" max="2.0" step="0.1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0.3mm</span><span>2.0mm</span></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Smoothness
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.smoothness"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.smoothness" min="1" max="10" step="1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>1</span><span>10</span></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Ink Saving Mode
+                      <span class="float-right font-bold" x-text="currentCraftModeParams.inkSavingMode+'%'"></span>
+                    </label>
+                    <input type="range" x-model.number="currentCraftModeParams.inkSavingMode" min="0" max="100" step="1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0%</span><span>100%</span></div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Texture Option</label>
+                    <div class="flex gap-2">
+                      <button type="button" @click="currentCraftModeParams.textureOption='Default'"
+                              class="border rounded-lg px-4 py-2 text-xs font-medium transition-colors"
+                              :class="currentCraftModeParams.textureOption==='Default'?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'">Default</button>
+                      <button type="button" @click="currentCraftModeParams.textureOption='Invert'"
+                              class="border rounded-lg px-4 py-2 text-xs font-medium transition-colors"
+                              :class="currentCraftModeParams.textureOption==='Invert'?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'">Invert</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-violet-700 mb-2">Depth Map Notes</label>
+                    <input type="text" x-model="currentCraftModeParams.depthMapNotes"
+                           placeholder="Filename or notes about the depth map used..."
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Standard Ink Mode for Flat -->
+          <div x-show="!isCraftModeWithParameters">
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Ink Mode <span class="text-slate-400 font-normal cursor-help" title="Order and combination of ink channels used in this print">&#9432;</span></label>
+            <select x-model="inkMode" @change="setInkMode($event.target.value)"
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
+              {% for mode in ink_modes %}<option value="{{ mode }}">{{ mode }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <!-- Layer Stack -->
+          <div x-show="!isCraftModeWithParameters">
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-sm font-medium text-slate-700">Layer Stack <span class="text-slate-400 font-normal cursor-help" title="Number of passes per ink group (max 12 total)">&#9432;</span></label>
+              <span class="text-xs px-2 py-0.5 rounded-full font-semibold bg-violet-100 text-violet-700"
+                    x-text="totalLayers+' / 12 layers'"></span>
+            </div>
+            <div x-show="inkMode==='Customize'" class="mb-2">
+              <select x-model="customLayerChoice" @change="addCustomLayer()"
+                      class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
+                <option value="">Add layer type...</option>
+                <template x-for="layerType in customLayerTypes" :key="layerType">
+                  <option :value="layerType" x-text="layerType"></option>
+                </template>
+              </select>
+            </div>
+            <div class="space-y-2">
+              <template x-for="(group, gi) in layerStack" :key="group.name+'-'+gi">
+                <div class="flex items-center justify-between border border-slate-200 rounded-lg px-4 py-2.5 bg-slate-50">
+                  <span class="text-sm font-medium text-slate-700" x-text="group.name"></span>
+                  <div class="flex items-center gap-3">
+                    <button x-show="inkMode==='Customize'" type="button" @click="removeLayer(gi)"
+                            class="w-7 h-7 rounded-full border border-rose-200 bg-rose-50 flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-colors">&#10005;</button>
+                    <button type="button" @click="if(group.qty>1) group.qty--"
+                            class="w-7 h-7 rounded-full border border-slate-300 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">&#8722;</button>
+                    <span class="text-sm font-bold text-slate-800 w-4 text-center" x-text="group.qty"></span>
+                    <button type="button" @click="if(totalLayers<12) group.qty++"
+                            class="w-7 h-7 rounded-full border border-slate-300 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">+</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- ── Multiple Craft Faces (feature-flagged) ── -->
+          <div x-show="multiCraftFlag" class="border-t border-slate-200 pt-4">
+            <label class="flex items-center justify-between cursor-pointer select-none">
+              <span class="text-sm font-medium text-slate-700">
+                Multiple Craft Modes
+                <span class="text-slate-400 font-normal cursor-help" title="Enable when one project has multiple faces/sides with different craft modes (e.g. a 2-sided case where one side is Flat Raised and the other is Flat). Each face tracks its own ink usage; the project cost sums all faces.">&#9432;</span>
+              </span>
+              <button type="button" @click="multiCraftEnabled=!multiCraftEnabled"
+                      class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0"
+                      :class="multiCraftEnabled?'bg-teal-500':'bg-slate-300'">
+                <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                      :class="multiCraftEnabled?'translate-x-6':'translate-x-1'"></span>
+              </button>
+            </label>
+
+            <div x-show="multiCraftEnabled" class="mt-3 space-y-3">
+              <div class="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 leading-relaxed">
+                The settings above define <strong>Side A</strong>. Add more faces below &mdash; each with its own craft mode and ink usage. The project's total ink and cost sum every face.
+              </div>
+
+              <template x-for="(face, fi) in extraCrafts" :key="fi">
+                <div class="border border-violet-200 rounded-lg p-3 space-y-3 bg-violet-50/40">
+                  <div class="flex items-center justify-between gap-2">
+                    <input type="text" x-model="face.variant_name" placeholder="Face name"
+                           class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+                    <button type="button" @click="removeExtraCraft(fi)"
+                            class="text-slate-400 hover:text-red-500 transition-colors shrink-0" title="Remove face">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+
+                  <!-- Craft Mode -->
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="cm in craftModes" :key="cm">
+                      <button type="button" @click="setExtraCraftMode(face, cm)"
+                              class="border rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                              :class="face.craftMode===cm?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'"
+                              x-text="cm"></button>
+                    </template>
+                  </div>
+
+                  <!-- Craft ink mode (param modes) -->
+                  <div x-show="extraFaceHasParams(face)" class="flex flex-wrap gap-2">
+                    <template x-for="im in extraFaceInkModes(face)" :key="im">
+                      <button type="button" @click="setExtraCraftInkMode(face, im)"
+                              class="border rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                              :class="face.craftInkMode===im?'border-violet-500 bg-violet-50 text-violet-700':'border-slate-200 text-slate-600 hover:border-slate-300'"
+                              x-text="im"></button>
+                    </template>
+                  </div>
+
+                  <!-- Thickness (param modes) -->
+                  <div x-show="extraFaceHasParams(face)">
+                    <label class="block text-xs font-semibold text-violet-700 mb-1">Thickness
+                      <span class="float-right font-bold" x-text="parseFloat(face.thickness||0).toFixed(1)+'mm'"></span>
+                    </label>
+                    <input type="range" x-model.number="face.thickness" min="0.3" max="5.0" step="0.1"
+                           class="w-full h-2 rounded-full appearance-none cursor-pointer accent-violet-600"/>
+                  </div>
+
+                  <!-- Standard ink mode (Flat) -->
+                  <div x-show="!extraFaceHasParams(face)">
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Ink Mode</label>
+                    <select x-model="face.inkMode"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white">
+                      {% for mode in ink_modes %}<option value="{{ mode }}">{{ mode }}</option>{% endfor %}
+                    </select>
+                  </div>
+
+                  <!-- Per-channel ink usage -->
+                  <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Ink Usage (ml)</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <template x-for="ch in extraFaceChannels(face)" :key="ch">
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-xs font-medium text-slate-500 w-12 shrink-0" x-text="channelNames[ch]||ch"></span>
+                          <input type="number" min="0" step="0.01" x-model.number="face.inkUsage[ch]"
+                                 class="flex-1 min-w-0 border border-slate-300 rounded-lg px-2 py-1 text-sm text-right focus:outline-hidden focus:ring-2 focus:ring-violet-500"/>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <button type="button" @click="addExtraCraft()"
+                      class="w-full flex items-center justify-center gap-2 py-2 border border-dashed border-violet-300 rounded-lg text-sm font-medium text-violet-600 hover:bg-violet-50 transition-colors">
+                <span class="text-base leading-none font-bold">+</span> Add Craft Face
+              </button>
+            </div>
+          </div>
+
+          <div class="flex justify-end pt-1">
+            <button @click="go(2)" type="button"
+                    class="bg-teal-500 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-teal-600 transition-colors flex items-center gap-2">
+              Next
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div><!-- /step 1 -->
+
+        <!-- STEP 2 · Project Details & Ink Usage -->
+        <div x-show="step===2" class="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+            </div>
+            <div>
+              <div class="font-semibold text-slate-900">Project Details and Ink Usage</div>
+              <div class="text-sm text-slate-400">Enter ink usage and project details</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Project Name *</label>
+              <input type="text" x-model="name" placeholder="Enter project name"
+                     class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Project Photo <span class="text-slate-400 font-normal cursor-help" title="Optional photo">&#9432;</span></label>
+              <div class="flex items-center gap-2 border border-slate-300 rounded-lg px-1 py-1">
+                <label for="photo-input" class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium px-3 py-1.5 rounded-md transition-colors shrink-0">Choose File</label>
+                <span class="text-sm text-slate-500 truncate" x-text="photoName||'No file chosen'"></span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Optional &middot; Max 10 MB</p>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Details / Description</label>
+            <textarea x-model="notes" maxlength="150" rows="2" placeholder="Enter project details and description"
+                      class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 resize-none"></textarea>
+            <div class="text-xs text-slate-400 text-right mt-0.5"><span x-text="notes.length"></span>/150</div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Print Time</label>
+              <div class="flex gap-1">
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">H</div><input type="number" x-model="printH" min="0" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">M</div><input type="number" x-model="printM" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">S</div><input type="number" x-model="printS" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Hands-on Time</label>
+              <div class="flex gap-1">
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">H</div><input type="number" x-model="handsH" min="0" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">M</div><input type="number" x-model="handsM" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+                <div class="flex-1"><div class="text-xs text-center text-slate-400 mb-1">S</div><input type="number" x-model="handsS" min="0" max="59" step="1" placeholder="0" class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-center"/></div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Units <span class="text-slate-400 font-normal cursor-help" title="Items produced in this batch">&#9432;</span></label>
+              <input type="number" x-model="units" min="1" step="1" placeholder="1"
+                     class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
+              <p class="text-xs text-slate-400 mt-1">Required for cost/unit</p>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Ink Usage (ml) <span class="text-slate-400 font-normal cursor-help" title="Enter ink consumed from your printer&#39;s report or cartridge weight. This is for the entire bed, not per unit.">&#9432;</span></label>
+            <div x-show="hasWhiteChannel" class="border border-blue-200 bg-blue-50 rounded-lg p-3 mb-3">
+              <div class="text-sm font-medium text-blue-800 mb-2">White Ink Type</div>
+              <div class="flex gap-5">
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" x-model="whiteLoaded" value="W" class="accent-teal-600"/><span class="text-sm">Standard White</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" x-model="whiteLoaded" value="FW" class="accent-teal-600"/><span class="text-sm">Flexible White</span></label>
+              </div>
+              <p class="text-xs text-blue-600 mt-1.5">Only one white ink type per print</p>
+            </div>
+            <div class="border border-amber-200 bg-amber-50 rounded-lg p-3 mb-4">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-medium text-amber-800">Include Pre-Prime Ink</span>
+                <button type="button" @click="includePreprime=!includePreprime"
+                        class="relative inline-flex w-10 h-5 rounded-full transition-colors"
+                        :class="includePreprime?'bg-teal-500':'bg-slate-300'">
+                  <span class="inline-block w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform mt-0.5"
+                        :class="includePreprime?'translate-x-5':'translate-x-0.5'"></span>
+                </button>
+              </div>
+              <p class="text-xs text-amber-700">Most UV printer software already includes pre-prime in reported totals. Toggle off to avoid double-counting.</p>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <template x-for="ch in activeChannels" :key="ch">
+                <div>
+                  <div class="flex items-center gap-1.5 mb-1">
+                    <span class="w-2.5 h-2.5 rounded-full" :style="'background:'+(inkHex[ch]||'#ccc')"></span>
+                    <label class="text-xs font-medium text-slate-600" x-text="channelNames[ch]"></label>
+                  </div>
+                  <input type="number" x-model="inkUsage[ch]" min="0" step="0.01" placeholder="0.00"
+                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-right"/>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="flex justify-between pt-1">
+            <button @click="go(1)" type="button" class="text-slate-600 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors">&#8592; Back</button>
+            <button @click="go(3)" type="button" :disabled="!name.trim()||units<1"
+                    class="bg-teal-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-teal-600 disabled:opacity-50 transition-colors">Continue &#8594;</button>
+          </div>
+        </div><!-- /step 2 -->
+
+        <!-- STEP 3 · Materials (BOM) -->
+        <div x-show="step===3" class="bg-white rounded-xl border border-slate-200 p-5">
+          <div class="mb-4">
+            <div class="font-semibold text-slate-900">Bill of Materials <span class="text-slate-400 font-normal text-sm cursor-help" title="Add materials and supplies used in this project. Each item contributes to your per-unit material cost in the COGS calculation.">&#9432;</span></div>
+            <div class="text-sm text-slate-400">Substrates, packaging, consumables &mdash; cost per unit</div>
+          </div>
+          <div class="grid grid-cols-12 gap-2 mb-1 px-1">
+            <span class="col-span-4 text-xs text-slate-400 font-medium">Item name</span>
+            <span class="col-span-3 text-xs text-slate-400 font-medium">Category</span>
+            <span class="col-span-2 text-xs text-slate-400 font-medium">{{ currency }}/unit</span>
+            <span class="col-span-2 text-xs text-slate-400 font-medium">Qty</span>
+            <span class="col-span-1"></span>
+          </div>
+          <div class="space-y-2 mb-4">
+            <template x-for="(item, i) in bomItems" :key="i">
+              <div class="grid grid-cols-12 gap-2 items-center">
+                <input type="text" x-model="item.name" placeholder="Item name"
+                       class="col-span-4 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
+                <select x-model="item.category" class="col-span-3 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
+                  <template x-for="cat in ['Substrate','Packaging','Finishing','Consumable','Other']" :key="cat">
+                    <option :value="cat" x-text="cat"></option>
+                  </template>
+                </select>
+                <input type="number" x-model="item.unitCost" min="0" step="0.01" placeholder="0.00"
+                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-right"/>
+                <input type="number" x-model="item.qty" min="0" step="1" placeholder="1"
+                       class="col-span-2 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 text-right"/>
+                <button @click="rmBom(i)" type="button" class="col-span-1 text-slate-400 hover:text-red-500 transition-colors text-center">&#10005;</button>
+              </div>
+            </template>
+          </div>
+          <button @click="addBom()" type="button"
+                  class="w-full border-2 border-dashed border-slate-300 text-slate-500 hover:border-teal-400 hover:text-teal-600 rounded-lg py-2.5 text-sm font-medium transition-colors">
+            + Add Material
+          </button>
+          <div class="mt-3 flex justify-between items-center text-sm border-t border-slate-100 pt-3">
+            <span class="text-slate-500">BOM Total</span>
+            <span class="font-semibold text-slate-900">{{ currency }}<span x-text="fmt(bomTotal)"></span></span>
+          </div>
+          <div class="flex justify-between mt-5">
+            <button @click="go(2)" type="button" class="text-slate-600 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors">&#8592; Back</button>
+            <button @click="go(4)" type="button" class="bg-teal-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-teal-600 transition-colors">Continue &#8594;</button>
+          </div>
+        </div><!-- /step 3 -->
+
+        <!-- STEP 4 · Pricing -->
+        <div x-show="step===4" class="space-y-4">
+          <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <div class="font-semibold text-slate-900 mb-4">Pricing</div>
+            <!-- Project Type -->
+            <div class="mb-5">
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Project Type</label>
+              <div class="flex gap-2 flex-wrap">
+                <template x-for="pt in ['commercial','gift','sample','internal']" :key="pt">
+                  <button type="button" @click="projectType = pt"
+                          :class="projectType === pt
+                            ? 'bg-teal-500 text-white border-teal-500'
+                            : 'bg-white text-slate-600 border-slate-300 hover:border-teal-400'"
+                          class="px-3 py-1.5 rounded-lg text-sm font-medium border capitalize transition-colors"
+                          x-text="pt"></button>
+                </template>
+              </div>
+              <p class="text-xs text-slate-400 mt-1.5" x-show="projectType !== 'commercial'">Non-commercial projects are excluded from margin KPIs.</p>
+            </div>
+            <div class="mb-4" x-show="projectType === 'commercial'">
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Sell Price per Unit ({{ currency }})</label>
+              <input type="number" x-model="sellPricePerUnit" min="0" step="0.01"
+                     class="w-full sm:w-48 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
+              <div class="flex justify-between text-slate-600"><span>Ink cost (batch)</span><span>{{ currency }}<span x-text="fmt(inkCost)"></span></span></div>
+              <div class="flex justify-between text-slate-600"><span>Materials / BOM</span><span>{{ currency }}<span x-text="fmt(bomTotal)"></span></span></div>
+              <div class="flex justify-between text-slate-600"><span>Machine cost</span><span>{{ currency }}<span x-text="fmt(machineCost)"></span></span></div>
+              <div class="flex justify-between text-slate-600"><span>Labor cost</span><span>{{ currency }}<span x-text="fmt(laborCost)"></span></span></div>
+              <div class="flex justify-between text-slate-600 border-t border-slate-200 pt-2">
+                <span>Overhead (<span x-text="cfg.labor.overhead_pct"></span>%)</span>
+                <span>{{ currency }}<span x-text="fmt(overheadCost)"></span></span>
+              </div>
+              <div class="flex justify-between font-bold text-slate-900 border-t border-slate-300 pt-2 text-base">
+                <span>Total COGS</span><span>{{ currency }}<span x-text="fmt(totalCogs)"></span></span>
+              </div>
+              <div class="flex justify-between font-semibold text-slate-700">
+                <span>COGS per unit</span><span>{{ currency }}<span x-text="fmt(cogsPerUnit)"></span></span>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 p-5" x-show="projectType === 'commercial'">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-3xl font-bold text-slate-900"><span x-text="fmt(marginPct)"></span>%</div>
+                <div class="text-sm text-slate-500 mt-0.5">margin</div>
+              </div>
+              <span class="text-lg font-semibold px-4 py-2 rounded-xl" :class="marginClass" x-text="marginStatus"></span>
+            </div>
+            <div class="mt-4 grid grid-cols-3 gap-3 text-sm text-center">
+              <div class="bg-slate-50 rounded-lg p-3"><div class="font-bold text-slate-900">{{ currency }}<span x-text="fmt(sellPricePerUnit)"></span></div><div class="text-slate-500 text-xs">sell / unit</div></div>
+              <div class="bg-slate-50 rounded-lg p-3"><div class="font-bold text-slate-900">{{ currency }}<span x-text="fmt(cogsPerUnit)"></span></div><div class="text-slate-500 text-xs">cost / unit</div></div>
+              <div class="bg-slate-50 rounded-lg p-3"><div class="font-bold text-slate-900">{{ currency }}<span x-text="fmt(totalRev)"></span></div><div class="text-slate-500 text-xs">total revenue</div></div>
+            </div>
+          </div>
+          <!-- Save as Template inline panel -->
+          <div x-show="showTemplateSave" class="bg-white rounded-xl border border-teal-200 p-4 space-y-3">
+            <div class="text-sm font-semibold text-teal-800">Save Print Settings as Template</div>
+            <div class="flex gap-2">
+              <input type="text" x-model="templateName" placeholder="Template name…"
+                     @keydown.enter="saveTemplate()"
+                     class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
+              <button type="button" @click="saveTemplate()" :disabled="!templateName.trim()||templateSaving"
+                      class="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-600 disabled:opacity-50 transition-colors"
+                      x-text="templateSaving?'Saving…':'Save'"></button>
+              <button type="button" @click="showTemplateSave=false;templateName=''"
+                      class="text-slate-400 hover:text-slate-700 px-2 transition-colors text-lg leading-none">&#10005;</button>
+            </div>
+            <p class="text-xs text-teal-600">Saves: bed, alignment, material, substrate, quality, choke, craft mode, ink mode &amp; layer stack.</p>
+          </div>
+
+          <div class="flex justify-between">
+            <button @click="go(3)" type="button" class="text-slate-600 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors">&#8592; Back</button>
+            <div class="flex items-center gap-2">
+              <button type="button" @click="showTemplateSave=!showTemplateSave"
+                      class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-teal-600 border border-slate-200 hover:border-teal-400 rounded-lg px-3 py-2.5 transition-colors"
+                      :class="showTemplateSave?'border-teal-400 text-teal-600':''">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"/>
+                </svg>
+                Save as Template
+              </button>
+              <button @click="submit()" type="button" :disabled="!name.trim()||(projectType==='commercial'&&sellPricePerUnit<=0)"
+                      class="bg-emerald-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                Save Project &#10003;
+              </button>
+            </div>
+          </div>
+        </div><!-- /step 4 -->
+
+      </div><!-- /main column -->
+
+      <!-- ══ PERSISTENT LIVE SUMMARY SIDEBAR ══════════════════════ -->
+      <div class="w-60 shrink-0 sticky top-6 space-y-3">
+
+        <!-- Ink summary -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z"/>
+            </svg>
+            <span class="text-sm font-semibold text-slate-900">Live Summary</span>
+          </div>
+          <div class="text-xs text-slate-400 mb-3 truncate"
+               x-text="name ? name+' (qty: '+units+')' : 'No project name yet'"></div>
+          <div class="space-y-1.5 mb-3">
+            <template x-for="ch in activeChannels" :key="ch">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full shrink-0" :style="'background:'+(inkHex[ch]||'#ccc')"></span>
+                <span class="text-xs text-slate-500 w-12 shrink-0 truncate" x-text="channelNames[ch]"></span>
+                <div class="flex-1 bg-slate-100 rounded-full h-1.5">
+                  <div class="h-1.5 rounded-full transition-all"
+                       :style="'width:'+Math.min(100,chMl(ch)/maxChannelMl*100).toFixed(0)+'%;background:'+(inkHex[ch]||'#818cf8')"></div>
+                </div>
+                <span class="text-xs text-slate-400 w-7 text-right shrink-0" x-text="fmt(chMl(ch))"></span>
+                <span class="text-xs font-medium text-slate-700 w-12 text-right shrink-0"
+                      x-text="'{{ currency }}'+fmt(chCost(ch))"></span>
+              </div>
+            </template>
+          </div>
+          <div class="border-t border-slate-100 pt-2 space-y-1 mb-2.5">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-400">Pre-prime</span>
+              <span class="text-slate-500" x-text="fmt(primeTotal.ml)+' ml\u00b7{{ currency }}'+fmt(primeTotal.cost)"></span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="text-teal-600 font-medium">Project</span>
+              <span class="text-teal-700 font-medium" x-text="fmt(projectInkMl)+' ml\u00b7{{ currency }}'+fmt(projectInkCost)"></span>
+            </div>
+          </div>
+          <div class="border-t border-slate-200 pt-2">
+            <div class="flex justify-between items-baseline">
+              <span class="text-xs font-bold text-slate-900">Grand Total</span>
+              <span class="text-xs font-bold text-slate-900"
+                    x-text="fmt(primeTotal.ml+projectInkMl)+' ml\u00b7{{ currency }}'+fmt(primeTotal.cost+projectInkCost)"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost breakdown (step 3+) -->
+        <div x-show="step>=3" class="bg-white rounded-xl border border-slate-200 p-4">
+          <div class="text-xs font-semibold text-slate-700 mb-2.5">Cost Breakdown</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span class="text-slate-500">Ink / unit</span><span class="font-medium">{{ currency }}<span x-text="fmt(inkCost/Math.max(1,units))"></span></span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Material / unit</span><span class="font-medium">{{ currency }}<span x-text="fmt(bomTotal/Math.max(1,units))"></span></span></div>
+            <div x-show="step>=4" class="flex justify-between"><span class="text-slate-500">Machine / unit</span><span class="font-medium">{{ currency }}<span x-text="fmt(machineCost/Math.max(1,units))"></span></span></div>
+            <div x-show="step>=4" class="flex justify-between"><span class="text-slate-500">Labor / unit</span><span class="font-medium">{{ currency }}<span x-text="fmt(laborCost/Math.max(1,units))"></span></span></div>
+            <div x-show="step>=4" class="flex justify-between"><span class="text-slate-500">Overhead / unit</span><span class="font-medium">{{ currency }}<span x-text="fmt(overheadCost/Math.max(1,units))"></span></span></div>
+            <div class="flex justify-between border-t border-slate-100 pt-1.5 font-bold text-slate-900">
+              <span>COGS / unit</span><span>{{ currency }}<span x-text="fmt(cogsPerUnit)"></span></span>
+            </div>
+          </div>
+          <div x-show="step>=4" class="mt-2 py-1.5 px-2 rounded-lg text-xs font-semibold text-center"
+               :class="marginClass" x-text="fmt(marginPct)+'% \u2014 '+marginStatus"></div>
+        </div>
+
+      </div><!-- /sidebar -->
+
+    </div><!-- /two-column -->
+
+  </div><!-- /editor tab -->
+
+</div><!-- /wrapper -->
+{% endblock %}

@@ -1,0 +1,897 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+
+{% block content %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+  <!-- Financial trend -->
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-700">Financial Trend</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Revenue, profit, and optional cumulative profit</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <select id="revRange"
+                class="text-xs rounded-lg border border-slate-200 px-2 py-1.5 text-slate-600 focus:border-indigo-300 focus:ring-0">
+          <option value="6">Last 6 months</option>
+          <option value="12" selected>Last 12 months</option>
+          <option value="all">All months</option>
+        </select>
+        <button id="toggleCumulative"
+                type="button"
+                class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+          Show cumulative
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 mb-4">
+      <div class="rounded-lg border border-slate-100 p-2.5">
+        <div class="text-[11px] uppercase tracking-wide text-slate-400">Revenue</div>
+        <div id="trendRevenue" class="text-sm font-semibold text-indigo-600">{{ currency }}0.00</div>
+      </div>
+      <div class="rounded-lg border border-slate-100 p-2.5">
+        <div class="text-[11px] uppercase tracking-wide text-slate-400">Profit</div>
+        <div id="trendProfit" class="text-sm font-semibold text-emerald-600">{{ currency }}0.00</div>
+      </div>
+      <div class="rounded-lg border border-slate-100 p-2.5">
+        <div class="text-[11px] uppercase tracking-wide text-slate-400">Margin</div>
+        <div id="trendMargin" class="text-sm font-semibold text-slate-700">0.0%</div>
+      </div>
+    </div>
+
+    <div class="relative" style="height:220px">
+      <canvas id="chartRevenue"></canvas>
+    </div>
+  </div>
+
+  <!-- Margin distribution -->
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <h2 class="text-sm font-semibold text-slate-700 mb-4">Margin Distribution</h2>
+    <div class="flex items-center justify-center" style="height:220px">
+      <canvas id="chartMargin"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<div class="grid grid-cols-1 gap-6 mb-6">
+  <!-- Monthly Ink Usage -->
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <h2 class="text-sm font-semibold text-slate-700 mb-4">Monthly Ink Usage (mL)</h2>
+    <div class="relative" style="height:180px">
+      <canvas id="chartInk"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Ink level table -->
+<div class="bg-white rounded-xl border border-slate-200">
+  <div class="px-6 py-4 border-b border-slate-100">
+    <h2 class="text-sm font-semibold text-slate-700">Current Ink Levels</h2>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+      <tr>
+        <th class="px-6 py-3 text-left">Channel</th>
+        <th class="px-6 py-3 text-right">Remaining</th>
+        <th class="px-6 py-3 text-right">Capacity</th>
+        <th class="px-6 py-3 text-left w-48">Level</th>
+        <th class="px-6 py-3 text-right">Status</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for ch in INK_CHANNELS %}
+      {% set lv = data.ink_levels[ch] %}
+      <tr>
+        <td class="px-6 py-3 flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+          <span class="font-medium text-slate-700">{{ INK_CHANNEL_NAMES[ch] }}</span>
+        </td>
+        <td class="px-6 py-3 text-right text-slate-600">{{ lv.remaining_ml }} ml</td>
+        <td class="px-6 py-3 text-right text-slate-500">{{ lv.capacity_ml }} ml</td>
+        <td class="px-6 py-3">
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div class="h-2 rounded-full"
+                 style="width:{{ lv.pct }}%;background-color:{{ INK_CHANNEL_HEX[ch] }}"></div>
+          </div>
+        </td>
+        <td class="px-6 py-3 text-right">
+          {% if lv.status == 'good' %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Good</span>
+          {% elif lv.status == 'caution' %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Caution</span>
+          {% else %}
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Low</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Financials -->
+<div class="mt-8 mb-4">
+  <h2 class="text-base font-bold text-slate-800">Financials</h2>
+  <p class="text-xs text-slate-400 mt-1">Profit-first breakdown with cost composition and trend context.</p>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+  <button type="button" data-focus-target="profit-summary"
+          class="text-left rounded-lg border border-slate-200 bg-white p-3 hover:border-indigo-300 transition-colors">
+    <div class="text-[11px] uppercase tracking-wide text-slate-400">Total Profit</div>
+    <div class="text-lg font-bold {{ 'text-red-600' if financials.profit.total < 0 else 'text-emerald-600' }}">{{ currency }}{{ '{:.2f}'.format(financials.profit.total) }}</div>
+    <div class="text-[11px] text-slate-400 mt-1">{{ financials.project_count }} priced project{{ 's' if financials.project_count != 1 }}</div>
+  </button>
+  <button type="button" data-focus-target="revenue"
+          class="text-left rounded-lg border border-slate-200 bg-white p-3 hover:border-indigo-300 transition-colors">
+    <div class="text-[11px] uppercase tracking-wide text-slate-400">Total Revenue</div>
+    <div class="text-lg font-bold text-indigo-600">{{ currency }}{{ '{:.2f}'.format(financials.revenue.total) }}</div>
+    <div class="text-[11px] text-slate-400 mt-1">Revenue detail</div>
+  </button>
+  <button type="button" data-focus-target="margin"
+          class="text-left rounded-lg border border-slate-200 bg-white p-3 hover:border-indigo-300 transition-colors">
+    <div class="text-[11px] uppercase tracking-wide text-slate-400">Avg Margin</div>
+    <div class="text-lg font-bold text-slate-800">{{ financials.margin.avg }}%</div>
+    <div class="text-[11px] text-slate-400 mt-1">Markup {{ '{:.0f}'.format(financials.margin.avg_markup) }}%</div>
+  </button>
+  <button type="button" data-focus-target="waste-loss"
+          class="text-left rounded-lg border border-slate-200 bg-white p-3 hover:border-indigo-300 transition-colors">
+    <div class="text-[11px] uppercase tracking-wide text-slate-400">Waste / Loss</div>
+    <div class="text-lg font-bold {{ 'text-red-600' if financials.waste_loss.total_loss > 0 else 'text-emerald-600' }}">{{ currency }}{{ '{:.2f}'.format(financials.waste_loss.total_loss) }}</div>
+    <div class="text-[11px] text-slate-400 mt-1">{{ 'No waste' if financials.waste_loss.total_loss == 0 else financials.waste_loss.loss_project_count ~ ' project(s)' }}</div>
+  </button>
+</div>
+
+<div class="flex flex-wrap items-center gap-2 mb-4">
+  <span class="text-xs text-slate-400">Jump to</span>
+  {% for target, label in [('profit-summary','Profit'), ('revenue','Revenue'), ('cost-breakdown','Cost Mix'), ('margin','Margin'), ('break-even','Break-Even'), ('waste-loss','P&L Risk')] %}
+  <button type="button"
+          data-focus-target="{{ target }}"
+          class="text-xs font-medium px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+    {{ label }}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- Profit Summary -->
+<div id="profit-summary" data-acc-section class="scroll-mt-20 bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
+  <button type="button" data-acc-trigger="profit-summary"
+          class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors">
+    <h3 class="text-sm font-semibold text-slate-700">Profit Summary</h3>
+    <span class="text-xs text-slate-400" data-acc-icon>−</span>
+  </button>
+  <div data-acc-panel="profit-summary" class="px-6 pb-6">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      <div class="border border-slate-100 rounded-lg p-3">
+        <div class="text-xs text-slate-500">Total Profit</div>
+        <div class="text-lg font-bold {{ 'text-red-600' if financials.profit.total < 0 else 'text-emerald-600' }}">{{ currency }}{{ '{:.2f}'.format(financials.profit.total) }}</div>
+      </div>
+      <div class="border border-slate-100 rounded-lg p-3">
+        <div class="text-xs text-slate-500">Avg / Project</div>
+        <div class="text-lg font-bold text-slate-800">{{ currency }}{{ '{:.2f}'.format(financials.profit.avg_per_project) }}</div>
+      </div>
+      <div class="border border-slate-100 rounded-lg p-3">
+        <div class="text-xs text-slate-500">Avg / Unit</div>
+        <div class="text-lg font-bold text-slate-800">{{ currency }}{{ '{:.2f}'.format(financials.profit.avg_per_unit) }}</div>
+      </div>
+      <div class="border border-slate-100 rounded-lg p-3">
+        <div class="text-xs text-slate-500">Profit / Print Hour</div>
+        <div class="text-lg font-bold text-slate-800">{{ currency }}{{ '{:.2f}'.format(financials.profit.per_print_hour) }}</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+      <div class="border border-slate-100 rounded-lg p-4">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Top 5 by Profit</div>
+        <ol class="space-y-2">
+          {% for p in financials.profit.top_projects %}
+          <li class="flex items-center justify-between text-sm">
+            <a href="/projects/{{ p.id }}" class="text-slate-700 hover:text-indigo-600 truncate">{{ loop.index }}. {{ p.name }}</a>
+            <span class="font-semibold text-emerald-600">{{ currency }}{{ '{:.2f}'.format(p.profit) }}</span>
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+      <div class="border border-slate-100 rounded-lg p-4">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Bottom 5 by Profit</div>
+        <ol class="space-y-2">
+          {% for p in financials.profit.bottom_projects %}
+          <li class="flex items-center justify-between text-sm">
+            <a href="/projects/{{ p.id }}" class="text-slate-700 hover:text-indigo-600 truncate">{{ loop.index }}. {{ p.name }}</a>
+            <span class="font-semibold {{ 'text-red-600' if p.profit < 0 else 'text-slate-600' }}">{{ currency }}{{ '{:.2f}'.format(p.profit) }}</span>
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
+    </div>
+
+    <div class="border border-slate-100 rounded-lg p-4">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Monthly Profit Trend</div>
+      <div class="relative" style="height:160px">
+        <canvas id="chartProfitTrend"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Revenue Detail -->
+<div id="revenue" data-acc-section class="scroll-mt-20 bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
+  <button type="button" data-acc-trigger="revenue"
+          class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors">
+    <h3 class="text-sm font-semibold text-slate-700">Revenue Detail</h3>
+    <span class="text-xs text-slate-400" data-acc-icon>+</span>
+  </button>
+  <div data-acc-panel="revenue" class="px-6 pb-6 hidden">
+  <div class="flex items-start justify-between mb-5">
+    <div>
+      <p class="text-xs text-slate-400 mt-0.5">{{ financials.project_count }} priced project{{ 's' if financials.project_count != 1 }}</p>
+    </div>
+    <div class="text-right">
+      <div class="text-2xl font-bold text-indigo-600">{{ currency }}{{ '{:.2f}'.format(financials.revenue.total) }}</div>
+      <div class="text-xs text-slate-400">total revenue</div>
+    </div>
+  </div>
+  {% if financials.revenue.top_projects %}
+  <div>
+    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Top Revenue Projects</div>
+    <ol class="space-y-2">
+      {% for p in financials.revenue.top_projects %}
+      <li class="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-xs text-slate-400 w-5 text-right font-medium">{{ loop.index }}.</span>
+          <a href="/projects/{{ p.id }}" class="text-sm text-slate-700 hover:text-indigo-600 transition-colors truncate">{{ p.name }}</a>
+        </div>
+        <span class="text-sm font-semibold text-indigo-600">{{ currency }}{{ '{:.2f}'.format(p.revenue) }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% else %}
+  <p class="text-sm text-slate-400 text-center py-6">No projects yet.</p>
+  {% endif %}
+  </div>
+</div>
+
+<!-- Cost Breakdown & Trends -->
+<div id="cost-breakdown" data-acc-section class="scroll-mt-20 bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
+  <button type="button" data-acc-trigger="cost-breakdown"
+          class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors">
+    <h3 class="text-sm font-semibold text-slate-700">Cost Breakdown &amp; Trends</h3>
+    <span class="text-xs text-slate-400" data-acc-icon>+</span>
+  </button>
+  <div data-acc-panel="cost-breakdown" class="px-6 pb-6 hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div class="border border-slate-100 rounded-lg p-4">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Cost Breakdown</div>
+        <div class="space-y-2 text-sm">
+          {% for key, label, color in [('ink','Ink','bg-cyan-500'), ('materials','Materials','bg-blue-500'), ('machine','Machine','bg-violet-500'), ('labor','Labor','bg-amber-500'), ('overhead','Overhead','bg-slate-500')] %}
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-slate-600">{{ label }}</span>
+              <span class="text-slate-700 font-medium">{{ currency }}{{ '{:.2f}'.format(financials.cost_breakdown[key].value) }} · {{ financials.cost_breakdown[key].pct }}%</span>
+            </div>
+            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-2 {{ color }}" style="width:{{ [financials.cost_breakdown[key].pct, 100] | min }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="border border-slate-100 rounded-lg p-4">
+        <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Cost as % of Revenue</div>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-slate-500">COGS</span><span class="font-semibold text-slate-700">{{ currency }}{{ '{:.2f}'.format(financials.cost_breakdown.cogs_total) }}</span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Profit</span><span class="font-semibold {{ 'text-red-600' if financials.cost_breakdown.profit.value < 0 else 'text-emerald-600' }}">{{ currency }}{{ '{:.2f}'.format(financials.cost_breakdown.profit.value) }} · {{ financials.cost_breakdown.profit.pct }}%</span></div>
+        </div>
+        <div class="mt-4 relative" style="height:160px">
+          <canvas id="chartCostTrend"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Margin Analysis -->
+<div id="margin" data-acc-section class="scroll-mt-20 bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
+  <button type="button" data-acc-trigger="margin"
+          class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors">
+    <h3 class="text-sm font-semibold text-slate-700">Margin Analysis</h3>
+    <span class="text-xs text-slate-400" data-acc-icon>+</span>
+  </button>
+  <div data-acc-panel="margin" class="px-6 pb-6 hidden">
+  <div class="flex items-start justify-between mb-5">
+    <div>
+      <p class="text-xs text-slate-400 mt-0.5">{{ financials.project_count }} priced project{{ 's' if financials.project_count != 1 }}</p>
+    </div>
+    <div class="text-right">
+      <div class="text-2xl font-bold text-violet-600">{{ financials.margin.avg }}%</div>
+      <div class="text-xs text-slate-400">avg margin</div>
+    </div>
+  </div>
+
+  {% if financials.project_count %}
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+    <div class="border border-slate-100 rounded-lg p-3">
+      <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Avg Margin</div>
+      <div class="text-xl font-bold {% if financials.margin.avg >= financials.margin.target %}text-emerald-600{% elif financials.margin.avg >= financials.margin.minimum %}text-amber-600{% else %}text-red-600{% endif %}">
+        {{ financials.margin.avg }}%
+      </div>
+      <div class="text-[11px] text-slate-400 mt-0.5">
+        {% if financials.margin.avg >= financials.margin.target %}Above target{% elif financials.margin.avg >= financials.margin.minimum %}Below target{% else %}Below minimum{% endif %}
+      </div>
+    </div>
+    <div class="border border-slate-100 rounded-lg p-3">
+      <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Median Margin</div>
+      <div class="text-xl font-bold text-slate-800">{{ financials.margin.median }}%</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">mid-point</div>
+    </div>
+    <div class="border border-slate-100 rounded-lg p-3">
+      <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Avg Markup</div>
+      <div class="text-xl font-bold text-slate-800">{{ '{:.0f}'.format(financials.margin.avg_markup) }}%</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">cost × {{ '{:.2f}'.format(1 + financials.margin.avg_markup / 100) }}</div>
+    </div>
+    <div class="border border-slate-100 rounded-lg p-3">
+      <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Below Min</div>
+      <div class="text-xl font-bold {{ 'text-red-600' if financials.margin.below_min else 'text-emerald-600' }}">{{ financials.margin.below_min }}</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">{{ 'All above min' if not financials.margin.below_min else 'project(s) below ' ~ financials.margin.minimum ~ '%' }}</div>
+    </div>
+  </div>
+
+  {% if financials.margin.best and financials.margin.worst %}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div class="border border-emerald-100 bg-emerald-50/40 rounded-lg p-4">
+      <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide mb-1">Best Margin</div>
+      <a href="/projects/{{ financials.margin.best.id }}" class="text-sm font-semibold text-slate-800 hover:text-indigo-600">{{ financials.margin.best.name }}</a>
+      <div class="flex items-center gap-2 mt-1">
+        <span class="text-xl font-bold text-emerald-600">{{ financials.margin.best.margin_pct }}%</span>
+        <span class="text-xs text-slate-400">{{ currency }}{{ '{:.2f}'.format(financials.margin.best.revenue) }}</span>
+      </div>
+    </div>
+    <div class="border border-red-100 bg-red-50/40 rounded-lg p-4">
+      <div class="text-[11px] font-semibold text-red-600 uppercase tracking-wide mb-1">Lowest Margin</div>
+      <a href="/projects/{{ financials.margin.worst.id }}" class="text-sm font-semibold text-slate-800 hover:text-indigo-600">{{ financials.margin.worst.name }}</a>
+      <div class="flex items-center gap-2 mt-1">
+        <span class="text-xl font-bold text-red-500">{{ financials.margin.worst.margin_pct }}%</span>
+        <span class="text-xs text-slate-400">{{ currency }}{{ '{:.2f}'.format(financials.margin.worst.revenue) }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="text-sm text-slate-400 text-center py-6">No projects yet.</p>
+  {% endif %}
+  </div>
+</div>
+
+<!-- Break-Even Analysis -->
+<div id="break-even" data-acc-section class="scroll-mt-20 bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
+  <button type="button" data-acc-trigger="break-even"
+          class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors">
+    <h3 class="text-sm font-semibold text-slate-700">Break-Even Analysis</h3>
+    <span class="text-xs text-slate-400" data-acc-icon>+</span>
+  </button>
+  <div data-acc-panel="break-even" class="px-6 pb-6 hidden">
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+    <div class="border border-slate-100 rounded-lg p-3">
+      <div class="text-xs text-slate-500 mb-1">Purchase Price</div>
+      <div class="text-lg font-bold text-slate-800">{{ currency }}{{ '{:,.2f}'.format(financials.break_even.purchase_price) }}</div>
+    </div>
+    <div class="border border-slate-100 rounded-lg p-3">
+      <div class="text-xs text-slate-500 mb-1">Setup & Installation</div>
+      <div class="text-lg font-bold text-slate-800">{{ currency }}{{ '{:,.2f}'.format(financials.break_even.setup_cost) }}</div>
+    </div>
+    <div class="border border-emerald-100 bg-emerald-50/30 rounded-lg p-3">
+      <div class="text-xs text-emerald-700 mb-1">Total Investment</div>
+      <div class="text-lg font-bold text-emerald-700">{{ currency }}{{ '{:,.2f}'.format(financials.break_even.total_investment) }}</div>
+    </div>
+  </div>
+
+  <div class="border border-slate-100 rounded-lg p-4 mb-4">
+    <div class="flex justify-between items-center mb-2">
+      <span class="text-xs font-semibold text-slate-600">Recovery Progress</span>
+      <span class="text-sm font-bold {% if financials.break_even.recovery_pct >= 100 %}text-emerald-600{% elif financials.break_even.recovery_pct >= 50 %}text-indigo-600{% else %}text-amber-600{% endif %}">{{ financials.break_even.recovery_pct }}%</span>
+    </div>
+    <div class="w-full bg-slate-100 rounded-full h-2.5 mb-3 overflow-hidden">
+      <div class="h-2.5 rounded-full transition-all duration-700 {% if financials.break_even.recovery_pct >= 100 %}bg-emerald-500{% elif financials.break_even.recovery_pct >= 50 %}bg-indigo-500{% else %}bg-amber-400{% endif %}" style="width:{{ [financials.break_even.recovery_pct, 100] | min }}%"></div>
+    </div>
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div>
+        <div class="text-xs text-slate-400">Recovered</div>
+        <div class="text-sm font-bold text-slate-800">{{ currency }}{{ '{:,.2f}'.format(financials.break_even.recovered) }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-slate-400">Remaining</div>
+        <div class="text-sm font-bold text-slate-800">{{ currency }}{{ '{:,.2f}'.format(financials.break_even.remaining) }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-slate-400">Total Invest.</div>
+        <div class="text-sm font-bold text-slate-800">{{ currency }}{{ '{:,.2f}'.format(financials.break_even.total_investment) }}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if financials.project_count %}
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="border border-indigo-100 bg-indigo-50/30 rounded-lg p-3">
+      <div class="text-xs text-indigo-600 mb-1">Completed</div>
+      <div class="text-2xl font-bold text-indigo-700">{{ financials.project_count }}</div>
+      <div class="text-[11px] text-slate-400">projects</div>
+    </div>
+    <div class="border border-amber-100 bg-amber-50/30 rounded-lg p-3">
+      <div class="text-xs text-amber-600 mb-1">Projects Remaining</div>
+      <div class="text-2xl font-bold text-amber-700">{{ financials.break_even.projects_remaining if financials.break_even.projects_remaining is not none else '—' }}</div>
+      <div class="text-[11px] text-slate-400">to break even</div>
+    </div>
+    <div class="border border-slate-100 rounded-lg p-3">
+      <div class="text-xs text-slate-500 mb-1">Avg Profit / Project</div>
+      <div class="text-xl font-bold text-slate-800">{{ currency }}{{ '{:.2f}'.format(financials.break_even.avg_profit_per_project) }}</div>
+      <div class="text-[11px] text-slate-400">per project</div>
+    </div>
+    <div class="border border-slate-100 rounded-lg p-3">
+      <div class="text-xs text-slate-500 mb-1">Profit / Print Hour</div>
+      <div class="text-xl font-bold text-slate-800">{{ currency }}{{ '{:.2f}'.format(financials.profit.per_print_hour) }}</div>
+      <div class="text-[11px] text-slate-400">per hour</div>
+    </div>
+  </div>
+  {% endif %}
+  </div>
+</div>
+
+<!-- Waste & Loss Analysis -->
+<div id="waste-loss" data-acc-section class="scroll-mt-20 bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
+  <button type="button" data-acc-trigger="waste-loss"
+          class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors">
+    <h3 class="text-sm font-semibold text-slate-700">Waste &amp; Loss Analysis</h3>
+    <span class="text-xs text-slate-400" data-acc-icon>+</span>
+  </button>
+  <div data-acc-panel="waste-loss" class="px-6 pb-6 hidden">
+  <div class="flex items-start justify-between mb-5">
+    <div>
+      <p class="text-xs text-slate-400 mt-0.5">Projects with negative profit margin</p>
+    </div>
+    {% if financials.waste_loss.total_loss > 0 %}
+    <div class="text-right">
+      <div class="text-2xl font-bold text-red-600">{{ currency }}{{ '{:.2f}'.format(financials.waste_loss.total_loss) }}</div>
+      <div class="text-xs text-slate-400">total loss</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if financials.waste_loss.loss_projects %}
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+      <tr>
+        <th class="px-4 py-2 text-left">Project</th>
+        <th class="px-4 py-2 text-right">Revenue</th>
+        <th class="px-4 py-2 text-right">Loss</th>
+        <th class="px-4 py-2 text-right">Margin</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for p in financials.waste_loss.loss_projects %}
+      <tr class="hover:bg-red-50/30 transition-colors">
+        <td class="px-4 py-2.5">
+          <a href="/projects/{{ p.id }}" class="font-medium text-slate-700 hover:text-indigo-600">{{ p.name }}</a>
+        </td>
+        <td class="px-4 py-2.5 text-right text-slate-600">{{ currency }}{{ '{:.2f}'.format(p.revenue) }}</td>
+        <td class="px-4 py-2.5 text-right font-semibold text-red-600">−{{ currency }}{{ '{:.2f}'.format(p.profit | abs) }}</td>
+        <td class="px-4 py-2.5 text-right font-semibold text-red-600">{{ '{:.1f}'.format(p.margin_pct) }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if financials.waste_loss.loss_project_count > financials.waste_loss.loss_projects | length %}
+  <p class="text-xs text-slate-400 mt-3">Showing top {{ financials.waste_loss.loss_projects | length }} highest-loss projects out of {{ financials.waste_loss.loss_project_count }}.</p>
+  {% endif %}
+  {% else %}
+  <div class="text-center py-10">
+    <div class="text-2xl mb-2">✓</div>
+    <p class="text-sm text-slate-500 font-medium">No failed or cancelled projects in this period.</p>
+    <p class="text-xs text-slate-400 mt-1">All your projects are profitable.</p>
+  </div>
+  {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block head %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const monthly = {{ data.monthly | tojson }};
+  const cumulativeProfit = {{ financials.cumulative_profit | tojson }};
+  const marginDist = {{ data.margin_dist | tojson }};
+  const inkMonthly = {{ data.ink_monthly | tojson }};
+  const inkHex = {{ INK_CHANNEL_HEX | tojson }};
+  const channels = {{ INK_CHANNELS | tojson }};
+  const chNames = {{ INK_CHANNEL_NAMES | tojson }};
+  const currencySymbol = {{ currency | tojson }};
+
+  const allMonthKeys = Object.keys(monthly).sort();
+  let _running = 0;
+  const allRows = allMonthKeys.map((k) => {
+    const profit = Number(monthly[k].profit || 0);
+    _running += profit;
+    return {
+      month: k,
+      revenue: Number(monthly[k].revenue || 0),
+      profit,
+      cogs: Number(monthly[k].cogs || 0),
+      cumulative: _running,
+    };
+  });
+
+  const formatCurrency = (value) => `${currencySymbol}${Number(value || 0).toFixed(2)}`;
+  const compactMonth = (isoMonth) => {
+    const [year, month] = isoMonth.split('-');
+    return `${month}/${year.slice(2)}`;
+  };
+
+  const rangeEl = document.getElementById('revRange');
+  const cumulativeBtn = document.getElementById('toggleCumulative');
+  const trendRevenueEl = document.getElementById('trendRevenue');
+  const trendProfitEl = document.getElementById('trendProfit');
+  const trendMarginEl = document.getElementById('trendMargin');
+  const profitTrendCanvas = document.getElementById('chartProfitTrend');
+  const costTrendCanvas = document.getElementById('chartCostTrend');
+
+  let showCumulative = false;
+  let revenueChart = null;
+  let profitTrendChart = null;
+  let costTrendChart = null;
+
+  function getRangeRows() {
+    const selected = rangeEl ? rangeEl.value : '12';
+    if (selected === 'all') {
+      return allRows;
+    }
+    const months = Number(selected);
+    return allRows.slice(-months);
+  }
+
+  function downsample(rows, maxPoints = 18) {
+    if (rows.length <= maxPoints) {
+      return rows;
+    }
+    const step = Math.ceil(rows.length / maxPoints);
+    const reduced = [];
+    for (let i = 0; i < rows.length; i += step) {
+      reduced.push(rows[i]);
+    }
+    const last = rows[rows.length - 1];
+    if (!reduced.length || reduced[reduced.length - 1].month !== last.month) {
+      reduced.push(last);
+    }
+    return reduced;
+  }
+
+  function updateTrendSummary(rows) {
+    const totalRevenue = rows.reduce((acc, row) => acc + row.revenue, 0);
+    const totalProfit = rows.reduce((acc, row) => acc + row.profit, 0);
+    const marginPct = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+    trendRevenueEl.textContent = formatCurrency(totalRevenue);
+    trendProfitEl.textContent = formatCurrency(totalProfit);
+    trendMarginEl.textContent = `${marginPct.toFixed(1)}%`;
+    trendMarginEl.className = `text-sm font-semibold ${
+      marginPct >= 50 ? 'text-emerald-600' : marginPct >= 30 ? 'text-amber-600' : 'text-red-600'
+    }`;
+  }
+
+  function renderTrendChart() {
+    const rows = getRangeRows();
+    updateTrendSummary(rows);
+    const sampled = downsample(rows);
+
+    const labels = sampled.map((row) => compactMonth(row.month));
+    const revenue = sampled.map((row) => row.revenue);
+    const profit = sampled.map((row) => row.profit);
+    const cumulative = sampled.map((row) => row.cumulative);
+
+    const datasets = [
+      {
+        type: 'bar',
+        label: 'Revenue',
+        data: revenue,
+        backgroundColor: '#6366f133',
+        borderColor: '#6366f1',
+        borderWidth: 1,
+        yAxisID: 'y',
+        order: 2,
+      },
+      {
+        type: 'line',
+        label: 'Profit',
+        data: profit,
+        borderColor: '#10b981',
+        backgroundColor: '#10b98122',
+        fill: false,
+        tension: 0.25,
+        pointRadius: sampled.length > 12 ? 0 : 2,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+        yAxisID: 'y',
+        order: 1,
+      },
+    ];
+
+    if (showCumulative) {
+      datasets.push({
+        type: 'line',
+        label: 'Cumulative Profit',
+        data: cumulative,
+        borderColor: '#0f172a',
+        borderDash: [5, 4],
+        fill: false,
+        tension: 0.2,
+        pointRadius: 0,
+        borderWidth: 2,
+        yAxisID: 'y2',
+        order: 0,
+      });
+    }
+
+    if (revenueChart) {
+      revenueChart.destroy();
+    }
+
+    revenueChart = new Chart(document.getElementById('chartRevenue'), {
+      data: {
+        labels,
+        datasets,
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { position: 'top' },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (v) => `${currencySymbol}${Number(v).toFixed(0)}`,
+            },
+          },
+          y2: {
+            display: showCumulative,
+            position: 'right',
+            beginAtZero: false,
+            grid: { drawOnChartArea: false },
+            ticks: {
+              callback: (v) => `${currencySymbol}${Number(v).toFixed(0)}`,
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function showEmptyChart(canvasId, message) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const wrap = canvas.closest('.relative') || canvas.parentElement;
+    wrap.innerHTML = `<div class="flex items-center justify-center h-full text-sm text-slate-400 italic">${message}</div>`;
+  }
+
+  if (allRows.length === 0) {
+    showEmptyChart('chartRevenue', 'No project data yet — add your first project to see trends.');
+    showEmptyChart('chartMargin', 'No projects yet');
+  } else {
+    renderTrendChart();
+  }
+
+  if (rangeEl) {
+    rangeEl.addEventListener('change', () => { if (allRows.length > 0) renderTrendChart(); });
+  }
+
+  if (cumulativeBtn) {
+    cumulativeBtn.addEventListener('click', () => {
+      showCumulative = !showCumulative;
+      cumulativeBtn.textContent = showCumulative ? 'Hide cumulative' : 'Show cumulative';
+      cumulativeBtn.classList.toggle('border-indigo-300', showCumulative);
+      cumulativeBtn.classList.toggle('text-indigo-600', showCumulative);
+      renderTrendChart();
+    });
+  }
+
+  if (allRows.length > 0) new Chart(document.getElementById('chartMargin'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Strong', 'Target', 'Minimum', 'Loss'],
+      datasets: [{
+        data: [marginDist.Strong || 0, marginDist.Target || 0, marginDist.Minimum || 0, marginDist.Loss || 0],
+        backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#ef4444'],
+        borderWidth: 2,
+        borderColor: '#fff',
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'right' } },
+      animation: false,
+    },
+  });
+
+  const inkLabels = Object.keys(inkMonthly);
+  const inkDatasets = channels
+    .filter((ch) => inkLabels.some((m) => (inkMonthly[m][ch] || 0) > 0))
+    .map((ch) => ({
+      label: chNames[ch],
+      data: inkLabels.map((m) => inkMonthly[m][ch] || 0),
+      backgroundColor: inkHex[ch],
+      stack: 'ink',
+    }));
+
+  if (inkLabels.length && inkDatasets.length) {
+    new Chart(document.getElementById('chartInk'), {
+      type: 'bar',
+      data: { labels: inkLabels, datasets: inkDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, ticks: { callback: (v) => `${v} ml` } },
+        },
+      },
+    });
+  }
+
+  function renderProfitTrendChart() {
+    if (!profitTrendCanvas || profitTrendChart) return;
+    if (allRows.length === 0) {
+      showEmptyChart('chartProfitTrend', 'No project data yet');
+      return;
+    }
+    const sampled = downsample(allRows, 16);
+    profitTrendChart = new Chart(profitTrendCanvas, {
+      type: 'bar',
+      data: {
+        labels: sampled.map((row) => compactMonth(row.month)),
+        datasets: [{
+          label: 'Profit',
+          data: sampled.map((row) => row.profit),
+          backgroundColor: '#10b98166',
+          borderColor: '#10b981',
+          borderWidth: 1,
+          borderRadius: 3,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { callback: (v) => `${currencySymbol}${Number(v).toFixed(0)}` },
+          },
+        },
+      },
+    });
+  }
+
+  function renderCostTrendChart() {
+    if (!costTrendCanvas || costTrendChart) return;
+    if (allRows.length === 0) {
+      showEmptyChart('chartCostTrend', 'No project data yet');
+      return;
+    }
+    const sampled = downsample(allRows, 14);
+    costTrendChart = new Chart(costTrendCanvas, {
+      data: {
+        labels: sampled.map((row) => compactMonth(row.month)),
+        datasets: [
+          {
+            type: 'bar',
+            label: 'COGS',
+            data: sampled.map((row) => row.cogs),
+            backgroundColor: '#64748b33',
+            borderColor: '#64748b',
+            borderWidth: 1,
+          },
+          {
+            type: 'line',
+            label: 'Revenue',
+            data: sampled.map((row) => row.revenue),
+            borderColor: '#6366f1',
+            pointRadius: 0,
+            borderWidth: 2,
+            tension: 0.2,
+          },
+          {
+            type: 'line',
+            label: 'Profit',
+            data: sampled.map((row) => row.profit),
+            borderColor: '#10b981',
+            pointRadius: 0,
+            borderWidth: 2,
+            tension: 0.2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          y: { ticks: { callback: (v) => `${currencySymbol}${Number(v).toFixed(0)}` } },
+        },
+      },
+    });
+  }
+
+  const accTriggers = Array.from(document.querySelectorAll('[data-acc-trigger]'));
+  const accPanels = new Map(
+    Array.from(document.querySelectorAll('[data-acc-panel]')).map((el) => [el.dataset.accPanel, el])
+  );
+  const accSections = new Map(
+    Array.from(document.querySelectorAll('[data-acc-section]')).map((el) => [el.id, el])
+  );
+
+  function openSection(sectionId, syncHash = true) {
+    accTriggers.forEach((trigger) => {
+      const target = trigger.dataset.accTrigger;
+      const panel = accPanels.get(target);
+      const icon = trigger.querySelector('[data-acc-icon]');
+      const isTarget = target === sectionId;
+      if (panel) {
+        panel.classList.toggle('hidden', !isTarget);
+      }
+      trigger.classList.toggle('bg-slate-50', isTarget);
+      if (icon) {
+        icon.textContent = isTarget ? '−' : '+';
+      }
+    });
+
+    if (sectionId === 'profit-summary') {
+      requestAnimationFrame(renderProfitTrendChart);
+    }
+    if (sectionId === 'cost-breakdown') {
+      requestAnimationFrame(renderCostTrendChart);
+    }
+
+    const section = accSections.get(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    if (syncHash) {
+      history.replaceState(null, '', `#${sectionId}`);
+    }
+  }
+
+  accTriggers.forEach((trigger) => {
+    trigger.addEventListener('click', () => openSection(trigger.dataset.accTrigger));
+  });
+
+  document.querySelectorAll('[data-focus-target]').forEach((btn) => {
+    btn.addEventListener('click', () => openSection(btn.dataset.focusTarget));
+  });
+
+  const hash = (window.location.hash || '').replace('#', '');
+  const hashAlias = {
+    'revenue': 'revenue',
+    'margin': 'margin',
+    'break-even': 'break-even',
+    'waste-loss': 'waste-loss',
+    'profit': 'profit-summary',
+  };
+  const initialSection = hashAlias[hash] || 'profit-summary';
+  openSection(initialSection, false);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+name: Version Guard
+
+# Enforces the versioning policy (see VERSIONING.md):
+#   * VERSION == package.json.version  (always)
+#   * on a v* tag: tag == VERSION       (release integrity)
+#   * on a v* tag: a matching CHANGELOG entry exists
+#
+# Cheap, read-only checks. Does NOT build or deploy.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  version-guard:
+    name: Validate version sources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: VERSION == package.json
+        run: npm run version:check
+
+      - name: Tag matches VERSION (release tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          FILE="$(tr -d '\n' < VERSION)"
+          if [ "$TAG" != "$FILE" ]; then
+            echo "::error::Release tag v$TAG does not match VERSION file ($FILE)."
+            exit 1
+          fi
+          echo "OK: tag v$TAG matches VERSION ($FILE)"
+
+      - name: CHANGELOG entry exists (release tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          FILE="$(tr -d '\n' < VERSION)"
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error::CHANGELOG.md is missing."
+            exit 1
+          fi
+          if ! grep -qE "^##\s*\[?${FILE}\]?" CHANGELOG.md; then
+            echo "::error::No CHANGELOG.md entry found for version ${FILE}."
+            exit 1
+          fi
+          echo "OK: CHANGELOG entry present for ${FILE}"

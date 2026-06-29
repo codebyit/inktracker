@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block title %}Projects{% endblock %}
+{% block page_title %}Projects{% endblock %}
+
+{% block content %}
+{% from "macros.html" import status_pill_class, status_dot_class %}
+
+<div x-data="projectsPage()" @keydown.escape.window="modal.open=false">
+
+  {# ── Status Change Modal ── #}
+  <div x-show="modal.open" style="display:none"
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
+      <div class="flex items-start justify-between mb-1">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">Set Project Status</h2>
+          <p class="text-sm text-slate-400 mt-0.5" x-text="modal.name"></p>
+        </div>
+        <button @click="modal.open=false" class="text-slate-400 hover:text-slate-600 ml-3 mt-0.5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <p class="text-sm text-slate-500 mb-4">What is the current status of this project?</p>
+      <div class="space-y-2 mb-5">
+        <template x-for="opt in statusOpts" :key="opt.value">
+          <button type="button" @click="sel=opt.value"
+                  class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all"
+                  :class="sel===opt.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:border-slate-200'">
+            <span class="w-3 h-3 rounded-full shrink-0" :class="opt.dot"></span>
+            <span class="font-medium text-slate-800" x-text="opt.label"></span>
+            <svg x-show="sel===opt.value" class="w-4 h-4 text-indigo-600 ml-auto shrink-0"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+            </svg>
+          </button>
+        </template>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" @click="modal.open=false"
+                class="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+          Cancel
+        </button>
+        <button type="button" @click="saveStatus()" :disabled="saving"
+                class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 transition-colors">
+          <span x-show="!saving">Save Status</span>
+          <span x-show="saving">Saving…</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Sub-tabs ── #}
+  <div class="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 mb-5 shadow-sm w-fit">
+    {% for t_val, t_label in [('pipeline','Pipeline'),('completed','Completed'),('archived','Archived'),('trash','Trash')] %}
+    <a href="/projects?tab={{ t_val }}{% if search %}&search={{ search }}{% endif %}"
+       class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              {% if tab == t_val %}bg-indigo-600 text-white shadow{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+      {{ t_label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  {# ── Toolbar ── #}
+  {% if tab != 'trash' %}
+  <form method="GET" action="/projects" class="flex items-center gap-2 mb-4 flex-wrap">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <div class="relative">
+      <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+      </svg>
+      <input type="text" name="search" value="{{ search }}" placeholder="Search projects…"
+             class="pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+    </div>
+    <select name="sort" onchange="this.form.submit()"
+            class="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <option value="newest"  {% if sort=='newest'  %}selected{% endif %}>Newest</option>
+      <option value="oldest"  {% if sort=='oldest'  %}selected{% endif %}>Oldest</option>
+      <option value="name"    {% if sort=='name'    %}selected{% endif %}>Name A–Z</option>
+      <option value="margin"  {% if sort=='margin'  %}selected{% endif %}>Highest Margin</option>
+      <option value="revenue" {% if sort=='revenue' %}selected{% endif %}>Most Revenue</option>
+    </select>
+    <button type="submit" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
+      Search
+    </button>
+    <a href="/projects/export/csv?tab={{ tab }}{% if search %}&search={{ search }}{% endif %}"
+       class="flex items-center gap-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors ml-auto">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+      </svg>
+      CSV
+    </a>
+  </form>
+  {% endif %}
+
+  {# ── Count + New button ── #}
+  <div class="flex items-center justify-between mb-3">
+    <p class="text-sm text-slate-500">
+      {% if tab == 'pipeline' %}Draft, queued &amp; printing
+      {% elif tab == 'completed' %}Completed, cancelled &amp; failed
+      {% elif tab == 'archived' %}Archived (read-only)
+      {% elif tab == 'trash' %}Trash — restore within 30 days
+      {% endif %}
+      &nbsp;·&nbsp; <strong class="text-slate-700">{{ projects|length }}</strong> project{% if projects|length != 1 %}s{% endif %}
+    </p>
+    {% if tab == 'pipeline' %}
+    <a href="/projects/new"
+       class="flex items-center gap-1.5 bg-indigo-600 text-white text-sm px-3.5 py-2 rounded-lg hover:bg-indigo-700 font-medium transition-colors">
+      + New Project
+    </a>
+    {% endif %}
+  </div>
+
+  {# ── Empty state ── #}
+  {% if not projects %}
+  <div class="bg-white rounded-xl border border-slate-200 px-6 py-16 text-center">
+    <svg class="w-10 h-10 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/>
+    </svg>
+    {% if tab == 'pipeline' %}
+    <p class="text-sm text-slate-500 mb-4">No projects in the pipeline yet.</p>
+    <a href="/projects/new" class="inline-block bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">+ New Project</a>
+    {% elif tab == 'completed' %}<p class="text-sm text-slate-500">No completed projects yet.</p>
+    {% elif tab == 'archived' %}<p class="text-sm text-slate-500">No archived projects.</p>
+    {% elif tab == 'trash' %}<p class="text-sm text-slate-500">Trash is empty.</p>
+    {% endif %}
+  </div>
+
+  {% else %}
+
+  {# ── Project Cards ── #}
+  <div class="space-y-2.5">
+    {% for p in projects %}
+    <div class="bg-white rounded-xl border border-slate-200 p-4 hover:border-slate-300 transition-colors">
+      <div class="flex items-start gap-3">
+
+        {# Status badge — clickable on pipeline/completed #}
+        {% if tab in ('pipeline', 'completed') %}
+        <button type="button"
+                @click="openModal({{ p.id }}, '{{ p.status or 'Draft' }}', {{ p.name | tojson }})"
+                title="Click to change status"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 mt-0.5
+                       hover:ring-2 hover:ring-offset-1 hover:ring-indigo-400 transition-all cursor-pointer
+                       {{ status_pill_class(p.status) }}">
+          <span class="w-2 h-2 rounded-full {{ status_dot_class(p.status) }}"></span>
+          {{ p.status or 'Draft' }}
+        </button>
+        {% else %}
+        <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 mt-0.5
+                     {{ status_pill_class(p.status) }}">
+          <span class="w-2 h-2 rounded-full {{ status_dot_class(p.status) }}"></span>
+          {{ p.status or 'Draft' }}
+        </span>
+        {% endif %}
+
+        <div class="flex-1 min-w-0">
+          {# Top row: name + date + actions #}
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <a href="/projects/{{ p.id }}"
+                 class="font-semibold text-slate-900 hover:text-indigo-600 transition-colors">{{ p.name }}</a>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-400">
+                <span>{{ p.created_at.strftime('%d %b %Y') }}</span>
+                <span>{{ p.ink_mode }}</span>
+                {% if p.print_bed %}<span>{{ p.print_bed }}</span>{% endif %}
+                {% if p.craft_mode and p.craft_mode != 'Flat' %}<span>{{ p.craft_mode }}</span>{% endif %}
+              </div>
+              {% if p.notes %}
+              <p class="text-xs text-slate-500 mt-1 line-clamp-1">{{ p.notes }}</p>
+              {% endif %}
+            </div>
+
+            {# Actions #}
+            <div class="flex items-center gap-1 shrink-0">
+              {% if tab == 'trash' %}
+              <form method="POST" action="/projects/{{ p.id }}/restore">
+                <button type="submit"
+                        class="text-xs font-medium text-emerald-600 border border-emerald-200 hover:bg-emerald-50 px-2.5 py-1.5 rounded-lg transition-colors">Restore</button>
+              </form>
+              <form method="POST" action="/projects/{{ p.id }}/permanent-delete"
+                    onsubmit="return confirm('Permanently delete &quot;{{ p.name | e }}&quot;? This cannot be undone.')">
+                <button type="submit"
+                        class="text-xs font-medium text-red-500 border border-red-200 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors">Delete Forever</button>
+              </form>
+              {% elif tab == 'archived' %}
+              <a href="/projects/{{ p.id }}"
+                 class="text-xs text-slate-500 border border-slate-200 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors">View</a>
+              <form method="POST" action="/projects/{{ p.id }}/unarchive">
+                <button type="submit"
+                        class="text-xs text-slate-500 border border-slate-200 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-colors">Unarchive</button>
+              </form>
+              {% else %}
+              <a href="/projects/{{ p.id }}"
+                 class="text-xs text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1.5 rounded-lg transition-colors">View</a>
+              <a href="/projects/{{ p.id }}/edit"
+                 class="text-xs text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1.5 rounded-lg transition-colors">Edit</a>
+              <form method="POST" action="/projects/{{ p.id }}/duplicate">
+                <button type="submit"
+                        class="text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors">Copy</button>
+              </form>
+              <form method="POST" action="/projects/{{ p.id }}/archive">
+                <button type="submit"
+                        class="text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors">Archive</button>
+              </form>
+              <form method="POST" action="/projects/{{ p.id }}/delete"
+                    onsubmit="return confirm('Move &quot;{{ p.name | e }}&quot; to Trash?')">
+                <button type="submit"
+                        class="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1.5 rounded-lg transition-colors">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                  </svg>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+
+          {# Metric badges #}
+          {% if p.total_cogs > 0 or p.sell_price_per_unit > 0 %}
+          <div class="flex flex-wrap gap-1.5 mt-2.5">
+            <span class="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-full">
+              {{ p.units }} unit{% if p.units != 1 %}s{% endif %}
+            </span>
+            <span class="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 text-xs font-medium rounded-full">
+              COGS: {{ currency }}{{ '{:.2f}'.format(p.cogs_per_unit) }}/u
+            </span>
+            <span class="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 text-xs font-medium rounded-full">
+              Total: {{ currency }}{{ '{:.2f}'.format(p.total_cogs) }}
+            </span>
+            {% if p.sell_price_per_unit > 0 and (not p.project_type or p.project_type == 'commercial') %}
+            <span class="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-100 text-xs font-medium rounded-full">
+              Sell: {{ currency }}{{ '{:.2f}'.format(p.sell_price_per_unit) }}/u
+            </span>
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full {{ MARGIN_BADGE.get(p.margin_status, 'bg-slate-100 text-slate-600') }}">
+              {{ '{:.1f}'.format(p.margin_pct) }}% — {{ p.margin_status }}
+            </span>
+            <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-medium rounded-full">
+              Profit: {{ currency }}{{ '{:.2f}'.format(p.total_profit) }}
+            </span>
+            {% endif %}
+            {% if p.project_type and p.project_type != 'commercial' %}
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full capitalize {{ PROJECT_TYPE_BADGE.get(p.project_type, 'bg-slate-100 text-slate-600') }}">
+              {{ p.project_type }}
+            </span>
+            {% endif %}
+            {% if p.total_ink_ml > 0 %}
+            <span class="px-2 py-0.5 bg-cyan-50 text-cyan-700 border border-cyan-100 text-xs font-medium rounded-full">
+              {{ '{:.2f}'.format(p.total_ink_ml) }} ml
+            </span>
+            {% endif %}
+            {% if p.print_time_hours > 0 %}
+            <span class="px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 text-xs font-medium rounded-full">
+              {{ p.print_time_display }}
+            </span>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {# Extra detail badges #}
+          <div class="flex flex-wrap gap-1.5 mt-1.5">
+            {% set bom_n = p.bom_items | length %}
+            <span class="px-2 py-0.5 border border-slate-200 text-slate-400 text-xs rounded-full">
+              {% if bom_n == 0 %}No BOM{% else %}{{ bom_n }} material{% if bom_n != 1 %}s{% endif %}{% endif %}
+            </span>
+            {% if p.substrate %}
+            <span class="px-2 py-0.5 border border-slate-200 text-slate-400 text-xs rounded-full">{{ p.substrate }}</span>
+            {% endif %}
+            {% if tab == 'trash' and p.deleted_at %}
+            <span class="px-2 py-0.5 border border-red-200 text-red-400 text-xs rounded-full">
+              Trashed {{ p.deleted_at.strftime('%d %b %Y') }}
+            </span>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function projectsPage() {
+  return {
+    modal: { open: false, projectId: null, name: '' },
+    sel: 'Draft',
+    saving: false,
+    statusOpts: [
+      { value: 'Draft',     label: 'Draft',     dot: 'bg-slate-400'   },
+      { value: 'Queued',    label: 'Queued',    dot: 'bg-amber-400'   },
+      { value: 'Printing',  label: 'Printing',  dot: 'bg-blue-500'    },
+      { value: 'Completed', label: 'Completed', dot: 'bg-emerald-500' },
+      { value: 'Cancelled', label: 'Cancelled', dot: 'bg-orange-400'  },
+      { value: 'Failed',    label: 'Failed',    dot: 'bg-red-500'     },
+    ],
+    openModal(id, current, name) {
+      this.modal = { open: true, projectId: id, name };
+      this.sel   = current;
+    },
+    async saveStatus() {
+      this.saving = true;
+      try {
+        await fetch(`/projects/${this.modal.projectId}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: this.sel }),
+        });
+        window.location.reload();
+      } catch(e) {
+        this.saving = false;
+      }
+    },
+  };
+}
+</script>
+
+  {% if projects %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+        <tr>
+          <th class="px-6 py-3 text-left">Name</th>
+          <th class="px-6 py-3 text-left">Date</th>
+          <th class="px-6 py-3 text-left">Ink Mode</th>
+          <th class="px-6 py-3 text-right">Units</th>
+          <th class="px-6 py-3 text-right">Sell Price</th>
+          <th class="px-6 py-3 text-right">COGS/unit</th>
+          <th class="px-6 py-3 text-right">Revenue</th>
+          <th class="px-6 py-3 text-right">Margin</th>
+          <th class="px-6 py-3 text-right">Status</th>
+          <th class="px-6 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for p in projects %}
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="px-6 py-3 font-medium">
+            <a href="/projects/{{ p.id }}" class="hover:text-indigo-600 transition-colors">{{ p.name }}</a>
+          </td>
+          <td class="px-6 py-3 text-slate-500">{{ p.created_at.strftime('%d %b %Y') }}</td>
+          <td class="px-6 py-3 text-slate-500">{{ p.ink_mode }}</td>
+          <td class="px-6 py-3 text-right">{{ p.units }}</td>
+          <td class="px-6 py-3 text-right">{{ currency }}{{ '{:.2f}'.format(p.sell_price_per_unit) }}</td>
+          <td class="px-6 py-3 text-right">{{ currency }}{{ '{:.2f}'.format(p.cogs_per_unit) }}</td>
+          <td class="px-6 py-3 text-right font-medium">{{ currency }}{{ '{:.2f}'.format(p.total_revenue) }}</td>
+          <td class="px-6 py-3 text-right font-semibold">
+            {% if not p.project_type or p.project_type == 'commercial' %}{{ '{:.1f}'.format(p.margin_pct) }}%{% else %}—{% endif %}
+          </td>
+          <td class="px-6 py-3 text-right">
+            {% if not p.project_type or p.project_type == 'commercial' %}
+            <span class="px-2.5 py-1 rounded-full text-xs font-medium {{ MARGIN_BADGE.get(p.margin_status, 'bg-slate-100 text-slate-600') }}">
+              {{ p.margin_status }}
+            </span>
+            {% else %}
+            <span class="px-2.5 py-1 rounded-full text-xs font-medium capitalize {{ PROJECT_TYPE_BADGE.get(p.project_type, 'bg-slate-100 text-slate-600') }}">
+              {{ p.project_type }}
+            </span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-3 text-right">
+            <form method="POST" action="/projects/{{ p.id }}/delete"
+                  onsubmit="return confirm('Delete project {{ p.name }}?')">
+              <button type="submit"
+                      class="text-slate-400 hover:text-red-500 transition-colors p-1 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                </svg>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="px-6 py-16 text-center">
+    <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/>
+    </svg>
+    <p class="text-slate-500 text-sm mb-3">No projects yet. Start tracking your first UV print job.</p>
+    <a href="/projects/new"
+       class="inline-block bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+      Create Project
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
