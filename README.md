@@ -28,6 +28,10 @@ Recommended tags:
 
 ## Documentation
 
+📘 **[User Manual](docs/README.md)** — end-user guide (dashboard, projects, analytics, settings).
+
+Admin & install docs:
+
 - `docs/installation.md`
 - `docs/configuration.md`
 - `docs/upgrading.md`
