@@ -8,6 +8,7 @@ No clone needed — grab the two files and start (uses the prebuilt image):
 
 ```bash
 curl -O https://raw.githubusercontent.com/codebyit/inktracker/main/docker-compose.public.yml
+# saves the example straight to .env (required by Compose)
 curl -o .env https://raw.githubusercontent.com/codebyit/inktracker/main/.env.example
 docker compose -f docker-compose.public.yml up -d
 ```
