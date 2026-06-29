@@ -8,6 +8,23 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.10.0] — 2026-06-29
+
+### Added
+
+- **Configurable ink density (per channel) and cartridge tare (global).** The weight →
+  remaining-ink helper on the Service page no longer assumes 1 ml = 1 g. It now computes
+  `remaining_ml = (weight_g − tare) ÷ density`, with each channel's density and a global
+  empty-cartridge tare set in **Settings → Ink**. Defaults (density 1.0, tare 75 g) preserve
+  the previous behavior. Migration `0016` (additive, SQLite/PostgreSQL-safe).
+
+### Changed
+
+- **Settings → Ink Cost Setup** redesigned as per-channel bordered cards (colored dot +
+  name, compact price box with price/ml, and a labeled Density box in g/ml).
+
+Ported from internal v0.10.0.
+
 ## [0.9.2] — 2026-06-29
 
 ### Fixed
