@@ -8,6 +8,16 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.9.2] — 2026-06-29
+
+### Fixed
+
+- **Stale theme/CSS behind a reverse proxy.** `app.css` and the vendored JS had fixed
+  URLs, so the service worker (cache-first) and the proxy kept serving old CSS after a
+  deploy — causing inconsistent dark/light mode and requiring a hard refresh. Asset URLs
+  now carry a `?v=<app.css mtime>` cache-buster (changes every build) and the
+  service-worker `CACHE_NAME` was bumped (`v2` → `v3`) to purge stale caches.
+
 ## [0.9.1] — 2026-06-29
 
 ### Fixed
