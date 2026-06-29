@@ -72,6 +72,13 @@ Admin & install docs:
 
 Please read `SECURITY.md` before reporting vulnerabilities.
 
+## Support
+
+InkTrack is free and open source. If it's useful to your studio and you'd like to
+support development, you can buy me a coffee:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/codebylt)
+
 ## License
 
 This project is released under the GNU General Public License v3.0.
