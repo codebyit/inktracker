@@ -159,7 +159,9 @@
 
     <div class="px-5 py-4 border-t border-slate-800/90 text-xs text-slate-500">
       <div class="font-medium mb-1">InkTracker</div>
-      <div class="text-[10px] text-slate-600 break-words">{{ app_version if app_version else 'unknown' }}</div>
+      <a href="/changelog" class="text-[10px] text-sky-400 hover:text-sky-300 hover:underline transition-colors">
+        {{ app_version if app_version else 'unknown' }} (changelog)
+      </a>
     </div>
   </aside>
 
@@ -207,7 +209,9 @@
       </nav>
       <div class="px-5 py-4 border-t border-slate-800/90 text-xs text-slate-500">
         <div class="font-medium mb-1">InkTracker</div>
-        <div class="text-[10px] text-slate-600 break-words">{{ app_version if app_version else 'unknown' }}</div>
+        <a href="/changelog" @click="mobileMenuOpen=false" class="text-[10px] text-sky-400 hover:text-sky-300 hover:underline transition-colors">
+          {{ app_version if app_version else 'unknown' }} (changelog)
+        </a>
       </div>
     </div>
   </div>
