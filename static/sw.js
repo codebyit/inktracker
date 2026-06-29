@@ -12,7 +12,7 @@ const OFFLINE_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>InkTracker — Offline</title>
+  <title>InkTrack — Offline</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
@@ -33,7 +33,7 @@ const OFFLINE_HTML = `<!DOCTYPE html>
   <div class="container">
     <div class="icon">📶</div>
     <h1>You're Offline</h1>
-    <p>InkTracker is not available while offline. Please check your connection and try again.</p>
+    <p>InkTrack is not available while offline. Please check your connection and try again.</p>
     <button class="button" onclick="location.reload()">Retry</button>
   </div>
 </body>

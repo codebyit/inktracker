@@ -1,6 +1,6 @@
 {
-  "name": "InkTracker — LT Atelier",
-  "short_name": "InkTracker",
+  "name": "InkTrack",
+  "short_name": "InkTrack",
   "description": "UV Print Cost Tracker & Inventory Management",
   "start_url": "/",
   "scope": "/",

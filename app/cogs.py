@@ -1,5 +1,5 @@
 # Usage: imported by crud.py — COGS calculation engine
-# Schema: see AGENTS.md — Data Schema and InkTracker section
+# Schema: see project docs — Data Schema and InkTrack section
 
 import json
 
