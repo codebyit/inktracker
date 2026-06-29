@@ -1,5 +1,6 @@
 from pathlib import Path
 from fastapi.templating import Jinja2Templates
+from .branding import APP_NAME, APP_OWNER, APP_TITLE
 from .models import (
     INK_CHANNELS, SERVICE_CHANNELS, INK_CHANNEL_NAMES, INK_CHANNEL_HEX,
     PROJECT_TYPES, PROJECT_TYPE_LABELS,
@@ -9,6 +10,9 @@ _TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 templates.env.globals.update({
+    "app_name":          APP_NAME,
+    "app_owner":         APP_OWNER,
+    "app_title":         APP_TITLE,
     "INK_CHANNELS":      INK_CHANNELS,
     "SERVICE_CHANNELS":  SERVICE_CHANNELS,
     "INK_CHANNEL_NAMES": INK_CHANNEL_NAMES,

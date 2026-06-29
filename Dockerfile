@@ -4,7 +4,7 @@ ARG VERSION=0.0.0
 ARG COMMIT_SHA=unknown
 ARG BUILD_DATE
 
-LABEL org.opencontainers.image.title="InkTracker" \
+LABEL org.opencontainers.image.title="InkTrack" \
       org.opencontainers.image.description="UV Print Cost Tracker — Self-hosted production and costing tracker" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${COMMIT_SHA}" \

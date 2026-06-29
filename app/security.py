@@ -1,4 +1,4 @@
-"""Lightweight security helpers for InkTracker.
+"""Lightweight security helpers for InkTrack.
 
 This module provides an opt-in admin authentication dependency. It is
 intentionally minimal so that the app keeps working out-of-the-box in a

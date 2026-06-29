@@ -1,0 +1,33 @@
+name: Branding Guard
+
+# Public-fork sanitization gate. Fails if internal/owner-only branding or private
+# infrastructure references leak into tracked files. Public default name is "InkTrack";
+# the legacy "InkTracker" name and owner "LT Atelier" must come from env at runtime, not code.
+# Social handle (@codeby_lt) and Ko-fi link are allowed (public branding).
+#
+# Cheap, read-only grep. Does NOT build or deploy.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  branding-guard:
+    name: No internal branding
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan tracked files for forbidden strings
+        run: |
+          PATTERN='InkTracker|LT Atelier|lagenet\.work|proxmox|zot-registry|NPMplus|PVEAPIToken|PedroLageTavares|onedrive-pessoal'
+          # exclude this workflow file (it names the patterns) and docs that explain history
+          MATCHES=$(git grep -nIE "$PATTERN" -- ':!.github/workflows/branding-guard.yml' ':!CHANGELOG.md' ':!VERSIONING.md' || true)
+          if [ -n "$MATCHES" ]; then
+            echo "::error::Internal branding or infra reference found in tracked files:"
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "OK: no internal branding leaks."
