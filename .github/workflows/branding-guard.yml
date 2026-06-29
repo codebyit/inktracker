@@ -1,8 +1,9 @@
 name: Branding Guard
 
-# Public-fork sanitization gate. Fails if internal/owner-only branding or private
-# infrastructure references leak into tracked files. Public default name is "InkTrack";
-# the legacy "InkTracker" name and owner "LT Atelier" must come from env at runtime, not code.
+# Public-fork sanitization gate. Fails if owner-only branding or private
+# infrastructure references leak into tracked files. The app name "InkTracker"
+# matches the repo/image name and is the public default (set via APP_NAME).
+# Owner "LT Atelier" must come from env at runtime, not code.
 # Social handle (@codeby_lt) and Ko-fi link are allowed (public branding).
 #
 # Cheap, read-only grep. Does NOT build or deploy.
@@ -22,7 +23,7 @@ jobs:
 
       - name: Scan tracked files for forbidden strings
         run: |
-          PATTERN='InkTracker|LT Atelier|lagenet\.work|proxmox|zot-registry|NPMplus|PVEAPIToken|PedroLageTavares|onedrive-pessoal'
+          PATTERN='LT Atelier|lagenet\.work|proxmox|zot-registry|NPMplus|PVEAPIToken|PedroLageTavares|onedrive-pessoal'
           # exclude this workflow file (it names the patterns) and docs that explain history
           MATCHES=$(git grep -nIE "$PATTERN" -- ':!.github/workflows/branding-guard.yml' ':!CHANGELOG.md' ':!VERSIONING.md' || true)
           if [ -n "$MATCHES" ]; then
