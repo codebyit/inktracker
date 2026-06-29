@@ -18,13 +18,34 @@ import argparse
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
+import time
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS = os.path.join(REPO_ROOT, "docs")
 BUILD = os.path.join(REPO_ROOT, "build", "wiki")
 WIKI_REMOTE = "git@github.com:codebyit/inktracker.wiki.git"
+
+
+def rmtree(path: str) -> None:
+    """Remove a tree, tolerating read-only files and transient locks (Windows/OneDrive)."""
+    if not os.path.isdir(path):
+        return
+
+    def on_error(func, p, _exc):
+        os.chmod(p, stat.S_IWRITE)
+        func(p)
+
+    for _ in range(5):
+        try:
+            shutil.rmtree(path, onexc=on_error)
+            return
+        except (PermissionError, OSError):
+            time.sleep(0.5)
+    shutil.rmtree(path, onexc=on_error)
+
 
 GUIDES = [
     "01-getting-started.md",
@@ -60,7 +81,7 @@ def convert_links(text: str) -> str:
 
 def build() -> None:
     if os.path.isdir(BUILD):
-        shutil.rmtree(BUILD)
+        rmtree(BUILD)
     os.makedirs(BUILD)
     for f in GUIDES + ["README.md"]:
         text = convert_links(open(os.path.join(DOCS, f), encoding="utf-8").read())
@@ -77,13 +98,13 @@ def build() -> None:
 def push() -> None:
     work = os.path.join(REPO_ROOT, "build", "wiki-repo")
     if os.path.isdir(work):
-        shutil.rmtree(work)
+        rmtree(work)
     if subprocess.run(["git", "clone", WIKI_REMOTE, work]).returncode != 0:
         sys.exit("Wiki not initialized. Enable it and create one page in the GitHub UI, then retry.")
     for item in os.listdir(work):
         if item != ".git":
             p = os.path.join(work, item)
-            shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
+            rmtree(p) if os.path.isdir(p) else os.remove(p)
     shutil.copytree(BUILD, work, dirs_exist_ok=True)
     subprocess.run(["git", "-C", work, "add", "-A"], check=True)
     subprocess.run(["git", "-C", work, "commit", "-m", "docs: sync user manual to wiki"], check=True)
