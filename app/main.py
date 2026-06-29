@@ -87,7 +87,9 @@ _STATIC_DIR = Path(__file__).parent.parent / "static"
 _STATIC_DIR.mkdir(exist_ok=True)
 (_STATIC_DIR / "uploads").mkdir(exist_ok=True)
 
-app = FastAPI(title="InkTracker", description="UV Print Cost Tracker — LT Atelier")
+from .branding import APP_NAME, APP_OWNER, APP_TITLE
+
+app = FastAPI(title=APP_NAME, description=f"UV Print Cost Tracker{f' — {APP_OWNER}' if APP_OWNER else ''}")
 
 app.add_middleware(SecurityHeadersMiddleware)
 
