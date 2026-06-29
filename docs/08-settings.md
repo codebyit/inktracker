@@ -12,10 +12,12 @@ spreads the cost across jobs so each project carries a fair share.
 ![Machine configuration](images/settings-machine.png)
 
 ## Ink costs
-Set the **price** and **capacity** for each ink color channel. This is how per-job ink
-cost is calculated.
+Each ink color channel is a card where you set its **price per cartridge** and its
+**ink density** (in g/ml). The price drives per-job ink cost; the density is used by the
+weight-based remaining-ink estimate on the Service page (white and gloss inks are denser
+than CMYK, so each channel has its own value). The card also shows the cost **per ml**.
 
-![Ink cost per channel](images/settings-ink-costs.png)
+![Ink cost and density per channel](images/settings-ink-costs.png)
 
 | Channel | Color |
 |---|---|
@@ -26,6 +28,10 @@ cost is calculated.
 | W | White |
 | GL | Gloss |
 | FW | Flex White |
+
+💡 **Tip:** Leave density at **1.0** if you're unsure — that matches the old "1 ml = 1 g"
+behavior. The **Cartridge Capacity** card on this page also lets you set the **empty
+cartridge weight (tare)**, so the Service page's weight → remaining-ink helper stays accurate.
 
 ## Labor & overhead
 Set your **hourly labor rate** and an **overhead %** to cover rent, power, and other
