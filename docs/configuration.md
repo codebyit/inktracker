@@ -3,7 +3,6 @@
 ## Required
 
 - `DATABASE_URL`
-- `SECRET_KEY`
 
 ## Recommended
 
