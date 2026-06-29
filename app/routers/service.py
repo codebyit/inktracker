@@ -271,3 +271,11 @@ def undo_ink_correction(action_id: int, db: Session = Depends(get_db)):
         db.commit()
         invalidate_dashboard_analytics_cache()
     return RedirectResponse("/service", status_code=303)
+
+
+# ── Changelog ─────────────────────────────────────────────────
+
+@router.get("/changelog", response_class=HTMLResponse)
+def changelog():
+    """Render the application changelog."""
+    return templates.get_template("changelog.html").render()

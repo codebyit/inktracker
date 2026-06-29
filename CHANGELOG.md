@@ -21,7 +21,8 @@ dependency-modernization wave. Consolidates everything merged since `v0.8.17`.
 - **Versioning policy & tooling:** `VERSIONING.md`, `VERSION` as the single source of truth,
   `scripts/sync-version.mjs` + `scripts/prepare-release.mjs`, `version:sync`/`version:check`
   npm scripts, and the Version Guard / Suggest Next Version / Release workflows.
-- **Fork divergence docs:** `COPY_CHECKLIST.md` "preserve, do not clobber" section.
+- **Fork divergence docs:** the public-fork "preserve, do not clobber" guidance (maintainer
+  copy checklist; now kept in the private source repo).
 
 ### Changed
 
