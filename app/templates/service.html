@@ -27,10 +27,14 @@
            corr: { {% for ch in ink_channels %}'{{ ch }}': 0{% if not loop.last %}, {% endif %}{% endfor %} },
            weight_g: '',
            apply_channel: '{{ ink_channels[0] if ink_channels else "C" }}',
+           densityByChannel: { {% for ch in ink_channels %}'{{ ch }}': {{ ink_density_by_channel.get(ch, 1.0) }}{% if not loop.last %}, {% endif %}{% endfor %} },
+           tareG: {{ cartridge_tare_g }},
+           capacityMl: {{ cartridge_capacity_ml }},
            get net(){ return Object.values(this.corr).reduce((a,b)=>a+(parseFloat(b)||0),0); },
+           get density(){ const d = this.densityByChannel[this.apply_channel]; return (d && d > 0) ? d : 1.0; },
            get remainingMlByWeight(){
-             const raw = (parseFloat(this.weight_g) || 0) - 75;
-             return Math.min(100, Math.max(0, raw));
+             const raw = ((parseFloat(this.weight_g) || 0) - this.tareG) / this.density;
+             return Math.min(this.capacityMl, Math.max(0, raw));
            },
            get weightStatus(){
              const ml = this.remainingMlByWeight;
@@ -39,10 +43,10 @@
              return 'OK';
            },
            get lowThresholdGrams(){
-             return 105;
+             return this.tareG + 30 * this.density;
            },
            get criticalThresholdGrams(){
-             return 100;
+             return this.tareG + 25 * this.density;
            },
            applyEstimateToChannel(){
              const target = this.apply_channel;
@@ -64,7 +68,7 @@
 
     <div class="mb-4 bg-indigo-50 border border-indigo-100 rounded-lg p-3">
       <h3 class="text-sm font-semibold text-indigo-800">Weight to Remaining Ink (EufyMake E1)</h3>
-      <p class="text-xs text-indigo-700 mt-0.5">Uses: remaining_ml = weight_g - 75, clamped to 0..100 ml.</p>
+      <p class="text-xs text-indigo-700 mt-0.5">Uses: remaining_ml = (weight_g − tare) ÷ density, clamped to 0..<span x-text="capacityMl"></span> ml. Tare <span x-text="tareG"></span> g, density <span x-text="density.toFixed(2)"></span> g/ml for the selected channel (set both in Settings → Ink).</p>
 
       <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
         <label class="text-xs text-slate-700">
@@ -88,10 +92,10 @@
                x-text="weightStatus"></div>
         </div>
         <div class="text-[11px] text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 leading-relaxed">
-          <p>Aligned thresholds by formula ($ml = g - 75$):</p>
-          <p>&gt; 30 ml =&gt; &gt; <span x-text="lowThresholdGrams"></span> g (OK)</p>
-          <p>25-30 ml =&gt; <span x-text="criticalThresholdGrams"></span>-<span x-text="lowThresholdGrams"></span> g (LOW)</p>
-          <p>&lt; 25 ml =&gt; &lt; <span x-text="criticalThresholdGrams"></span> g (CRITICAL)</p>
+          <p>Aligned thresholds by formula ($ml = (g - tare) \div density$):</p>
+          <p>&gt; 30 ml =&gt; &gt; <span x-text="lowThresholdGrams.toFixed(0)"></span> g (OK)</p>
+          <p>25-30 ml =&gt; <span x-text="criticalThresholdGrams.toFixed(0)"></span>-<span x-text="lowThresholdGrams.toFixed(0)"></span> g (LOW)</p>
+          <p>&lt; 25 ml =&gt; &lt; <span x-text="criticalThresholdGrams.toFixed(0)"></span> g (CRITICAL)</p>
         </div>
       </div>
 

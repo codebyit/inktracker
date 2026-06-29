@@ -64,6 +64,7 @@ def _normalize_hhmm(raw: str) -> str:
 async def save_ink(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     capacity     = float(form.get("cartridge_capacity_ml", 100.0))
+    tare_g       = float(form.get("cartridge_tare_g", 75.0))
     white_loaded = str(form.get("white_loaded", "W"))
     low_ink_pct  = float(form.get("low_ink_pct", 20.0))
     currency     = str(crud.get_currency(db))  # read current value, don't change it
@@ -73,11 +74,14 @@ async def save_ink(request: Request, db: Session = Depends(get_db)):
         white_loaded=white_loaded,
         low_ink_pct=low_ink_pct,
         currency=currency,
+        cartridge_tare_g=tare_g,
     )
     for ch in INK_CHANNELS:
         price    = float(form.get(f"price_{ch}", 45.0))
         preprime = float(form.get(f"preprime_{ch}", 0.0))
-        crud.update_ink_config(db, channel=ch, price=price, preprime_ml=preprime)
+        density  = float(form.get(f"density_{ch}", 1.0))
+        crud.update_ink_config(db, channel=ch, price=price, preprime_ml=preprime,
+                               density_g_per_ml=density)
     templates.env.globals["currency"] = currency
     return RedirectResponse("/settings?tab=ink&saved=1", status_code=303)
 

@@ -44,7 +44,7 @@ def seed_defaults(db: Session) -> None:
 
     if not db.query(models.InkGlobalConfig).first():
         db.add(models.InkGlobalConfig(
-            id=1, cartridge_capacity_ml=100.0,
+            id=1, cartridge_capacity_ml=100.0, cartridge_tare_g=75.0,
             white_loaded="W", low_ink_pct=20.0, low_inventory_lot_pct=25.0, currency="€",
         ))
 
@@ -105,10 +105,13 @@ def get_currency(db: Session) -> str:
     return cfg.currency if cfg else "€"
 
 
-def update_ink_config(db: Session, channel: str, price: float, preprime_ml: float = 0.0) -> None:
+def update_ink_config(db: Session, channel: str, price: float, preprime_ml: float = 0.0,
+                      density_g_per_ml: float | None = None) -> None:
     cfg = db.query(models.InkChannelConfig).filter_by(channel=channel).first()
     cfg.price_per_cartridge = price
     cfg.preprime_ml = preprime_ml
+    if density_g_per_ml is not None and density_g_per_ml > 0:
+        cfg.ink_density_g_per_ml = density_g_per_ml
     db.commit()
     _invalidate_dashboard_analytics_cache()
 
@@ -119,12 +122,15 @@ def update_ink_global_config(
     white_loaded: str,
     low_ink_pct: float,
     currency: str,
+    cartridge_tare_g: float | None = None,
 ) -> None:
     cfg = db.query(models.InkGlobalConfig).first()
     cfg.cartridge_capacity_ml = cartridge_capacity_ml
     cfg.white_loaded = white_loaded
     cfg.low_ink_pct = low_ink_pct
     cfg.currency = currency
+    if cartridge_tare_g is not None and cartridge_tare_g >= 0:
+        cfg.cartridge_tare_g = cartridge_tare_g
     # Sync capacity to all channels
     for ch_cfg in db.query(models.InkChannelConfig).all():
         ch_cfg.cartridge_capacity_ml = cartridge_capacity_ml

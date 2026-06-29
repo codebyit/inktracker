@@ -98,12 +98,14 @@ class InkChannelConfig(Base):
     price_per_cartridge   = Column(Float, default=45.0)
     cartridge_capacity_ml = Column(Float, default=100.0)  # shared capacity
     preprime_ml           = Column(Float, default=0.0)    # pre-prime usage per job
+    ink_density_g_per_ml  = Column(Float, default=1.0)    # for weight->ml conversion
 
 
 class InkGlobalConfig(Base):
     __tablename__ = "ink_global_config"
     id               = Column(Integer, primary_key=True, default=1)
     cartridge_capacity_ml = Column(Float, default=100.0)  # shared across all channels
+    cartridge_tare_g = Column(Float, default=75.0)        # empty cartridge weight (g)
     white_loaded     = Column(String(4), default="W")     # "W" or "FW"
     low_ink_pct      = Column(Float, default=20.0)        # warn threshold %
     low_inventory_lot_pct = Column(Float, default=25.0)   # low-stock lot threshold %

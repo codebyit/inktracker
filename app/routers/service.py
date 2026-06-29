@@ -82,6 +82,14 @@ def service_page(request: Request, db: Session = Depends(get_db)):
     ink_levels       = crud.get_ink_levels(db)
     auto_sync_status = crud.get_latest_auto_maintenance_sync(db)
     auto_cfg         = crud.get_automation_config(db)
+    ink_cfgs         = crud.get_ink_configs(db)
+    ink_global       = crud.get_ink_global_config(db)
+    cartridge_tare_g = float(ink_global.cartridge_tare_g) if ink_global and ink_global.cartridge_tare_g is not None else 75.0
+    cartridge_capacity_ml = float(ink_global.cartridge_capacity_ml) if ink_global and ink_global.cartridge_capacity_ml else 100.0
+    ink_density_by_channel = {
+        ch: float(cfg.ink_density_g_per_ml) if cfg.ink_density_g_per_ml else 1.0
+        for ch, cfg in ink_cfgs.items()
+    }
     correction_error = (request.query_params.get("corr_error") or "").strip()
     correction_saved = (request.query_params.get("corr_saved") or "") == "1"
     correction_undo_action_id = None
@@ -119,6 +127,9 @@ def service_page(request: Request, db: Session = Depends(get_db)):
         "ink_channels":       INK_CHANNELS,
         "service_channels":   SERVICE_CHANNELS,
         "ink_channel_names":  INK_CHANNEL_NAMES,
+        "ink_density_by_channel": ink_density_by_channel,
+        "cartridge_tare_g":   cartridge_tare_g,
+        "cartridge_capacity_ml": cartridge_capacity_ml,
         "correction_error":    correction_error,
         "correction_saved":    correction_saved,
         "correction_undo_action_id": correction_undo_action_id,
