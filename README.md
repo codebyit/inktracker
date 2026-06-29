@@ -42,6 +42,16 @@ Recommended tags:
 - `vX.Y.Z`
 - `vX.Y.Z-<sha7>`
 
+### Update to the latest
+
+```bash
+docker compose -f docker-compose.public.yml pull
+docker compose -f docker-compose.public.yml up -d
+```
+
+Migrations run automatically on start. See [`docs/upgrading.md`](docs/upgrading.md)
+for pinning, rollback, and backup steps.
+
 ## Deployment Profiles
 
 - `docker-compose.public.yml`: app + postgres + redis
