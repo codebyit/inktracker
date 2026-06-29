@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/static/app.css"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_version | default('0', true) }}"/>
   <script data-cfasync="false">
     // Apply saved theme before any layout paint
     (function(){if(localStorage.getItem('inktrack-theme')==='light')document.documentElement.classList.add('light');})();
@@ -27,9 +27,9 @@
   <meta name="msapplication-TileColor" content="#4f46e5"/>
   <meta name="msapplication-TileImage" content="/static/icons/icon-192.png"/>
   
-  <script data-cfasync="false" src="/static/vendor/chart.umd.min.js"></script>
-  <script data-cfasync="false" defer src="/static/vendor/alpine.min.js"></script>
-  <script data-cfasync="false" defer src="/static/vendor/jsqr.js"></script>
+  <script data-cfasync="false" src="/static/vendor/chart.umd.min.js?v={{ asset_version | default('0', true) }}"></script>
+  <script data-cfasync="false" defer src="/static/vendor/alpine.min.js?v={{ asset_version | default('0', true) }}"></script>
+  <script data-cfasync="false" defer src="/static/vendor/jsqr.js?v={{ asset_version | default('0', true) }}"></script>
   <script data-cfasync="false">
     if (window.Chart) {
       Chart.defaults.color = '#cbd5e1';
