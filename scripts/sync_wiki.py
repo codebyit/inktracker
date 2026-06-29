@@ -60,6 +60,13 @@ GUIDES = [
     "10-tips-faq.md",
 ]
 
+ADMIN = [
+    "installation.md",
+    "configuration.md",
+    "upgrading.md",
+    "troubleshooting.md",
+]
+
 
 def page_name(filename: str) -> str:
     """docs filename -> wiki page name (README -> Home)."""
@@ -76,14 +83,14 @@ def convert_links(text: str) -> str:
             return m.group(0)
         return f"[{label}]({page_name(target)})"
 
-    return re.sub(r"\[([^\]]+)\]\((\d{2}-[\w-]+\.md|README\.md)\)", repl, text)
+    return re.sub(r"\[([^\]]+)\]\((\d{2}-[\w-]+\.md|[a-z]+\.md|README\.md)\)", repl, text)
 
 
 def build() -> None:
     if os.path.isdir(BUILD):
         rmtree(BUILD)
     os.makedirs(BUILD)
-    for f in GUIDES + ["README.md"]:
+    for f in GUIDES + ADMIN + ["README.md"]:
         text = convert_links(open(os.path.join(DOCS, f), encoding="utf-8").read())
         open(os.path.join(BUILD, page_name(f) + ".md"), "w", encoding="utf-8").write(text)
     shutil.copytree(os.path.join(DOCS, "images"), os.path.join(BUILD, "images"))
@@ -91,8 +98,12 @@ def build() -> None:
     for f in GUIDES:
         title = open(os.path.join(DOCS, f), encoding="utf-8").readline().lstrip("# ").strip()
         sidebar.append(f"- [{title}]({page_name(f)})")
+    sidebar.append("\n## Admin")
+    for f in ADMIN:
+        title = open(os.path.join(DOCS, f), encoding="utf-8").readline().lstrip("# ").strip()
+        sidebar.append(f"- [{title}]({page_name(f)})")
     open(os.path.join(BUILD, "_Sidebar.md"), "w", encoding="utf-8").write("\n".join(sidebar) + "\n")
-    print(f"Built {len(GUIDES) + 2} wiki pages into {BUILD}")
+    print(f"Built {len(GUIDES) + len(ADMIN) + 2} wiki pages into {BUILD}")
 
 
 def push() -> None:
