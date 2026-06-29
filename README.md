@@ -16,6 +16,14 @@ Using an external PostgreSQL instead? See **Profile B** in
 
 ## Images
 
+The Compose files run the prebuilt image — no local build needed. Both profiles
+default to `ghcr.io/codebyit/inktracker:latest`; `docker compose ... up -d` pulls it
+automatically. To pin a specific version, set `APP_IMAGE` in `.env`:
+
+```dotenv
+APP_IMAGE=ghcr.io/codebyit/inktracker:v0.9.0
+```
+
 Public image is published to:
 - `ghcr.io/codebyit/inktracker`
 
