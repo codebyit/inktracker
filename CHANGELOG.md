@@ -8,6 +8,14 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.9.1] — 2026-06-29
+
+### Fixed
+
+- **Settings → Ink:** the Pre-Prime Inputs fields no longer overflow the card border.
+  The number inputs used `flex-1` without `min-w-0`, so they could not shrink below their
+  intrinsic width and pushed the right grid column past the card. Added `min-w-0`.
+
 ## [0.9.0] — 2026-06-28
 
 First versioned release of the public fork after the security-hardening and
