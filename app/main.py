@@ -147,6 +147,16 @@ def startup() -> None:
         templates.env.globals["currency"] = crud.get_currency(db)
         templates.env.globals["db_info"] = DB_INFO
         templates.env.globals["app_version"] = APP_VERSION
+        # Cache-busting token for static assets. app.css is rebuilt on every
+        # Docker build, so its mtime changes per deploy even when VERSION does
+        # not (dev and prod share one version line). Appended as ?v= to asset
+        # URLs so the reverse proxy, service worker, and browser fetch fresh
+        # CSS after an update instead of serving a stale theme.
+        try:
+            _asset_version = str(int((_STATIC_DIR / "app.css").stat().st_mtime))
+        except OSError:
+            _asset_version = APP_VERSION
+        templates.env.globals["asset_version"] = _asset_version
     except Exception:
         log.exception("FATAL: seed_defaults or template globals failed during startup")
         raise

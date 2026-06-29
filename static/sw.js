@@ -1,4 +1,4 @@
-const CACHE_NAME = 'inktracker-v2';
+const CACHE_NAME = 'inktracker-v3';
 const STATIC_ASSETS = [
   '/static/app.css',
   '/static/vendor/alpine.min.js',
