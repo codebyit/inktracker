@@ -1,5 +1,23 @@
 # Installation
 
+## Quickest start (no clone)
+
+Download the two files and start — the prebuilt image is pulled automatically:
+
+```bash
+curl -O https://raw.githubusercontent.com/codebyit/inktracker/main/docker-compose.public.yml
+curl -o .env https://raw.githubusercontent.com/codebyit/inktracker/main/.env.example
+docker compose -f docker-compose.public.yml up -d
+```
+
+Verify and open:
+
+```bash
+docker compose -f docker-compose.public.yml ps   # services should be running/healthy
+```
+
+Then visit **http://localhost:8000**.
+
 ## Profile A: All-in-one (app + postgres + redis)
 
 1. Copy env:
