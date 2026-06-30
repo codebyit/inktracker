@@ -25,7 +25,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -33,9 +33,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
 
       - name: Build frontend assets (Tailwind + jsQR)
         shell: pwsh
+        timeout-minutes: 8
         run: |
           if (Test-Path package-lock.json) { npm ci } else { npm install }
           npm run build:css
@@ -45,35 +47,77 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            desktop/requirements-desktop.txt
+            desktop/requirements-build.txt
 
       - name: Install desktop + build dependencies
+        timeout-minutes: 12
         run: |
           python -m pip install --upgrade pip
           pip install -r desktop/requirements-desktop.txt -r desktop/requirements-build.txt
 
       - name: Parity check (desktop runs the same app, no fork)
+        timeout-minutes: 3
         run: python -c "import app.main; print('app import OK', app.main.APP_VERSION)"
 
+      - name: Exclude build dirs from Defender (avoid first-launch scan stalls)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          # The packaged exe is unsigned; Defender real-time scanning of a fresh
+          # 40 MB binary can add minutes to first launch. Excluding the build
+          # output keeps the smoke-test fast and deterministic on CI.
+          Add-MpPreference -ExclusionPath (Join-Path $PWD 'dist') -ErrorAction SilentlyContinue
+          Add-MpPreference -ExclusionPath (Join-Path $PWD 'build_pyi') -ErrorAction SilentlyContinue
+          Add-MpPreference -ExclusionPath $env:RUNNER_TEMP -ErrorAction SilentlyContinue
+
       - name: Build (PyInstaller, onedir)
+        timeout-minutes: 15
         run: pyinstaller desktop/inktrack.spec --noconfirm --distpath dist --workpath build_pyi
 
       - name: Smoke-test the packaged binary
         shell: pwsh
+        timeout-minutes: 6
         run: |
           $env:INKTRACK_SELFTEST = "1"
           $env:INKTRACK_DATA_DIR = Join-Path $env:RUNNER_TEMP "inktrack_ci"
-          $p = Start-Process -FilePath "dist\InkTrack\InkTrack.exe" -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "Packaged self-test failed (exit $($p.ExitCode))" }
+          $log = Join-Path $env:RUNNER_TEMP "selftest.log"
+          if (Test-Path $log) { Remove-Item $log -Force }
+
+          # Capture the packaged app's own stdout/stderr so a stall is visible,
+          # and bound the wait so a hang fails fast (instead of the 30/45-min job
+          # timeout) with diagnostics.
+          $p = Start-Process -FilePath "dist\InkTrack\InkTrack.exe" -PassThru `
+                 -RedirectStandardOutput $log -RedirectStandardError "$log.err"
+          # Cache the process handle BEFORE waiting; otherwise a -PassThru process
+          # object reports a $null ExitCode after it exits (PowerShell quirk),
+          # which would spuriously fail this step even on a healthy app.
+          $null = $p.Handle
+          $exited = $p.WaitForExit(120000)   # 120s
+          if (-not $exited) {
+            Write-Host "::error::Packaged self-test did not exit within 120s; killing."
+            try { Stop-Process -Id $p.Id -Force } catch {}
+            Write-Host "----- selftest stdout -----"; if (Test-Path $log) { Get-Content $log }
+            Write-Host "----- selftest stderr -----"; if (Test-Path "$log.err") { Get-Content "$log.err" }
+            throw "Packaged self-test timed out."
+          }
+          Write-Host "----- selftest stdout -----"; if (Test-Path $log) { Get-Content $log }
+          Write-Host "----- selftest stderr -----"; if (Test-Path "$log.err") { Get-Content "$log.err" }
+          if ($p.ExitCode -ne 0) { throw "Packaged self-test failed (exit $($p.ExitCode))." }
           Write-Host "Packaged self-test passed."
 
       - name: Download Edge WebView2 bootstrapper
         shell: pwsh
+        timeout-minutes: 3
         run: |
           Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" `
             -OutFile "desktop/MicrosoftEdgeWebview2Setup.exe"
 
       - name: Build installer (Inno Setup)
         shell: pwsh
+        timeout-minutes: 8
         run: |
           choco install innosetup --no-progress -y
           $dist = Join-Path $PWD "dist"
@@ -98,3 +142,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/InkTrack-Setup-*.exe
+

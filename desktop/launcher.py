@@ -190,7 +190,12 @@ def main() -> int:
         finally:
             server.should_exit = True
             thread.join(timeout=5)
-        return 0 if ok else 1
+        # Hard-exit so the process can never hang on a lingering daemon thread,
+        # buffered output, or a frozen-runtime atexit handler on CI. We flush
+        # explicitly because os._exit() skips normal interpreter shutdown.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0 if ok else 1)
 
     import webview
     window = webview.create_window(
