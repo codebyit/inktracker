@@ -139,9 +139,33 @@ jobs:
           # Application Control / Smart App Control blocks. The onedir loads its
           # DLLs from beside the (signed) exe, so the unzip-and-run portable is
           # robust on locked-down machines.
+          #
+          # Package WITH a top-level InkTrack\ folder plus a READ-ME so the zip
+          # cannot be run from inside Explorer's zip viewer (which extracts the
+          # exe to %TEMP% without its _internal\ DLLs -> "Failed to load Python
+          # DLL"). Users must Extract All, then run InkTrack\InkTrack.exe.
           $ver = "${{ steps.ver.outputs.version }}"
           New-Item -ItemType Directory -Force -Path portable | Out-Null
-          Compress-Archive -Path "dist\InkTrack\*" -DestinationPath "portable\InkTrack-$ver-portable.zip" -Force
+          $stage = Join-Path $env:RUNNER_TEMP "portable_stage"
+          if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "dist\InkTrack" (Join-Path $stage "InkTrack") -Recurse -Force
+          @"
+          InkTrack $ver - portable (no install)
+
+          IMPORTANT: extract this ZIP first, then run the app.
+
+          1. Right-click this ZIP -> "Extract All..." and pick a folder.
+          2. Open the extracted folder and run:  InkTrack\InkTrack.exe
+
+          Do NOT run InkTrack.exe from inside the ZIP (Windows opens it from a
+          temporary folder without the InkTrack\_internal\ files, which causes a
+          "Failed to load Python DLL" error). Prefer the installer if unsure.
+
+          Your data is stored in %LOCALAPPDATA%\InkTrack and is kept when you
+          delete this folder. https://github.com/codebyit/inktracker
+          "@ | Set-Content -Path (Join-Path $stage "READ ME FIRST.txt") -Encoding utf8
+          Compress-Archive -Path "$stage\*" -DestinationPath "portable\InkTrack-$ver-portable.zip" -Force
 
       - name: Download Edge WebView2 bootstrapper
         shell: pwsh
