@@ -68,6 +68,15 @@ Admin & install docs:
 - `docs/upgrading.md`
 - `docs/troubleshooting.md`
 
+## Windows desktop app
+
+Prefer a native app to Docker? InkTrack also ships as a standalone Windows
+desktop build (the same FastAPI app in a local window — SQLite, no server). Grab
+the installer or the portable ZIP from the [latest release](https://github.com/codebyit/inktracker/releases/latest).
+Build details are in [`BUILD.md`](BUILD.md).
+
+> Windows builds are code-signed by the [SignPath Foundation](https://signpath.org/).
+
 ## Security
 
 Please read `SECURITY.md` before reporting vulnerabilities.

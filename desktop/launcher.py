@@ -223,4 +223,29 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        _rc = main()
+    except BaseException:  # noqa: BLE001 - last-resort crash capture
+        # A windowed (no-console) build has no visible stderr, so persist any
+        # fatal startup error to a log the user/CI can read. Try the data dir
+        # first, then TEMP.
+        import traceback
+
+        tb = traceback.format_exc()
+        for _base in (os.environ.get("INKTRACK_DATA_DIR"), os.environ.get("TEMP"), os.environ.get("TMP")):
+            if not _base:
+                continue
+            try:
+                _crash = Path(_base) / "inktrack-crash.log"
+                _crash.parent.mkdir(parents=True, exist_ok=True)
+                _crash.write_text(tb, encoding="utf-8")
+                break
+            except OSError:
+                continue
+        try:
+            sys.stderr.write(tb)
+            sys.stderr.flush()
+        except Exception:
+            pass
+        os._exit(3)
+    raise SystemExit(_rc)

@@ -1,9 +1,19 @@
 name: Desktop (Windows)
 
-# Builds the InkTrack Windows desktop app: Tailwind assets -> PyInstaller
-# (onedir) -> smoke-test the packaged binary -> Inno Setup installer. On a
-# version tag the installer is attached to the GitHub Release. No Docker /
-# registry is involved in this path.
+# Builds the InkTrack Windows desktop app and (on a version tag) publishes it:
+#   Tailwind assets -> PyInstaller (onedir + onefile) -> smoke-test the packaged
+#   binary -> Inno Setup installer -> GitHub Release.
+#
+# Signing & Store packaging are GATED on repository config so the core build is
+# always green even before those are set up (see BUILD.md):
+#   * sign  job runs only when the SIGNPATH_PROJECT_SLUG variable is set; it
+#     code-signs the installer + portable via the SignPath Foundation.
+#   * msix  job runs only when the MSIX_IDENTITY_NAME variable is set; it builds
+#     an unsigned Microsoft Store .msix from the onedir output.
+# When signing is NOT configured, the build job attaches the UNSIGNED installer
+# and portable to the Release so there is always a usable download.
+#
+# No Docker / registry is involved in this path.
 
 on:
   push:
@@ -11,6 +21,7 @@ on:
   pull_request:
     paths:
       - "desktop/**"
+      - "packaging/**"
       - "app/**"
       - "static/**"
       - "alembic/**"
@@ -20,12 +31,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # attach the installer to the Release on tag builds
+  contents: write   # create/upload to the GitHub Release on tag builds
+  actions: read     # SignPath action reads the build artifact via the API
 
 jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 45
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      signable-artifact-id: ${{ steps.upload_signable.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -61,6 +76,13 @@ jobs:
       - name: Parity check (desktop runs the same app, no fork)
         timeout-minutes: 3
         run: python -c "import app.main; print('app import OK', app.main.APP_VERSION)"
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Get-Content VERSION -Raw).Trim()
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Exclude build dirs from Defender (avoid first-launch scan stalls)
         shell: pwsh
@@ -108,6 +130,19 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "Packaged self-test failed (exit $($p.ExitCode))." }
           Write-Host "Packaged self-test passed."
 
+      - name: Package portable (ZIP of the onedir)
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          # The portable download is a ZIP of the onedir folder, NOT a onefile
+          # exe: onefile extracts an unsigned python DLL to temp, which Windows
+          # Application Control / Smart App Control blocks. The onedir loads its
+          # DLLs from beside the (signed) exe, so the unzip-and-run portable is
+          # robust on locked-down machines.
+          $ver = "${{ steps.ver.outputs.version }}"
+          New-Item -ItemType Directory -Force -Path portable | Out-Null
+          Compress-Archive -Path "dist\InkTrack\*" -DestinationPath "portable\InkTrack-$ver-portable.zip" -Force
+
       - name: Download Edge WebView2 bootstrapper
         shell: pwsh
         timeout-minutes: 3
@@ -123,13 +158,6 @@ jobs:
           $dist = Join-Path $PWD "dist"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DDistDir=$dist" desktop\installer.iss
 
-      - name: Read version
-        id: ver
-        shell: pwsh
-        run: |
-          $v = (Get-Content VERSION -Raw).Trim()
-          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
@@ -137,9 +165,112 @@ jobs:
           path: dist/InkTrack-Setup-*.exe
           if-no-files-found: error
 
-      - name: Attach installer to release
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InkTrack-${{ steps.ver.outputs.version }}-portable
+          path: portable/InkTrack-*-portable.zip
+          if-no-files-found: error
+
+      # ---- Tag-only: stage release inputs ---------------------------------
+      - name: Stage signable files
         if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path signable | Out-Null
+          Copy-Item "dist\InkTrack-Setup-*.exe" signable\ -Force
+          Copy-Item "portable\InkTrack-*-portable.zip" signable\ -Force
+          Get-ChildItem signable
+
+      - name: Upload signable artifact
+        id: upload_signable
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: inktrack-signable
+          path: signable/*
+          if-no-files-found: error
+
+      - name: Upload onedir for MSIX job
+        if: startsWith(github.ref, 'refs/tags/v') && vars.MSIX_IDENTITY_NAME != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: inktrack-onedir
+          path: dist/InkTrack/**
+          if-no-files-found: error
+
+      # Fallback: when signing is NOT configured, publish the UNSIGNED build so a
+      # tagged release always has a usable download. The sign job supersedes this
+      # with signed binaries once SignPath is set up.
+      - name: Attach UNSIGNED build to release
+        if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_PROJECT_SLUG == ''
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/InkTrack-Setup-*.exe
+          files: |
+            dist/InkTrack-Setup-*.exe
+            portable/InkTrack-*-portable.zip
+
+  # ----------------------------------------------------------------------------
+  # Code signing via the SignPath Foundation (free OSS signing). Gated: only runs
+  # once the SignPath project is approved and the repo variables/secret exist.
+  # ----------------------------------------------------------------------------
+  sign:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_PROJECT_SLUG != ''
+    steps:
+      - name: Submit signing request to SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG_SLUG }}
+          github-artifact-id: ${{ needs.build.outputs.signable-artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Attach SIGNED build to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: signed/*
+
+  # ----------------------------------------------------------------------------
+  # Microsoft Store MSIX. Gated on MSIX_IDENTITY_NAME (your Partner Center
+  # publisher identity). Produces an UNSIGNED .msix artifact — the Store re-signs
+  # it on submission. See packaging/ and BUILD.md.
+  # ----------------------------------------------------------------------------
+  msix:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 20
+    if: startsWith(github.ref, 'refs/tags/v') && vars.MSIX_IDENTITY_NAME != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download onedir build
+        uses: actions/download-artifact@v4
+        with:
+          name: inktrack-onedir
+          path: onedir/InkTrack
+
+      - name: Build MSIX
+        shell: pwsh
+        run: |
+          ./packaging/make-msix.ps1 `
+            -OneDir "onedir/InkTrack" `
+            -Version "${{ needs.build.outputs.version }}" `
+            -IdentityName "${{ vars.MSIX_IDENTITY_NAME }}" `
+            -Publisher "${{ vars.MSIX_PUBLISHER }}" `
+            -PublisherDisplayName "${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}" `
+            -OutMsix "InkTrack-${{ needs.build.outputs.version }}.msix"
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InkTrack-${{ needs.build.outputs.version }}-msix
+          path: InkTrack-*.msix
+          if-no-files-found: error
 
