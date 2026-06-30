@@ -63,13 +63,24 @@ Remove-Item Env:INKTRACK_SELFTEST
 
 ### 2b. Portable ZIP (no install)
 
-The portable download is a **ZIP of the onedir folder**. The user unzips it and
-runs `InkTrack\InkTrack.exe` directly — no installer, no admin.
+The portable download is a **ZIP containing a top-level `InkTrack\` folder** (plus
+a short `READ ME FIRST.txt`). The user **extracts** it, then runs
+`InkTrack\InkTrack.exe` — no installer, no admin.
 
 ```powershell
-# Build the onedir first (2a), then zip it:
-Compress-Archive -Path dist\InkTrack\* -DestinationPath InkTrack-portable.zip -Force
+# Build the onedir first (2a), then stage a top-level InkTrack\ folder and zip it:
+$stage = "portable_stage"
+Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item dist\InkTrack "$stage\InkTrack" -Recurse
+Compress-Archive -Path "$stage\*" -DestinationPath InkTrack-portable.zip -Force
 ```
+
+> **Extract before running.** The zip is packaged with a containing `InkTrack\`
+> folder specifically so it is **not** run from inside Explorer's zip viewer.
+> Double-clicking `InkTrack.exe` from inside the zip makes Windows extract just
+> the exe to `%TEMP%` without its `InkTrack\_internal\` DLLs, causing
+> `Failed to load Python DLL ... LoadLibrary: The specified module could not be
+> found`. Extracting the whole folder first avoids this.
 
 > **Why not a single-file (onefile) exe?** PyInstaller onefile extracts an
 > unsigned `python3xx.dll` to a temp folder at launch, which Windows
@@ -173,8 +184,8 @@ SmartScreen "unknown publisher" prompt.
      at `codebyit/inktracker`;
    - create an **Artifact Configuration** that signs the contents of the uploaded
      zip. It must sign the installer PE (`InkTrack-Setup-*.exe`) directly **and**
-     sign the `InkTrack.exe` *inside* the portable zip (`InkTrack-*-portable.zip`),
-     re-zipping it. Note its **slug**;
+     sign the `InkTrack\InkTrack.exe` *inside* the portable zip
+     (`InkTrack-*-portable.zip`), re-zipping it. Note its **slug**;
    - create/confirm a **Signing Policy** named `release-signing` (note its **slug**);
    - create a **CI user** + **API token**.
 
