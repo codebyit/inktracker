@@ -1,0 +1,22 @@
+# Runtime dependencies for the InkTrack Windows desktop build.
+#
+# Mirrors requirements.txt so the desktop app runs the SAME code as the server
+# image, with two differences:
+#   * the PostgreSQL driver (psycopg) is dropped — the desktop build is
+#     SQLite-only and never imports it;
+#   * pywebview is added to host the app in a native window.
+# redis is kept because app/cache.py imports it unconditionally (it is inert
+# without REDIS_URL). Keep versions in lockstep with requirements.txt.
+fastapi>=0.138.1,<0.140.0
+starlette>=1.3.1
+uvicorn[standard]==0.49.0
+sqlalchemy==2.0.32
+jinja2>=3.1.6
+python-multipart>=0.0.32
+aiofiles==25.1.0
+python-dotenv>=1.2.2
+alembic>=1.18.5
+redis>=8.0.1
+pyyaml>=6.0.3
+reportlab>=5.0.0
+pywebview>=5.3

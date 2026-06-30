@@ -8,10 +8,9 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..templates_config import templates
+from ..paths import DOCS_FILE as _DOCS_FILE
 
 router = APIRouter()
-
-_DOCS_FILE = Path(__file__).parent.parent / "docs_links.yaml"
 
 
 def _normalize_document_date(raw: str) -> str:

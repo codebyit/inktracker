@@ -38,9 +38,24 @@ def _add_column_if_missing(table_name: str, column_name: str, ddl: str) -> None:
         op.execute(sa.text(ddl))
 
 
+def _create_table(stmt) -> None:
+    """Execute a CREATE TABLE statement, making SERIAL primary keys SQLite-safe.
+
+    ``id SERIAL PRIMARY KEY`` is PostgreSQL syntax. On SQLite, ``SERIAL`` does
+    NOT create an autoincrementing rowid alias (only the exact type
+    ``INTEGER PRIMARY KEY`` does), so any insert that omits ``id`` would store
+    NULL and break ORM identity mapping. Rewrite it to ``INTEGER PRIMARY KEY``
+    on SQLite; PostgreSQL keeps ``SERIAL`` unchanged.
+    """
+    ddl = getattr(stmt, "text", None) or str(stmt)
+    if op.get_bind().dialect.name == "sqlite":
+        ddl = ddl.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY")
+    op.execute(sa.text(ddl))
+
+
 def upgrade() -> None:
     # ── machine_config ────────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS machine_config (
             id                 SERIAL PRIMARY KEY,
             purchase_price     FLOAT DEFAULT 2500,
@@ -55,7 +70,7 @@ def upgrade() -> None:
     _add_column_if_missing("machine_config", "setup_cost", "ALTER TABLE machine_config ADD COLUMN setup_cost FLOAT DEFAULT 0")
 
     # ── ink_channel_config ────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS ink_channel_config (
             id                    SERIAL PRIMARY KEY,
             channel               VARCHAR(4) NOT NULL UNIQUE,
@@ -67,7 +82,7 @@ def upgrade() -> None:
     _add_column_if_missing("ink_channel_config", "preprime_ml", "ALTER TABLE ink_channel_config ADD COLUMN preprime_ml FLOAT DEFAULT 0")
 
     # ── ink_global_config ─────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS ink_global_config (
             id                    SERIAL PRIMARY KEY,
             cartridge_capacity_ml FLOAT DEFAULT 100,
@@ -78,7 +93,7 @@ def upgrade() -> None:
     """))
 
     # ── labor_config ──────────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS labor_config (
             id           SERIAL PRIMARY KEY,
             hourly_rate  FLOAT DEFAULT 15,
@@ -87,7 +102,7 @@ def upgrade() -> None:
     """))
 
     # ── margin_config ─────────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS margin_config (
             id                 SERIAL PRIMARY KEY,
             retail_minimum     FLOAT DEFAULT 30,
@@ -109,7 +124,7 @@ def upgrade() -> None:
         )
 
     # ── projects ──────────────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS projects (
             id                  SERIAL PRIMARY KEY,
             name                VARCHAR(200) NOT NULL,
@@ -159,7 +174,7 @@ def upgrade() -> None:
         )
 
     # ── project_ink_usage ─────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS project_ink_usage (
             id         SERIAL PRIMARY KEY,
             project_id INTEGER NOT NULL REFERENCES projects(id),
@@ -169,7 +184,7 @@ def upgrade() -> None:
     """))
 
     # ── bom_items ─────────────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS bom_items (
             id         SERIAL PRIMARY KEY,
             project_id INTEGER NOT NULL REFERENCES projects(id),
@@ -182,7 +197,7 @@ def upgrade() -> None:
     """))
 
     # ── print_templates ───────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS print_templates (
             id               SERIAL PRIMARY KEY,
             name             VARCHAR(200) NOT NULL,
@@ -209,7 +224,7 @@ def upgrade() -> None:
         )
 
     # ── material_categories ───────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS material_categories (
             id         SERIAL PRIMARY KEY,
             name       VARCHAR(100) NOT NULL UNIQUE,
@@ -218,7 +233,7 @@ def upgrade() -> None:
     """))
 
     # ── material_items ────────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS material_items (
             id         SERIAL PRIMARY KEY,
             name       VARCHAR(200) NOT NULL,
@@ -230,7 +245,7 @@ def upgrade() -> None:
     """))
 
     # ── cartridge_replacements ────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS cartridge_replacements (
             id          SERIAL PRIMARY KEY,
             channel     VARCHAR(4) NOT NULL,
@@ -240,7 +255,7 @@ def upgrade() -> None:
     """))
 
     # ── maintenance_events ────────────────────────────────────────────────────
-    op.execute(sa.text("""
+    _create_table(sa.text("""
         CREATE TABLE IF NOT EXISTS maintenance_events (
             id          SERIAL PRIMARY KEY,
             event_type  VARCHAR(50) NOT NULL,

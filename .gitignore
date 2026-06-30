@@ -29,5 +29,9 @@ node_modules/
 # generated wiki build
 build/
 
+# PyInstaller desktop build output
+dist/
+desktop/MicrosoftEdgeWebview2Setup.exe
+
 # local db
 *.db
