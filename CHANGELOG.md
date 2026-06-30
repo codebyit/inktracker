@@ -8,6 +8,39 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.11.0] — 2026-06-30
+
+### Added
+
+- **Windows desktop app.** InkTrack now ships as a standalone Windows build: the
+  same FastAPI application run inside a native window via pywebview (SQLite-only,
+  no server, no Docker). User data lives under `%LOCALAPPDATA%\InkTrack`. A
+  PyInstaller **onedir** bundle is packaged as a per-user **Inno Setup installer**
+  (Start-menu/uninstall, WebView2 bootstrap, data preserved on uninstall) and as
+  a **portable ZIP**. New `desktop-windows.yml` workflow builds, smoke-tests the
+  packaged binary, and attaches the installer + portable to the GitHub Release on
+  a `v*` tag. See [`BUILD.md`](BUILD.md).
+- **Code signing (gated) via the SignPath Foundation** and **Microsoft Store MSIX
+  packaging (gated).** A `sign` job code-signs the release binaries and a `msix`
+  job builds a Store package; both activate only once the corresponding repository
+  variables/secrets are configured, so the core build stays green until then.
+  Added `packaging/` (tokenized `AppxManifest.xml`, Store assets, `make-msix.ps1`).
+- **Configurable per-user data directory.** `INKTRACK_DATA_DIR` relocates the
+  SQLite database, uploads, and `docs_links.yaml` outside the install tree; a new
+  `app/paths.py` centralizes writable-path and frozen-resource (`sys._MEIPASS`)
+  resolution. When unset, the historical in-repo paths are unchanged.
+
+### Fixed
+
+- **SQLite-safe primary keys in the initial-schema migrations.** The bootstrap
+  migrations created tables with PostgreSQL-only `id SERIAL PRIMARY KEY`; on
+  SQLite that is not an autoincrement rowid alias, so seed inserts stored `NULL`
+  ids and `seed_defaults` could crash on a fresh SQLite database. Primary keys are
+  now dialect-aware (`INTEGER PRIMARY KEY` on SQLite). No-op for existing and
+  PostgreSQL databases.
+
+Public-originated release (no internal counterpart for the Windows desktop build).
+
 ## [0.10.0] — 2026-06-29
 
 ### Added
