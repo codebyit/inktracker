@@ -1,0 +1,100 @@
+name: Desktop (Windows)
+
+# Builds the InkTrack Windows desktop app: Tailwind assets -> PyInstaller
+# (onedir) -> smoke-test the packaged binary -> Inno Setup installer. On a
+# version tag the installer is attached to the GitHub Release. No Docker /
+# registry is involved in this path.
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "app/**"
+      - "static/**"
+      - "alembic/**"
+      - "requirements.txt"
+      - "package.json"
+      - ".github/workflows/desktop-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # attach the installer to the Release on tag builds
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend assets (Tailwind + jsQR)
+        shell: pwsh
+        run: |
+          if (Test-Path package-lock.json) { npm ci } else { npm install }
+          npm run build:css
+          npm run vendor:jsqr
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install desktop + build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r desktop/requirements-desktop.txt -r desktop/requirements-build.txt
+
+      - name: Parity check (desktop runs the same app, no fork)
+        run: python -c "import app.main; print('app import OK', app.main.APP_VERSION)"
+
+      - name: Build (PyInstaller, onedir)
+        run: pyinstaller desktop/inktrack.spec --noconfirm --distpath dist --workpath build_pyi
+
+      - name: Smoke-test the packaged binary
+        shell: pwsh
+        run: |
+          $env:INKTRACK_SELFTEST = "1"
+          $env:INKTRACK_DATA_DIR = Join-Path $env:RUNNER_TEMP "inktrack_ci"
+          $p = Start-Process -FilePath "dist\InkTrack\InkTrack.exe" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Packaged self-test failed (exit $($p.ExitCode))" }
+          Write-Host "Packaged self-test passed."
+
+      - name: Download Edge WebView2 bootstrapper
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" `
+            -OutFile "desktop/MicrosoftEdgeWebview2Setup.exe"
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $dist = Join-Path $PWD "dist"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DDistDir=$dist" desktop\installer.iss
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Get-Content VERSION -Raw).Trim()
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InkTrack-Setup-${{ steps.ver.outputs.version }}
+          path: dist/InkTrack-Setup-*.exe
+          if-no-files-found: error
+
+      - name: Attach installer to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/InkTrack-Setup-*.exe

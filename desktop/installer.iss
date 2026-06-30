@@ -27,6 +27,14 @@
 #define WV2Setup "MicrosoftEdgeWebview2Setup.exe"
 #define HasWV2 FileExists(WV2Setup)
 
+; Directory that holds the PyInstaller output (the InkTrack\ onedir folder and
+; the produced installer). Relative values are resolved against THIS script's
+; directory (desktop\). Overridable so CI can pass an absolute path via
+; /DDistDir=...; defaults to the local build sandbox (sibling of the repo).
+#ifndef DistDir
+  #define DistDir "..\..\inktrack-windows\dist"
+#endif
+
 [Setup]
 AppId={{7C9A1F2E-3B4D-4E5F-9A1B-2C3D4E5F6A7B}
 AppName={#AppName}
@@ -38,7 +46,7 @@ DefaultDirName={localappdata}\Programs\InkTrack
 DisableProgramGroupPage=yes
 DefaultGroupName={#AppName}
 PrivilegesRequired=lowest
-OutputDir=..\inktrack-windows\dist
+OutputDir={#DistDir}
 OutputBaseFilename=InkTrack-Setup-{#AppVersion}
 SetupIconFile=inktrack.ico
 UninstallDisplayIcon={app}\InkTrack.exe
@@ -51,7 +59,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
 
 [Files]
-Source: "..\inktrack-windows\dist\InkTrack\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#DistDir}\InkTrack\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 #if HasWV2
 Source: "{#WV2Setup}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: WebView2Missing
 #endif
