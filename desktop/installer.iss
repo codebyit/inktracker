@@ -75,20 +75,25 @@ Filename: "{tmp}\{#WV2Setup}"; Parameters: "/silent /install"; StatusMsg: "Insta
 Filename: "{app}\InkTrack.exe"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-function WebView2Missing(): Boolean;
+// Inno Setup's Pascal Script does not support a local const section inside a
+// function, so these registry-key constants live at [Code] scope. The {GUID}
+// braces are inside string literals, so they are taken literally (no constant
+// expansion or comment handling applies here).
 const
-  ClientKey = 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
-  ClientKeyWow = 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  WV2ClientKey = 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  WV2ClientKeyWow = 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+
+function WebView2Missing(): Boolean;
 var
   Version: String;
 begin
   // The Evergreen WebView2 runtime publishes its version ('pv') under the
   // EdgeUpdate client GUID, per-machine (HKLM, incl. WOW6432Node) or per-user.
   Result := True;
-  if RegQueryStringValue(HKLM, ClientKeyWow, 'pv', Version) and (Version <> '') then
+  if RegQueryStringValue(HKLM, WV2ClientKeyWow, 'pv', Version) and (Version <> '') then
     Result := False
-  else if RegQueryStringValue(HKLM, ClientKey, 'pv', Version) and (Version <> '') then
+  else if RegQueryStringValue(HKLM, WV2ClientKey, 'pv', Version) and (Version <> '') then
     Result := False
-  else if RegQueryStringValue(HKCU, ClientKey, 'pv', Version) and (Version <> '') then
+  else if RegQueryStringValue(HKCU, WV2ClientKey, 'pv', Version) and (Version <> '') then
     Result := False;
 end;
