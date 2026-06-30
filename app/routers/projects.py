@@ -10,9 +10,9 @@ from ..database import get_db
 from .. import crud
 from ..models import INK_MODES, PRINT_QUALITIES, INK_CHANNELS, INK_CHANNEL_HEX
 from ..templates_config import templates
+from ..paths import UPLOADS_DIR as _UPLOAD_DIR
 
 router = APIRouter()
-_UPLOAD_DIR = Path(__file__).parent.parent.parent / "static" / "uploads"
 
 
 @router.get("/projects", response_class=HTMLResponse)

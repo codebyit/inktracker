@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from .database import SessionLocal, DB_INFO
+from .paths import STATIC_DIR, UPLOADS_DIR, VERSION_FILE, ensure_data_dirs
 from . import crud
 from .maintenance_scheduler import start_auto_maintenance_scheduler
 from .routers import dashboard, projects, analytics, service, settings as settings_router, materials as materials_router, docs as docs_router, inventory as inventory_router
@@ -74,18 +75,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# Read version from environment or fallback to VERSION file
+# Read version from environment or fallback to the bundled VERSION file.
 APP_VERSION = os.environ.get("APP_VERSION")
 if not APP_VERSION:
-    version_file = Path(__file__).parent.parent / "VERSION"
-    if version_file.exists():
-        APP_VERSION = version_file.read_text().strip()
+    if VERSION_FILE.exists():
+        APP_VERSION = VERSION_FILE.read_text().strip()
     else:
         APP_VERSION = "unknown"
 
-_STATIC_DIR = Path(__file__).parent.parent / "static"
-_STATIC_DIR.mkdir(exist_ok=True)
-(_STATIC_DIR / "uploads").mkdir(exist_ok=True)
+# Bundled (read-only) static assets vs. the writable uploads directory, which
+# may live in a separate per-user data directory (see app.paths). Creating the
+# writable data directories here is idempotent and safe for every deployment.
+_STATIC_DIR = STATIC_DIR
+ensure_data_dirs()
 
 from .branding import APP_NAME, APP_OWNER, APP_TITLE
 
@@ -93,6 +95,11 @@ app = FastAPI(title=APP_NAME, description=f"UV Print Cost Tracker{f' — {APP_OW
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+# Serve writable user uploads from the data directory FIRST (the more specific
+# prefix wins), then the bundled read-only static assets. This keeps stored
+# photo_path values (/static/uploads/<file>) resolving even when uploads live
+# outside the bundled static directory (e.g. a desktop per-user data folder).
+app.mount("/static/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 

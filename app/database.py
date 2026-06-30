@@ -1,14 +1,14 @@
 import os
 import logging
-from pathlib import Path
 from urllib.parse import urlsplit
 from sqlalchemy.engine import URL
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
+from .paths import DB_PATH as _DB_PATH
+
 log = logging.getLogger(__name__)
 
-_DB_PATH = Path(__file__).parent.parent / "inktracker.db"
 _SQLITE_URL = f"sqlite:///{_DB_PATH}"
 
 
