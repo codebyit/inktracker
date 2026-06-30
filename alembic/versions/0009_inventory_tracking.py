@@ -35,6 +35,21 @@ def _add_column_if_missing(table_name: str, column_name: str, ddl: str) -> None:
         op.execute(sa.text(ddl))
 
 
+def _create_table(stmt) -> None:
+    """Execute a CREATE TABLE statement, making SERIAL primary keys SQLite-safe.
+
+    ``id SERIAL PRIMARY KEY`` is PostgreSQL syntax. On SQLite, ``SERIAL`` does
+    NOT create an autoincrementing rowid alias (only the exact type
+    ``INTEGER PRIMARY KEY`` does), so any insert that omits ``id`` would store
+    NULL and break ORM identity mapping. Rewrite it to ``INTEGER PRIMARY KEY``
+    on SQLite; PostgreSQL keeps ``SERIAL`` unchanged.
+    """
+    ddl = getattr(stmt, "text", None) or str(stmt)
+    if op.get_bind().dialect.name == "sqlite":
+        ddl = ddl.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY")
+    op.execute(sa.text(ddl))
+
+
 def upgrade() -> None:
     _add_column_if_missing(
         "material_items",
@@ -47,7 +62,7 @@ def upgrade() -> None:
         "ALTER TABLE material_items ADD COLUMN quantity_consumed_total FLOAT DEFAULT 0",
     )
 
-    op.execute(sa.text(
+    _create_table(sa.text(
         """
         CREATE TABLE IF NOT EXISTS material_inventory_movements (
             id SERIAL PRIMARY KEY,
@@ -61,7 +76,7 @@ def upgrade() -> None:
         """
     ))
 
-    op.execute(sa.text(
+    _create_table(sa.text(
         """
         CREATE TABLE IF NOT EXISTS cartridge_inventory_lots (
             id SERIAL PRIMARY KEY,
