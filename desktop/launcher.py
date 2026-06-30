@@ -176,6 +176,22 @@ def main() -> int:
 
     url = f"http://{_HOST}:{port}/"
 
+    # Headless self-test (used by CI to smoke-test the packaged binary): boot the
+    # server, fetch the home page, report, and exit without opening a window.
+    if os.environ.get("INKTRACK_SELFTEST") == "1":
+        import urllib.request
+        try:
+            with urllib.request.urlopen(url, timeout=10) as resp:  # nosec B310 - local loopback URL
+                ok = resp.status == 200
+                print(f"InkTrack self-test: GET / -> {resp.status}")
+        except Exception as exc:
+            print(f"InkTrack self-test failed: {exc}", file=sys.stderr)
+            ok = False
+        finally:
+            server.should_exit = True
+            thread.join(timeout=5)
+        return 0 if ok else 1
+
     import webview
     window = webview.create_window(
         APP_TITLE, url, width=1280, height=860, min_size=(960, 600),
