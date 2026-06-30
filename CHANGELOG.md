@@ -8,6 +8,18 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.11.1] — 2026-07-01
+
+### Fixed
+
+- **Portable ZIP failed if run from inside the archive.** Double-clicking
+  `InkTrack.exe` directly inside the zip made Windows extract only the exe to a
+  temp folder without its `_internal\` DLLs, causing `Failed to load Python DLL …
+  python314.dll — The specified module could not be found`. The portable download
+  is now packaged with a top-level `InkTrack\` folder and a `READ ME FIRST.txt`,
+  so users extract it first and run `InkTrack\InkTrack.exe`. The installer was
+  never affected.
+
 ## [0.11.0] — 2026-06-30
 
 ### Added
