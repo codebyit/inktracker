@@ -76,11 +76,11 @@ Filename: "{app}\InkTrack.exe"; Description: "Launch {#AppName}"; Flags: nowait 
 
 [Code]
 function WebView2Missing(): Boolean;
-var
-  Version: String;
 const
   ClientKey = 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
   ClientKeyWow = 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+var
+  Version: String;
 begin
   // The Evergreen WebView2 runtime publishes its version ('pv') under the
   // EdgeUpdate client GUID, per-machine (HKLM, incl. WOW6432Node) or per-user.
