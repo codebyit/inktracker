@@ -8,6 +8,34 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.12.0] — 2026-07-01
+
+### Added
+
+- **Multiple craft modes are now a Settings toggle.** The multi-craft feature
+  (several craft faces per project in the New Project wizard) is now controlled
+  from **Settings → Preferences → Features** instead of the `MULTI_CRAFT_ENABLED`
+  environment variable, so it works the same way in the Docker and Windows
+  desktop builds. It is **enabled by default**. Existing single-craft projects
+  are unaffected.
+
+### Changed
+
+- The `MULTI_CRAFT_ENABLED` environment variable is now only a one-time seed for
+  the initial value on a fresh database; the in-app setting is the source of
+  truth thereafter. New `feature_config` table + migration `0017_feature_config`
+  (additive, SQLite-safe, seeds from the env var when explicitly set, otherwise
+  defaults to enabled).
+
+### Fixed
+
+- **Project status pill did nothing when clicked.** The status badge on the
+  Projects list passed the project name into the click handler with `| tojson`,
+  whose double quotes collided with the double-quoted HTML attribute and broke
+  the Alpine expression, so the "Set Project Status" modal never opened (most
+  visible in the Windows desktop app). The name/id/status are now passed via
+  `data-*` attributes, so any project name (including quotes/apostrophes) works.
+
 ## [0.11.2] — 2026-07-01
 
 ### Fixed

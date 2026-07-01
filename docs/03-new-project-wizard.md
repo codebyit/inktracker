@@ -10,25 +10,26 @@ Open it from **New Project** in the menu. The wizard has three tabs across the t
 
 ## The Editor tab (4 steps)
 
-### Step 1 — Print settings
+### Step 1 - Print settings
 Choose how the piece is printed: ink mode, alignment, and ink usage per color channel.
 
 ![Wizard step 1: print settings](images/wizard-step1-print.png)
 
-💡 **Multiple craft faces:** If your shop has this turned on, you can add more than one
-**craft face** to a single project — each with its own print mode and ink usage. Handy
-for double-sided or multi-part pieces.
+**Multiple craft faces:** If **Multiple craft modes** is turned on (in **Settings >
+Preferences > Features** - on by default), you can add more than one **craft face** to a
+single project, each with its own print mode and ink usage. Handy for double-sided or
+multi-part pieces.
 
-### Step 2 — Details
+### Step 2 - Details
 Enter the **name**, quantity, notes, and any project details.
 
-### Step 3 — Materials (BOM)
+### Step 3 - Materials (BOM)
 Add the materials used (your "bill of materials"). Pick from your **Materials Library**
 or type items in. Each line adds its cost to the total.
 
 ![Wizard step 3: bill of materials](images/wizard-step3-bom.png)
 
-### Step 4 — Pricing
+### Step 4 - Pricing
 See the full **COGS breakdown** (ink + materials + machine + labor + overhead), set
 your sell price, and watch the **margin badge** update live.
 
@@ -54,9 +55,9 @@ settings, ink, and materials.
 
 ![Printable project worksheet](images/print-worksheet.png)
 
-⚠️ **Note:** Prices come from your **Settings**. If your numbers look off, check ink
+**Note:** Prices come from your **Settings**. If your numbers look off, check ink
 costs, labor, and overhead there first.
 
 ---
 
-Next: **[Managing Projects →](04-projects.md)**
+Next: **[Managing Projects ->](04-projects.md)**

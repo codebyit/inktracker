@@ -377,6 +377,29 @@
   </div>
 
   <div class="bg-white rounded-xl border border-slate-200 p-6">
+    <div class="font-semibold text-slate-900 mb-1">Features</div>
+    <p class="text-sm text-slate-500 mb-5">Turn optional InkTrack features on or off. Applies to both the web app and the Windows desktop app.</p>
+    <form method="POST" action="/settings/preferences/features" class="space-y-4">
+      <div class="flex items-center justify-between py-2">
+        <div>
+          <div class="text-sm font-medium text-slate-800">Multiple craft modes</div>
+          <div class="text-xs text-slate-500 mt-0.5">Let a project define several craft faces (e.g. a 2-sided case with a different craft per side) in the New Project wizard. Existing single-craft projects are unaffected.</div>
+        </div>
+        <label class="inline-flex items-center cursor-pointer">
+          <input type="checkbox" name="multi_craft_enabled" value="true"
+                 {% if features and features.multi_craft_enabled %}checked{% endif %}
+                 class="sr-only peer">
+          <div class="relative w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-sky-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white"></div>
+        </label>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="bg-sky-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors">Save Features</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 p-6">
     <div class="font-semibold text-slate-900 mb-4">Labor &amp; Overhead</div>
     <form method="POST" action="/settings/labor" class="space-y-4">
       <div class="grid grid-cols-2 gap-4">

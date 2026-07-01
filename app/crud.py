@@ -191,6 +191,37 @@ def update_automation_config(db: Session, *, enabled: bool, run_time: str) -> No
     db.commit()
 
 
+def _multi_craft_env_default() -> bool:
+    """Initial value for the multi-craft flag when no row exists yet.
+
+    Honors an explicitly set ``MULTI_CRAFT_ENABLED`` env var (for backward
+    compatibility with existing Docker deployments); otherwise defaults to
+    enabled, since the feature is now generally available.
+    """
+    raw = os.environ.get("MULTI_CRAFT_ENABLED", "").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return True
+
+
+def get_feature_config(db: Session) -> models.FeatureConfig:
+    cfg = db.query(models.FeatureConfig).first()
+    if cfg is None:
+        cfg = models.FeatureConfig(id=1, multi_craft_enabled=_multi_craft_env_default())
+        db.add(cfg)
+        db.commit()
+        db.refresh(cfg)
+    return cfg
+
+
+def update_feature_config(db: Session, *, multi_craft_enabled: bool) -> None:
+    cfg = get_feature_config(db)
+    cfg.multi_craft_enabled = bool(multi_craft_enabled)
+    db.commit()
+
+
 def get_data_stats(db: Session) -> dict:
     return {
         "projects":     db.query(models.Project).count(),
@@ -248,10 +279,10 @@ def get_settings_json(db: Session) -> dict:
             "strong": margins.retail_strong,
             "target": margins.retail_target,
         },
-        # Feature flag (dark-launch): enables the multi-craft faces UI in the wizard.
-        # Controlled per-environment via the MULTI_CRAFT_ENABLED env var (off by default).
-        "multi_craft_enabled": (os.environ.get("MULTI_CRAFT_ENABLED", "").strip().lower()
-                                in {"1", "true", "yes", "on"}),
+        # Feature flag: enables the multi-craft faces UI in the wizard. Persisted
+        # in feature_config and controlled from Settings > Preferences (shared by
+        # the Docker and Windows desktop builds).
+        "multi_craft_enabled": get_feature_config(db).multi_craft_enabled,
     }
 
 

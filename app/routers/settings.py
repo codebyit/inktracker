@@ -28,6 +28,7 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
     labor       = crud.get_labor_config(db)
     margins     = crud.get_margin_config(db)
     automation  = crud.get_automation_config(db)
+    features    = crud.get_feature_config(db)
     breakdown   = machine_cost_breakdown(machine)
     stats       = crud.get_data_stats(db)
     return templates.TemplateResponse(request, "settings.html", {
@@ -37,6 +38,7 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
         "labor":             labor,
         "margins":           margins,
         "automation":        automation,
+        "features":          features,
         "breakdown":         breakdown,
         "ink_channels":      INK_CHANNELS,
         "ink_channel_names": INK_CHANNEL_NAMES,
@@ -171,6 +173,14 @@ async def save_automation_settings(request: Request, db: Session = Depends(get_d
     enabled = (form.get("auto_maintenance_log_enabled") or "").strip().lower() in {"1", "true", "on", "yes"}
     run_time = _normalize_hhmm(str(form.get("auto_maintenance_log_time") or "03:00"))
     crud.update_automation_config(db, enabled=enabled, run_time=run_time)
+    return RedirectResponse("/settings?tab=preferences&saved=1", status_code=303)
+
+
+@router.post("/settings/preferences/features")
+async def save_feature_settings(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    multi_craft = (form.get("multi_craft_enabled") or "").strip().lower() in {"1", "true", "on", "yes"}
+    crud.update_feature_config(db, multi_craft_enabled=multi_craft)
     return RedirectResponse("/settings?tab=preferences&saved=1", status_code=303)
 
 

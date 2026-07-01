@@ -76,7 +76,8 @@ function wizardData() {
     inkMode: 'CMYK',
     layerStack: [{name:'CMYK', qty:1}],
 
-    // Multi-craft faces (feature-flagged via MULTI_CRAFT_ENABLED env var).
+    // Multi-craft faces (toggled in Settings > Preferences > Features;
+    // delivered here via settings_json as cfg.multi_craft_enabled).
     // Side A is defined by the standard controls above; extraCrafts holds Side B, C…
     multiCraftFlag: cfg.multi_craft_enabled === true,
     multiCraftEnabled: false,
