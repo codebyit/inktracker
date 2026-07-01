@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="553" viewBox="0 0 384 553" role="img" aria-labelledby="title desc">
+  <title id="title">Set Project Status modal</title>
+  <desc id="desc">InkTrack status picker showing Draft, Queued, Printing, Completed, Cancelled, and Failed choices.</desc>
+  <rect width="384" height="553" rx="18" fill="#f8fafc"/>
+  <rect x="22" y="18" width="340" height="517" rx="18" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="44" y="61" fill="#0f172a" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700">Set Project Status</text>
+  <text x="44" y="91" fill="#64748b" font-family="Segoe UI, Arial, sans-serif" font-size="13">Slate Coaster Set</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600">
+    <rect x="44" y="122" width="296" height="47" rx="12" fill="#eef2ff" stroke="#c7d2fe"/>
+    <circle cx="65" cy="145" r="5" fill="#6366f1"/>
+    <text x="84" y="151" fill="#312e81">Draft</text>
+    <rect x="44" y="181" width="296" height="47" rx="12" fill="#fff7ed" stroke="#fed7aa"/>
+    <circle cx="65" cy="204" r="5" fill="#f97316"/>
+    <text x="84" y="210" fill="#9a3412">Queued</text>
+    <rect x="44" y="240" width="296" height="47" rx="12" fill="#eff6ff" stroke="#bfdbfe"/>
+    <circle cx="65" cy="263" r="5" fill="#3b82f6"/>
+    <text x="84" y="269" fill="#1d4ed8">Printing</text>
+    <rect x="44" y="299" width="296" height="47" rx="12" fill="#ecfdf5" stroke="#bbf7d0"/>
+    <circle cx="65" cy="322" r="5" fill="#22c55e"/>
+    <text x="84" y="328" fill="#166534">Completed</text>
+    <rect x="44" y="358" width="296" height="47" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+    <circle cx="65" cy="381" r="5" fill="#64748b"/>
+    <text x="84" y="387" fill="#334155">Cancelled</text>
+    <rect x="44" y="417" width="296" height="47" rx="12" fill="#fef2f2" stroke="#fecaca"/>
+    <circle cx="65" cy="440" r="5" fill="#ef4444"/>
+    <text x="84" y="446" fill="#991b1b">Failed</text>
+  </g>
+  <rect x="44" y="486" width="126" height="38" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="86" y="510" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Cancel</text>
+  <rect x="184" y="486" width="156" height="38" rx="10" fill="#0ea5e9"/>
+  <text x="224" y="510" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700">Save Status</text>
+</svg>
