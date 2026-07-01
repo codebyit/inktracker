@@ -70,6 +70,12 @@ Admin & install docs:
 
 ## Windows desktop app
 
+> [!WARNING]
+> **The Windows desktop download is temporarily unavailable (2026-07-01).** The
+> installer and portable ZIP were pulled because they fail to launch on some
+> systems; a fixed build will be published in a later release. In the meantime,
+> use the Docker / self-hosted app described above, which is unaffected.
+
 Prefer a native app to Docker? InkTrack also ships as a standalone Windows
 desktop build (the same FastAPI app in a local window — SQLite, no server). Grab
 the installer or the portable ZIP from the [latest release](https://github.com/codebyit/inktracker/releases/latest).
