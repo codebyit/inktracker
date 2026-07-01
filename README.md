@@ -75,7 +75,9 @@ desktop build (the same FastAPI app in a local window — SQLite, no server). Gr
 the installer or the portable ZIP from the [latest release](https://github.com/codebyit/inktracker/releases/latest).
 Build details are in [`BUILD.md`](BUILD.md).
 
-> Windows builds are code-signed by the [SignPath Foundation](https://signpath.org/).
+> These direct downloads are **not code-signed**, so Windows SmartScreen may warn
+> on first run — click **More info → Run anyway**. A code-signed build via the
+> Microsoft Store is planned.
 
 ## Security
 

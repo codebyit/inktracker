@@ -162,12 +162,23 @@ kills+reports on a 120 s timeout, and a Defender exclusion avoids first-launch
 scan stalls on the unsigned binary.
 
 `sign` and `msix` are **gated on repository config** (below), so the core build
-stays green before signing/Store are set up. Until SignPath is configured, a
-tagged release gets the **unsigned** installer + portable as a fallback.
+stays green before signing/Store are set up. Because code signing is not currently
+configured, a tagged release gets the **unsigned** installer + portable.
 
 ---
 
-## 4. Code signing — SignPath Foundation
+## 4. Code signing (not currently active)
+
+> **Status:** The InkTrack SignPath Foundation OSS application was **declined**
+> (the project does not yet meet their public-reputation bar), so direct downloads
+> are currently **unsigned**. Users may see a Windows SmartScreen "unknown
+> publisher" prompt (**More info → Run anyway**). The Microsoft Store build is
+> signed by the Store on ingestion, so the Store version is trusted.
+>
+> The `sign` job scaffolding below is **retained and gated** — it stays dormant
+> until the signing variables are set, so it can be re-enabled later with SignPath
+> (on reapplication) or another provider (e.g. Azure Trusted Signing) without a
+> workflow change.
 
 [SignPath Foundation](https://signpath.org/) provides **free** code signing for
 open-source projects. Signed builds are trusted by Windows and avoid the
@@ -216,9 +227,6 @@ Create these in **Settings → Secrets and variables → Actions**:
      signed binaries, and attaches them to the GitHub Release.
 3. The release now carries **signed** `InkTrack-Setup-<ver>.exe` and
    `InkTrack-<ver>-portable.zip` (with a signed `InkTrack.exe` inside).
-
-Add the required disclosure to user-facing docs (already in the README):
-> Windows builds are code-signed by the SignPath Foundation.
 
 ---
 
