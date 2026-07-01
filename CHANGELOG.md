@@ -8,6 +8,27 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.11.2] — 2026-07-01
+
+### Fixed
+
+- **Windows desktop app failed to launch (installer and portable).** On a normal
+  double-click the app did nothing and showed no error. The windowed (no-console)
+  build has `sys.stdout`/`sys.stderr` set to `None`; constructing the local
+  uvicorn server runs its default logging setup, whose formatter calls
+  `sys.stdout.isatty()` and raised `AttributeError: 'NoneType' object has no
+  attribute 'isatty'` (`ValueError: Unable to configure formatter 'default'`),
+  killing startup before the window opened. The launcher now guarantees writable
+  `stdout`/`stderr` streams first thing at startup — pointing any missing stream
+  at a per-user `inktrack-runtime.log` (falling back to `os.devnull`) — so the
+  server and window start normally.
+
+### Changed
+
+- **CI can no longer hide this class of failure.** The packaged smoke-test now
+  reproduces the real windowed no-console condition (`INKTRACK_SIMULATE_NO_CONSOLE`)
+  instead of masking it with redirected stdio, so a regression fails the build.
+
 ## [0.11.1] — 2026-07-01
 
 ### Fixed
