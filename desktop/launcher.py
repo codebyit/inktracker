@@ -58,6 +58,39 @@ def _pick_free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+def _ensure_std_streams() -> None:
+    """Guarantee ``sys.stdout``/``sys.stderr`` are writable streams.
+
+    A windowed (no-console) PyInstaller build sets ``sys.stdout`` and
+    ``sys.stderr`` to ``None``. Code run during startup then crashes with
+    ``AttributeError: 'NoneType' object has no attribute ...`` before the window
+    can open — so the app silently does nothing. The concrete offender here is
+    uvicorn's default log formatter, which calls ``sys.stdout.isatty()`` while
+    ``uvicorn.Config`` is constructed (and plain ``print()`` calls fail the same
+    way). Point any missing stream at a per-user runtime log file (falling back
+    to ``os.devnull``) so startup can proceed and leave a diagnosable trail.
+
+    Note: CI's smoke-test launches the binary with redirected stdio, which makes
+    the streams non-``None`` and hides this bug; a real double-click does not.
+    """
+    if getattr(sys, "stdout", None) is not None and getattr(sys, "stderr", None) is not None:
+        return
+    stream = None
+    base = os.environ.get("INKTRACK_DATA_DIR")
+    try:
+        target = Path(base) if base else _default_data_dir()
+        target.mkdir(parents=True, exist_ok=True)
+        stream = open(target / "inktrack-runtime.log", "a", encoding="utf-8", buffering=1)
+    except OSError:
+        stream = None
+    if stream is None:
+        stream = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115 - lives for process lifetime
+    if getattr(sys, "stdout", None) is None:
+        sys.stdout = stream
+    if getattr(sys, "stderr", None) is None:
+        sys.stderr = stream
+
+
 def _acquire_single_instance() -> bool:
     """Return True if this is the only instance, False if another is running.
 
@@ -138,6 +171,18 @@ def _show_update_banner_when_ready(window, current_version: str) -> None:
 def main() -> int:
     import multiprocessing
     multiprocessing.freeze_support()
+
+    # Test hook (CI): reproduce the windowed no-console condition, where
+    # sys.stdout/sys.stderr are None, so the smoke-test actually exercises the
+    # guard below instead of masking the bug with redirected stdio.
+    if os.environ.get("INKTRACK_SIMULATE_NO_CONSOLE") == "1":
+        sys.stdout = None  # type: ignore[assignment]
+        sys.stderr = None  # type: ignore[assignment]
+
+    # A windowed build has no console: sys.stdout/sys.stderr are None, which
+    # crashes uvicorn's logging setup (and any print) during startup. Fix this
+    # before importing/booting anything that might touch the streams.
+    _ensure_std_streams()
 
     if not _acquire_single_instance():
         return 0  # another instance owns the singleton

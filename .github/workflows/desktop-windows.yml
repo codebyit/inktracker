@@ -104,6 +104,10 @@ jobs:
         timeout-minutes: 6
         run: |
           $env:INKTRACK_SELFTEST = "1"
+          # Reproduce the real windowed (no-console) condition (stdout/stderr =
+          # None). Redirected stdio below would otherwise hide the startup
+          # logging crash that broke the shipped desktop build.
+          $env:INKTRACK_SIMULATE_NO_CONSOLE = "1"
           $env:INKTRACK_DATA_DIR = Join-Path $env:RUNNER_TEMP "inktrack_ci"
           $log = Join-Path $env:RUNNER_TEMP "selftest.log"
           if (Test-Path $log) { Remove-Item $log -Force }
