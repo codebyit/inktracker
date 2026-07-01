@@ -138,8 +138,14 @@
 
         {# Status badge — clickable on pipeline/completed #}
         {% if tab in ('pipeline', 'completed') %}
+        {# Pass values via data-* attributes: HTML-attribute escaping keeps names
+           with quotes/apostrophes valid. Inlining the name broke the @click
+           expression (and the whole modal) when a name contained a quote. #}
         <button type="button"
-                @click="openModal({{ p.id }}, '{{ p.status or 'Draft' }}', {{ p.name | tojson }})"
+                data-id="{{ p.id }}"
+                data-status="{{ p.status or 'Draft' }}"
+                data-name="{{ p.name }}"
+                @click="openModal($el.dataset.id, $el.dataset.status, $el.dataset.name)"
                 title="Click to change status"
                 class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 mt-0.5
                        hover:ring-2 hover:ring-offset-1 hover:ring-indigo-400 transition-all cursor-pointer

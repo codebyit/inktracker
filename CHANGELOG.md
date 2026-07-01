@@ -27,6 +27,15 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
   (additive, SQLite-safe, seeds from the env var when explicitly set, otherwise
   defaults to enabled).
 
+### Fixed
+
+- **Project status pill did nothing when clicked.** The status badge on the
+  Projects list passed the project name into the click handler with `| tojson`,
+  whose double quotes collided with the double-quoted HTML attribute and broke
+  the Alpine expression, so the "Set Project Status" modal never opened (most
+  visible in the Windows desktop app). The name/id/status are now passed via
+  `data-*` attributes, so any project name (including quotes/apostrophes) works.
+
 ## [0.11.2] — 2026-07-01
 
 ### Fixed
