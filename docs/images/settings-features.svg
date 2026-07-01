@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="802" height="245" viewBox="0 0 802 245" role="img" aria-labelledby="title desc">
+  <title id="title">Settings Features card</title>
+  <desc id="desc">InkTrack Settings Preferences Features card with Multiple craft modes enabled.</desc>
+  <rect width="802" height="245" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="30" y="45" fill="#0f172a" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">Features</text>
+  <text x="30" y="75" fill="#64748b" font-family="Segoe UI, Arial, sans-serif" font-size="14">Turn optional InkTrack features on or off. Applies to both the web app and the Windows desktop app.</text>
+  <line x1="30" y1="103" x2="772" y2="103" stroke="#e2e8f0"/>
+  <text x="30" y="137" fill="#1e293b" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700">Multiple craft modes</text>
+  <text x="30" y="164" fill="#64748b" font-family="Segoe UI, Arial, sans-serif" font-size="13">Let a project define several craft faces in the New Project wizard.</text>
+  <text x="30" y="184" fill="#64748b" font-family="Segoe UI, Arial, sans-serif" font-size="13">Existing single-craft projects are unaffected.</text>
+  <rect x="710" y="132" width="54" height="30" rx="15" fill="#0ea5e9"/>
+  <circle cx="749" cy="147" r="12" fill="#ffffff"/>
+  <rect x="638" y="196" width="134" height="34" rx="10" fill="#0ea5e9"/>
+  <text x="668" y="218" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700">Save Features</text>
+</svg>
