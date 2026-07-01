@@ -216,7 +216,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload onedir for MSIX job
-        if: startsWith(github.ref, 'refs/tags/v') && vars.MSIX_IDENTITY_NAME != ''
+        if: (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && vars.MSIX_IDENTITY_NAME != ''
         uses: actions/upload-artifact@v4
         with:
           name: inktrack-onedir
@@ -264,13 +264,14 @@ jobs:
   # ----------------------------------------------------------------------------
   # Microsoft Store MSIX. Gated on MSIX_IDENTITY_NAME (your Partner Center
   # publisher identity). Produces an UNSIGNED .msix artifact — the Store re-signs
-  # it on submission. See packaging/ and BUILD.md.
+  # it on submission. Runs on a v* tag or via manual workflow_dispatch (so the
+  # package can be regenerated on demand). See packaging/ and BUILD.md.
   # ----------------------------------------------------------------------------
   msix:
     needs: build
     runs-on: windows-latest
     timeout-minutes: 20
-    if: startsWith(github.ref, 'refs/tags/v') && vars.MSIX_IDENTITY_NAME != ''
+    if: (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && vars.MSIX_IDENTITY_NAME != ''
     steps:
       - uses: actions/checkout@v4
 

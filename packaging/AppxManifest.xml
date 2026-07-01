@@ -53,15 +53,15 @@
 
   <Applications>
     <!--
-      uap10:RuntimeBehavior="packagedClassicApp" + TrustLevel="mediumIL" is the
-      modern full-trust Win32 entry (Windows 10 2004 / 10.0.19041+). For older
-      targets, remove those two attributes and use instead:
-          EntryPoint="Windows.FullTrustApplication"
+      Full-trust Win32 (Desktop Bridge) entry. EntryPoint="Windows.FullTrustApplication"
+      is the broadly-compatible form and is required by makeappx when Executable
+      is set (the newer uap10:RuntimeBehavior="packagedClassicApp" alternative is
+      not honored by all SDK validators). runFullTrust (declared above) grants the
+      full-trust permission.
     -->
     <Application Id="InkTrack"
       Executable="InkTrack\InkTrack.exe"
-      uap10:RuntimeBehavior="packagedClassicApp"
-      uap10:TrustLevel="mediumIL">
+      EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="InkTrack"
         Description="UV print cost tracker"
