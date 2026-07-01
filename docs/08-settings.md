@@ -29,9 +29,9 @@ than CMYK, so each channel has its own value). The card also shows the cost **pe
 | GL | Gloss |
 | FW | Flex White |
 
-💡 **Tip:** Leave density at **1.0** if you're unsure — that matches the old "1 ml = 1 g"
+**Tip:** Leave density at **1.0** if you're unsure - that matches the old "1 ml = 1 g"
 behavior. The **Cartridge Capacity** card on this page also lets you set the **empty
-cartridge weight (tare)**, so the Service page's weight → remaining-ink helper stays accurate.
+cartridge weight (tare)**, so the Service page's weight -> remaining-ink helper stays accurate.
 
 ## Labor & overhead
 Set your **hourly labor rate** and an **overhead %** to cover rent, power, and other
@@ -42,8 +42,18 @@ Choose your **currency** and the **margin thresholds** that decide the profit ba
 (Strong / Target / Minimum / Loss).
 
 ## Auto-maintenance sync
-Turn on a daily automatic maintenance log and pick the time — keeps ink levels accurate
+Turn on a daily automatic maintenance log and pick the time - keeps ink levels accurate
 without manual entry.
+
+## Features
+Optional features you can turn on or off. These settings apply to **both** the web app and
+the Windows desktop app.
+
+![Features settings](images/settings-features.svg)
+
+- **Multiple craft modes** - lets a single project define several **craft faces** (for
+  example, a 2-sided case with a different craft on each side) in the New Project wizard.
+  It's **on by default**; existing single-craft projects are unaffected.
 
 ## Backup & restore (admin)
 Download a **backup** of your data, or **restore** from one. Admins can also **reset**
@@ -51,11 +61,11 @@ the database.
 
 ![Backup and restore](images/settings-backup.png)
 
-⚠️ **Note:** Reset and restore replace your data. Take a backup first.
+**Note:** Reset and restore replace your data. Take a backup first.
 
-💡 **Tip:** Update prices whenever ink or material costs change — new projects use the
+**Tip:** Update prices whenever ink or material costs change - new projects use the
 latest numbers automatically.
 
 ---
 
-Next: **[Documentation Links →](09-documentation-links.md)**
+Next: **[Documentation Links ->](09-documentation-links.md)**
