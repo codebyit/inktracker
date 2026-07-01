@@ -32,8 +32,15 @@
     Version="{{VERSION}}"
     ProcessorArchitecture="x64" />
 
+    <!--
+      DisplayName MUST exactly match a reserved app name in Partner Center.
+      The reserved name for this product is "Inktrack" (capital I, lowercase t),
+      which also matches the Identity Name "codebyit.Inktrack". The user-facing
+      brand on the tile/Start menu is set separately in VisualElements DisplayName
+      below and in the Store listing, so it can remain "InkTrack".
+    -->
   <Properties>
-    <DisplayName>InkTrack</DisplayName>
+    <DisplayName>Inktrack</DisplayName>
     <PublisherDisplayName>{{PUBLISHER_DISPLAY_NAME}}</PublisherDisplayName>
     <Description>InkTrack — UV print cost tracker: projects, COGS, and ink inventory.</Description>
     <Logo>Assets\StoreLogo.png</Logo>
