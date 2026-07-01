@@ -49,7 +49,7 @@ without manual entry.
 Optional features you can turn on or off. These settings apply to **both** the web app and
 the Windows desktop app.
 
-![Features settings](images/settings-features.svg)
+![Features settings](images/settings-features.png)
 
 - **Multiple craft modes** - lets a single project define several **craft faces** (for
   example, a 2-sided case with a different craft on each side) in the New Project wizard.

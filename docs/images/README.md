@@ -20,7 +20,7 @@ width (~1280px) on a fresh demo database where possible.
 | projects-list.png | Projects list with filters/search visible |
 | project-detail-cogs.png | Project detail COGS breakdown |
 | project-actions-menu.png | Project actions (duplicate/archive/delete) |
-| project-status-modal.svg | "Set Project Status" picker (Draft -> Completed) |
+| project-status-modal.png | "Set Project Status" picker (Draft -> Completed) |
 | service-log-cartridge.png | Service cartridge replacement form |
 | service-presets.png | Quick-action presets row |
 | service-action-log.png | Action history list |
@@ -29,6 +29,6 @@ width (~1280px) on a fresh demo database where possible.
 | analytics-overview.png | Analytics charts page |
 | settings-ink-costs.png | Settings ink cost per channel |
 | settings-machine.png | Settings machine config |
-| settings-features.svg | Settings Features card (Multiple craft modes toggle) |
+| settings-features.png | Settings Features card (Multiple craft modes toggle) |
 | settings-backup.png | Settings backup/restore panel |
 | docs-links.png | Documentation links page |
