@@ -144,6 +144,18 @@ class AutomationConfig(Base):
     auto_maintenance_log_time    = Column(String(5), default="03:00", nullable=False)
 
 
+class FeatureConfig(Base):
+    """Single-row store of optional feature toggles.
+
+    Replaces the former ``MULTI_CRAFT_ENABLED`` environment variable so the flag
+    is configurable from Settings and shared by both the Docker and Windows
+    desktop builds.
+    """
+    __tablename__ = "feature_config"
+    id                  = Column(Integer, primary_key=True, default=1)
+    multi_craft_enabled = Column(Boolean, default=True, nullable=False)
+
+
 # ── Projects ──────────────────────────────────────────────────────────────────
 
 class Project(Base):
