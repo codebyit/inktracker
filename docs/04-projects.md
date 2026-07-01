@@ -22,7 +22,7 @@ Every project has a **status** - shown as a coloured pill on the Pipeline and Co
 tabs. **Click the status pill** to open the status picker, choose the new status, then
 **Save Status**.
 
-![Set project status](images/project-status-modal.svg)
+![Set project status](images/project-status-modal.png)
 
 There are six statuses:
 
