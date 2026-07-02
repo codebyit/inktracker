@@ -154,6 +154,10 @@ class FeatureConfig(Base):
     __tablename__ = "feature_config"
     id                  = Column(Integer, primary_key=True, default=1)
     multi_craft_enabled = Column(Boolean, default=True, nullable=False)
+    # First-run onboarding: False on a fresh database (shows the setup wizard
+    # prompt); set True once the wizard is completed or dismissed. Existing
+    # installs are backfilled to True by migration 0018 so they are never nagged.
+    setup_completed     = Column(Boolean, default=False, nullable=False)
 
 
 # ── Projects ──────────────────────────────────────────────────────────────────

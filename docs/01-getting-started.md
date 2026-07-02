@@ -33,15 +33,32 @@ areas.
 
 ## First-run setup (do this once)
 
-Before pricing jobs, tell InkTrack about your shop so its numbers are accurate:
+The first time you open InkTrack on a fresh install, the **Dashboard** shows a
+**"Finish your setup"** banner. Click **Finish setup** to launch the guided setup
+wizard, which walks you through the essentials so your cost and profit numbers are
+accurate from day one:
 
-1. Open **Settings**.
-2. Enter your **machine** purchase price, lifespan, and yearly running hours.
-3. Set each ink **cartridge price and capacity** (per color channel).
-4. Set your **labor hourly rate** and **overhead %**.
-5. Click **Save**.
+![First-time setup wizard](images/setup-wizard.png)
 
-💡 **Tip:** You can change these anytime — every new project uses the latest values.
+1. **Currency** — pick from Euro, British Pound, US Dollar, Canadian Dollar, or
+   Australian Dollar. It's shown on every price.
+2. **Printer** — choose your model to pre-fill machine and ink defaults. Cartridge
+   size, tare weight, and ink price differ between printers.
+3. **Machine costs** — purchase price, lifespan, running hours, power, and
+   maintenance.
+4. **Ink** — price per cartridge (applied to all colour inks and Gloss), cartridge
+   capacity, and empty-cartridge (tare) weight.
+5. **Labour & margins** *(optional)* — hourly rate, overhead, and profit targets.
+6. **Review & finish**.
+
+> ⚠️ **Note:** The built-in defaults are for the **Eufymake E1** printer. If you use
+> a different printer, pick **Other / Custom** in the printer step and enter your own
+> cartridge capacity, tare weight, and prices.
+
+💡 **Tip:** Prefer to skip the wizard? Click **Dismiss** on the banner and adjust
+everything directly in **Settings**. You can re-open the wizard anytime from
+**Settings → Preferences → Run setup wizard**. Every new project uses the latest values.
+
 
 ## Create your first project
 

@@ -8,6 +8,39 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.13.0] — 2026-07-02
+
+### Added
+
+- **First-time setup wizard.** A fresh install now shows a dismissible "Finish
+  your setup" banner on the Dashboard that launches a guided, full-screen wizard:
+  **Currency → Printer → Machine → Ink → (optional) Labour & Margins → Review**.
+  It pre-fills sensible defaults and writes through the existing settings, so cost
+  and profit numbers are accurate from day one. Works identically on the Docker /
+  self-hosted web app and the Windows desktop build. Re-runnable anytime from
+  **Settings → Preferences → Run setup wizard**.
+- **More currencies.** Currency selection expands from € / $ to five options —
+  **Euro (€), British Pound (£), US Dollar ($), Canadian Dollar (CA$), and
+  Australian Dollar (A$)** — available in both the wizard and Settings.
+- **Printer presets.** A new `app/printer_presets.py` defines printer models
+  (currently **Eufymake E1** plus **Other / Custom**) with their machine and ink
+  defaults, including per-currency cartridge prices. New models can be added in
+  code without a migration. Picking a printer in the wizard pre-fills cartridge
+  capacity, tare weight, and ink price.
+
+### Changed
+
+- Seeded defaults for a **fresh database** now come from the Eufymake E1 preset.
+  The default colour-ink price per cartridge is corrected from `45.00` to the real
+  E1 EUR price **`42.99`**. Existing installs are unaffected (seeding only fills
+  empty rows).
+
+### Notes
+
+- New `feature_config.setup_completed` flag + migration `0018_setup_completed`
+  (additive, SQLite-safe). **Existing installs are backfilled to "completed"** so
+  they are never prompted to onboard.
+
 ## [0.12.0] — 2026-07-01
 
 ### Added

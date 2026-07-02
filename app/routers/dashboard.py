@@ -107,5 +107,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "recent":     recent,
         "dashboard_stats": dashboard_stats,
         "inventory_alerts": inventory_alerts,
+        "setup_completed": crud.is_setup_completed(db),
         "active":     "/",
     })
