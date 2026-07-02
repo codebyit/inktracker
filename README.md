@@ -88,6 +88,12 @@ Build details are in [`BUILD.md`](BUILD.md).
 > warn on first run — click **More info → Run anyway**. The **Microsoft Store**
 > version above is signed and shows no warning.
 
+> **When do updates arrive?** Store updates are certified by Microsoft before they
+> roll out, so a new release usually reaches you **within a day of publishing**,
+> occasionally up to **~3 business days**. Microsoft also rolls updates out
+> gradually and can roll a release back if a problem is found. The direct GitHub
+> download always carries the newest release immediately if you don't want to wait.
+
 ## Security
 
 Please read `SECURITY.md` before reporting vulnerabilities.

@@ -42,6 +42,28 @@ the internal version/commit it derives from.
    It updates `VERSION` (+ `npm run version:sync`), updates `CHANGELOG.md`, commits, and tags
    `vX.Y.Z`.
 
+## 4a. Hotfix / patch fast-track
+`main` is always releasable, so an urgent fix ships on its own **without waiting for or
+dragging in unrelated in-flight work**. Use this when a released version has a bug that
+shouldn't wait for the next `feat` release.
+
+1. Branch off the current `main`: `fix/<short-name>`.
+2. Make the **smallest** change that fixes it; commit as `fix(scope): …` (a `fix:` maps to a
+   **PATCH** bump — see §2). Keep unrelated changes out of the branch.
+3. Open a PR; let required checks pass (`lint-test`, CodeQL, plus the desktop `build` when
+   `desktop/**`/`app/**`/`packaging/**` are touched); merge to `main`.
+4. Cut the patch: bump to the next PATCH (`X.Y.(Z+1)`) via the Release process (§4) — or, for a
+   one-off, `node scripts/prepare-release.mjs X.Y.Z` on a release branch, PR, merge, then tag.
+5. Push the `vX.Y.(Z+1)` tag → `desktop-windows.yml` builds the release (installer/portable, and
+   MSIX on tag). Submit the new MSIX to the Store as the next update.
+
+Notes:
+- **Don't batch** an urgent fix with features — that's the whole point of the fast-track.
+- If a fix must land while a larger release is mid-certification, ship it as the **next PATCH
+   after** that release publishes (avoids re-tagging an in-flight submission). Example: 0.13.1
+   was cut this way while 0.13.0 was still certifying.
+- The Store's own gradual rollout + rollback covers "safe rollout" — no extra tooling needed.
+
 ## 5. Guards (enforced in CI by Version Guard)
 - `VERSION` == `package.json.version` (always).
 - On a `v*` tag: tag must equal `VERSION`, and a matching `CHANGELOG.md` entry must exist.
