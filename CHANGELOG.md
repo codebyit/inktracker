@@ -35,6 +35,11 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
   E1 EUR price **`42.99`**. Existing installs are unaffected (seeding only fills
   empty rows).
 
+### Fixed
+
+- **Settings → Ink → Ink Cost Setup:** widened the price and density inputs so
+  longer currency symbols (e.g. `CA$`) no longer clip the last digit of the value.
+
 ### Notes
 
 - New `feature_config.setup_completed` flag + migration `0018_setup_completed`
