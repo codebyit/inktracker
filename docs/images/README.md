@@ -12,6 +12,14 @@ width (~1280px) on a fresh demo database where possible.
 | dashboard-overview.png | Whole dashboard, top to bottom |
 | dashboard-kpi-cards.png | KPI cards close-up |
 | setup-wizard.png | First-time setup wizard (currency step) |
+| setup-banner.png | Dashboard "Finish your setup" banner |
+| setup-01-currency.png | Setup wizard step 1 — currency selection |
+| setup-02-printer.png | Setup wizard step 2 — printer preset |
+| setup-03-machine.png | Setup wizard step 3 — machine costs |
+| setup-04-ink.png | Setup wizard step 4 — ink |
+| setup-05-labour-margins.png | Setup wizard step 5 — labour & margins |
+| setup-05b-overhead-tip.png | Setup wizard step 5 with overhead help tooltip open |
+| setup-06-review.png | Setup wizard step 6 — review & finish |
 | cartridge-health-grid.png | Ink/cartridge health grid with colors |
 | wizard-step1-print.png | New Project -> Editor step 1 (print settings) |
 | wizard-step3-bom.png | Wizard BOM/materials step |
