@@ -177,8 +177,20 @@ configured, a tagged release gets the **unsigned** installer + portable.
 >
 > The `sign` job scaffolding below is **retained and gated** — it stays dormant
 > until the signing variables are set, so it can be re-enabled later with SignPath
-> (on reapplication) or another provider (e.g. Azure Trusted Signing) without a
-> workflow change.
+> (on reapplication) or another provider without a workflow change.
+>
+> **Publicly-trusted signing is not currently viable for this publisher.**
+> Azure Trusted Signing (now **Azure Artifact Signing**) issues **Public Trust**
+> certificates to organizations in the US/CA/EU/UK, but to **individual developers
+> only in the US and Canada** — an **EU-based individual does not qualify**. The
+> EU-individual alternative, a **Private Trust** certificate, chains to a
+> self-distributed root that each recipient's machine must already trust (via
+> GPO/Intune), so it does **nothing** for public GitHub downloads (no better than
+> self-signed). Publicly signing direct downloads would therefore require either
+> registering an EU **business entity** (to obtain an org Public Trust cert) or a
+> traditional commercial **OV code-signing** cert (paid, hardware-token bound).
+> Until then, the Microsoft Store — which signs the package on ingestion — remains
+> the only trusted distribution channel, and direct downloads stay unsigned.
 
 [SignPath Foundation](https://signpath.org/) provides **free** code signing for
 open-source projects. Signed builds are trusted by Windows and avoid the
