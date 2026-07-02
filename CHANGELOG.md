@@ -8,6 +8,17 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.13.1] — 2026-07-02
+
+### Fixed
+
+- **Desktop:** the "update available" banner is no longer shown on **Microsoft
+  Store** installs. Those builds update through the Store itself, so surfacing a
+  GitHub download link both bypassed the Store and could point users at a release
+  the Store had not yet published. Installer and portable builds are unaffected
+  and still show the banner. Detection uses the Windows package-identity API
+  (`GetCurrentPackageFullName`), so non-packaged builds behave exactly as before.
+
 ## [0.13.0] — 2026-07-02
 
 ### Added
