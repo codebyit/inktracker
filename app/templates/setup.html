@@ -263,7 +263,7 @@
               <input type="number" step="1" x-model.number="ink.cartridge_capacity_ml" class="setup-input"/>
             </label>
             <label class="block">
-              <span class="block text-sm text-slate-300 mb-1">Empty cartridge weight / tare (g)</span>
+              <span class="block text-sm text-slate-300 mb-1">Empty cartridge weight / tare (g)<span class="setup-help" x-data="{o:false}" @mouseenter="o=true" @mouseleave="o=false"><button type="button" class="setup-help-btn" @focus="o=true" @blur="o=false" @click.prevent="o=!o" aria-label="What is tare?">?</button><span class="setup-tip" x-show="o" x-cloak>The weight of an empty cartridge. Used to turn a weighed cartridge into remaining ink (ml) on the Service page.</span></span></span>
               <input type="number" step="0.1" x-model.number="ink.cartridge_tare_g" class="setup-input"/>
             </label>
             <label class="block">
@@ -292,19 +292,19 @@
               <input type="number" step="0.01" x-model.number="labor.hourly_rate" class="setup-input"/>
             </label>
             <label class="block">
-              <span class="block text-sm text-slate-300 mb-1">Overhead (%)</span>
+              <span class="block text-sm text-slate-300 mb-1">Overhead (%)<span class="setup-help" x-data="{o:false}" @mouseenter="o=true" @mouseleave="o=false"><button type="button" class="setup-help-btn" @focus="o=true" @blur="o=false" @click.prevent="o=!o" aria-label="What is overhead?">?</button><span class="setup-tip" x-show="o" x-cloak>A percentage added on top of materials, machine, and labour to cover running costs not tied to one job — rent, power, software, insurance.</span></span></span>
               <input type="number" step="0.1" x-model.number="labor.overhead_pct" class="setup-input"/>
             </label>
             <label class="block">
-              <span class="block text-sm text-slate-300 mb-1">Minimum margin (%)</span>
+              <span class="block text-sm text-slate-300 mb-1">Minimum margin (%)<span class="setup-help" x-data="{o:false}" @mouseenter="o=true" @mouseleave="o=false"><button type="button" class="setup-help-btn" @focus="o=true" @blur="o=false" @click.prevent="o=!o" aria-label="What is minimum margin?">?</button><span class="setup-tip" x-show="o" x-cloak>Your profit floor. A job below this is flagged as a loss/too-low (red).</span></span></span>
               <input type="number" step="0.1" x-model.number="margins.retail_minimum" class="setup-input"/>
             </label>
             <label class="block">
-              <span class="block text-sm text-slate-300 mb-1">Target margin (%)</span>
+              <span class="block text-sm text-slate-300 mb-1">Target margin (%)<span class="setup-help" x-data="{o:false}" @mouseenter="o=true" @mouseleave="o=false"><button type="button" class="setup-help-btn" @focus="o=true" @blur="o=false" @click.prevent="o=!o" aria-label="What is target margin?">?</button><span class="setup-tip" x-show="o" x-cloak>The margin you aim for. Jobs at or above it are “on target”.</span></span></span>
               <input type="number" step="0.1" x-model.number="margins.retail_target" class="setup-input"/>
             </label>
             <label class="block sm:col-span-2">
-              <span class="block text-sm text-slate-300 mb-1">Strong margin (%)</span>
+              <span class="block text-sm text-slate-300 mb-1">Strong margin (%)<span class="setup-help" x-data="{o:false}" @mouseenter="o=true" @mouseleave="o=false"><button type="button" class="setup-help-btn" @focus="o=true" @blur="o=false" @click.prevent="o=!o" aria-label="What is strong margin?">?</button><span class="setup-tip" x-show="o" x-cloak>At or above this, a job is flagged as a strong earner (green) — your best-priced work.</span></span></span>
               <input type="number" step="0.1" x-model.number="margins.retail_strong" class="setup-input"/>
             </label>
           </div>
@@ -356,6 +356,29 @@
       color: #f1f5f9;
     }
     .setup-input:focus { outline: none; box-shadow: 0 0 0 2px #6366f1; }
+
+    /* Floating help tooltip */
+    .setup-help { position: relative; display: inline-flex; margin-left: 0.3rem; vertical-align: middle; }
+    .setup-help-btn {
+      width: 1rem; height: 1rem; border-radius: 9999px;
+      background: #334155; color: #cbd5e1;
+      font-size: 0.65rem; line-height: 1; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: help; border: 0; padding: 0;
+    }
+    .setup-help-btn:hover { background: #475569; color: #f1f5f9; }
+    .setup-tip {
+      position: absolute; bottom: 150%; left: 50%; transform: translateX(-50%);
+      width: 15rem; max-width: 72vw;
+      background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+      border-radius: 0.5rem; padding: 0.5rem 0.65rem;
+      font-size: 0.72rem; line-height: 1.05rem; font-weight: 400;
+      z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+    .setup-tip::after {
+      content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: #1e293b;
+    }
   </style>
 </body>
 </html>
