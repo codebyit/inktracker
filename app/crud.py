@@ -6,6 +6,7 @@ from sqlalchemy import func as sa_func
 from sqlalchemy.orm import Session
 from . import models, schemas
 from .models import INK_CHANNELS, SERVICE_CHANNELS, INK_CHANNEL_DEFAULT_CAPACITY
+from .printer_presets import PRINTER_PRESETS, DEFAULT_PRESET, DEFAULT_CURRENCY_CODE, symbol_for
 from .cogs import calculate_cogs, margin_status, ink_level_pct, ink_level_status
 
 
@@ -21,17 +22,20 @@ def _invalidate_dashboard_analytics_cache() -> None:
 # ── Seeding ───────────────────────────────────────────────────────────────────
 
 def seed_defaults(db: Session) -> None:
+    # Fresh-database defaults are sourced from the Eufymake E1 printer preset so
+    # the seeded values and the setup wizard stay in one place.
+    _e1 = PRINTER_PRESETS[DEFAULT_PRESET]
+    _e1_machine = _e1["machine"]
+    _e1_ink = _e1["ink"]
+    _e1_ink_price = float(_e1["ink_price_by_currency"][DEFAULT_CURRENCY_CODE])
+
     if not db.query(models.MachineConfig).first():
-        db.add(models.MachineConfig(
-            id=1, purchase_price=2500.0, setup_cost=0.0,
-            lifespan_hours=10000.0, annual_hours=500.0,
-            power_watts=250.0, electricity_rate=0.13,
-            annual_maintenance=499.0,
-        ))
+        db.add(models.MachineConfig(id=1, **_e1_machine))
 
     channel_defaults = [
-        ("C",  45.0), ("M", 45.0), ("Y",  45.0),
-        ("K",  45.0), ("W", 45.0), ("GL", 45.0), ("FW", 45.0),
+        ("C",  _e1_ink_price), ("M", _e1_ink_price), ("Y",  _e1_ink_price),
+        ("K",  _e1_ink_price), ("W", _e1_ink_price), ("GL", _e1_ink_price),
+        ("FW", _e1_ink_price),
         ("CLN", 0.0), ("ML", 0.0),
     ]
     for ch, price in channel_defaults:
@@ -40,12 +44,17 @@ def seed_defaults(db: Session) -> None:
                 channel=ch, price_per_cartridge=price,
                 cartridge_capacity_ml=INK_CHANNEL_DEFAULT_CAPACITY.get(ch, 100.0),
                 preprime_ml=0.0,
+                ink_density_g_per_ml=_e1_ink["ink_density_g_per_ml"],
             ))
 
     if not db.query(models.InkGlobalConfig).first():
         db.add(models.InkGlobalConfig(
-            id=1, cartridge_capacity_ml=100.0, cartridge_tare_g=75.0,
-            white_loaded="W", low_ink_pct=20.0, low_inventory_lot_pct=25.0, currency="€",
+            id=1,
+            cartridge_capacity_ml=_e1_ink["cartridge_capacity_ml"],
+            cartridge_tare_g=_e1_ink["cartridge_tare_g"],
+            white_loaded=_e1_ink["white_loaded"],
+            low_ink_pct=20.0, low_inventory_lot_pct=25.0,
+            currency=symbol_for(DEFAULT_CURRENCY_CODE),
         ))
 
     if not db.query(models.LaborConfig).first():
@@ -209,7 +218,11 @@ def _multi_craft_env_default() -> bool:
 def get_feature_config(db: Session) -> models.FeatureConfig:
     cfg = db.query(models.FeatureConfig).first()
     if cfg is None:
-        cfg = models.FeatureConfig(id=1, multi_craft_enabled=_multi_craft_env_default())
+        cfg = models.FeatureConfig(
+            id=1,
+            multi_craft_enabled=_multi_craft_env_default(),
+            setup_completed=False,
+        )
         db.add(cfg)
         db.commit()
         db.refresh(cfg)
@@ -219,6 +232,17 @@ def get_feature_config(db: Session) -> models.FeatureConfig:
 def update_feature_config(db: Session, *, multi_craft_enabled: bool) -> None:
     cfg = get_feature_config(db)
     cfg.multi_craft_enabled = bool(multi_craft_enabled)
+    db.commit()
+
+
+def is_setup_completed(db: Session) -> bool:
+    """True once the first-run setup wizard has been completed or dismissed."""
+    return bool(get_feature_config(db).setup_completed)
+
+
+def mark_setup_completed(db: Session) -> None:
+    cfg = get_feature_config(db)
+    cfg.setup_completed = True
     db.commit()
 
 

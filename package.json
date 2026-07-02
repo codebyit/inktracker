@@ -1,6 +1,6 @@
 {
   "name": "inktracker",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "UV Print Cost Tracker — Self-hosted production and costing tracker",
   "scripts": {
     "build:css": "tailwindcss -i ./tailwind.input.css -o ./static/app.css --minify",

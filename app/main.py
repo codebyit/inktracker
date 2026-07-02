@@ -20,7 +20,7 @@ from .database import SessionLocal, DB_INFO
 from .paths import STATIC_DIR, UPLOADS_DIR, VERSION_FILE, ensure_data_dirs
 from . import crud
 from .maintenance_scheduler import start_auto_maintenance_scheduler
-from .routers import dashboard, projects, analytics, service, settings as settings_router, materials as materials_router, docs as docs_router, inventory as inventory_router
+from .routers import dashboard, projects, analytics, service, settings as settings_router, materials as materials_router, docs as docs_router, inventory as inventory_router, setup as setup_router
 from .templates_config import templates
 
 log = logging.getLogger(__name__)
@@ -141,6 +141,7 @@ app.include_router(settings_router.router)
 app.include_router(materials_router.router)
 app.include_router(docs_router.router)
 app.include_router(inventory_router.router)
+app.include_router(setup_router.router)
 
 
 @app.on_event("startup")

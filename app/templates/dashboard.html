@@ -5,6 +5,44 @@
 {% block content %}
 {% from "macros.html" import status_pill %}
 
+{% if not setup_completed %}
+<section x-data="{ open: true }" x-show="open" x-cloak
+         class="bg-gradient-to-r from-indigo-50 to-sky-50 border border-indigo-200 rounded-xl p-4 mb-4">
+  <div class="flex items-start gap-3">
+    <div class="shrink-0 w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+      </svg>
+    </div>
+    <div class="min-w-0 flex-1">
+      <div class="font-semibold text-slate-900">Welcome to InkTrack — finish your setup</div>
+      <p class="text-sm text-slate-600 mt-0.5">
+        Set your currency, printer, and ink prices so every project's cost and profit is accurate.
+        Takes about a minute. Defaults assume the <strong>Eufymake E1</strong>.
+      </p>
+      <div class="flex items-center gap-3 mt-3">
+        <a href="/setup"
+           class="inline-flex items-center px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">
+          Finish setup
+        </a>
+        <form method="POST" action="/setup/dismiss">
+          <button type="submit" class="text-sm text-slate-500 hover:text-slate-700 font-medium">
+            Dismiss
+          </button>
+        </form>
+      </div>
+    </div>
+    <form method="POST" action="/setup/dismiss" class="shrink-0">
+      <button type="submit" title="Dismiss" class="text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
 <section class="bg-white rounded-xl border border-slate-200 p-4 mb-4">
   <div class="flex items-center justify-between gap-3 mb-3">
     <h2 class="text-sm font-semibold text-slate-800">Inventory Alerts</h2>

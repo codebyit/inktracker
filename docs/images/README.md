@@ -11,6 +11,7 @@ width (~1280px) on a fresh demo database where possible.
 | pwa-install.png | Browser "Install app" prompt / install icon |
 | dashboard-overview.png | Whole dashboard, top to bottom |
 | dashboard-kpi-cards.png | KPI cards close-up |
+| setup-wizard.png | First-time setup wizard (currency step) |
 | cartridge-health-grid.png | Ink/cartridge health grid with colors |
 | wizard-step1-print.png | New Project -> Editor step 1 (print settings) |
 | wizard-step3-bom.png | Wizard BOM/materials step |

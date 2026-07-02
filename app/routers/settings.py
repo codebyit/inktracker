@@ -6,6 +6,7 @@ from ..database import get_db, DB_INFO, _DB_PATH
 from ..cache import invalidate_dashboard_analytics_cache
 from .. import crud
 from ..models import INK_CHANNELS, INK_CHANNEL_NAMES
+from ..printer_presets import CURRENCIES
 from ..cogs import machine_cost_per_hour, machine_cost_breakdown
 from ..security import require_admin
 from ..templates_config import templates
@@ -42,6 +43,7 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
         "breakdown":         breakdown,
         "ink_channels":      INK_CHANNELS,
         "ink_channel_names": INK_CHANNEL_NAMES,
+        "currencies":        CURRENCIES,
         "stats":             stats,
         "active":            "/settings",
         "tab":               request.query_params.get("tab", "ink"),

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome — {{ app_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_version | default('0', true) }}"/>
+  <script data-cfasync="false">
+    (function(){if(localStorage.getItem('inktrack-theme')==='light')document.documentElement.classList.add('light');})();
+  </script>
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png"/>
+  <meta name="theme-color" content="#4f46e5"/>
+  <script data-cfasync="false" defer src="/static/vendor/alpine.min.js?v={{ asset_version | default('0', true) }}"></script>
+
+  <script id="setup-json" type="application/json">{{ setup_json | safe }}</script>
+  <script>
+    function parseEmbeddedJson(id, fallback = {}) {
+      try {
+        const node = document.getElementById(id);
+        if (!node) return fallback;
+        return JSON.parse(node.textContent || '{}');
+      } catch (_) { return fallback; }
+    }
+
+    function setupWizard() {
+      const cfg = parseEmbeddedJson('setup-json', {});
+      const presets = cfg.presets || [];
+      const presetBySlug = {};
+      presets.forEach(p => { presetBySlug[p.slug] = p; });
+
+      return {
+        step: 1,
+        totalSteps: 6,
+
+        currencies: cfg.currencies || [],
+        presets: presets,
+        currencyCode: cfg.current_currency || 'EUR',
+        presetSlug: cfg.default_preset || 'eufymake_e1',
+
+        // Machine
+        machine: Object.assign({
+          purchase_price: 2500, setup_cost: 0, lifespan_hours: 10000,
+          annual_hours: 500, power_watts: 250, electricity_rate: 0.13,
+          annual_maintenance: 499,
+        }, cfg.machine || {}),
+
+        // Ink
+        ink: Object.assign({
+          cartridge_capacity_ml: 100, cartridge_tare_g: 75, white_loaded: 'W',
+        }, cfg.ink || {}),
+        pricePerCartridge: 42.99,
+
+        // Optional Labor & Margins
+        configureLabor: false,
+        labor: Object.assign({ hourly_rate: 15, overhead_pct: 25 }, cfg.labor || {}),
+        margins: Object.assign({ retail_minimum: 30, retail_target: 50, retail_strong: 65 }, cfg.margins || {}),
+
+        init() {
+          this.applyPreset(false);
+          this.refreshInkPrice();
+        },
+
+        get currencySymbol() {
+          const c = this.currencies.find(x => x.code === this.currencyCode);
+          return c ? c.symbol : '€';
+        },
+
+        // Fill machine + ink hardware from the selected printer preset.
+        applyPreset(overwriteMachine = true) {
+          const p = presetBySlug[this.presetSlug];
+          if (!p) return;
+          if (overwriteMachine) {
+            this.machine = Object.assign({}, this.machine, p.machine);
+            this.ink = Object.assign({}, this.ink, {
+              cartridge_capacity_ml: p.ink.cartridge_capacity_ml,
+              cartridge_tare_g: p.ink.cartridge_tare_g,
+              white_loaded: p.ink.white_loaded,
+            });
+          }
+          this.refreshInkPrice();
+        },
+
+        // Ink price depends on printer preset + currency.
+        refreshInkPrice() {
+          const p = presetBySlug[this.presetSlug];
+          if (!p) return;
+          const byCur = p.ink_price_by_currency || {};
+          if (byCur[this.currencyCode] != null) {
+            this.pricePerCartridge = byCur[this.currencyCode];
+          }
+        },
+
+        onPresetChange() { this.applyPreset(true); },
+        onCurrencyChange() { this.refreshInkPrice(); },
+
+        next() { if (this.step < this.totalSteps) this.step++; },
+        back() { if (this.step > 1) this.step--; },
+        get progressPct() { return Math.round((this.step / this.totalSteps) * 100); },
+
+        presetLabel(slug) {
+          const p = presetBySlug[slug];
+          return p ? p.label : slug;
+        },
+      };
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+  <div x-data="setupWizard()" x-init="init()" class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800/80">
+      <div class="max-w-2xl mx-auto px-5 py-4 flex items-center gap-3">
+        <img src="/static/icons/icon-192.png" alt="InkTrack" class="w-9 h-9 rounded-lg"/>
+        <div>
+          <div class="font-semibold text-slate-100 leading-tight">{{ app_name }} setup</div>
+          <div class="text-xs text-slate-400">Let's tune your costs so every project is accurate.</div>
+        </div>
+        <form method="POST" action="/setup/dismiss" class="ml-auto">
+          <button type="submit" class="text-xs text-slate-400 hover:text-slate-200 underline underline-offset-2">
+            Skip (use defaults)
+          </button>
+        </form>
+      </div>
+      <!-- Progress -->
+      <div class="max-w-2xl mx-auto px-5 pb-4">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+          <span>Step <span x-text="step"></span> of <span x-text="totalSteps"></span></span>
+          <span x-text="progressPct + '%'"></span>
+        </div>
+        <div class="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+          <div class="h-full bg-indigo-500 transition-all duration-300" :style="`width:${progressPct}%`"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Body -->
+    <main class="flex-1">
+      <form method="POST" action="/setup" class="max-w-2xl mx-auto px-5 py-8">
+        <!-- Hidden fields submit the Alpine state -->
+        <input type="hidden" name="currency_code" :value="currencyCode"/>
+        <input type="hidden" name="purchase_price" :value="machine.purchase_price"/>
+        <input type="hidden" name="setup_cost" :value="machine.setup_cost"/>
+        <input type="hidden" name="lifespan_hours" :value="machine.lifespan_hours"/>
+        <input type="hidden" name="annual_hours" :value="machine.annual_hours"/>
+        <input type="hidden" name="power_watts" :value="machine.power_watts"/>
+        <input type="hidden" name="electricity_rate" :value="machine.electricity_rate"/>
+        <input type="hidden" name="annual_maintenance" :value="machine.annual_maintenance"/>
+        <input type="hidden" name="cartridge_capacity_ml" :value="ink.cartridge_capacity_ml"/>
+        <input type="hidden" name="cartridge_tare_g" :value="ink.cartridge_tare_g"/>
+        <input type="hidden" name="white_loaded" :value="ink.white_loaded"/>
+        <input type="hidden" name="price_per_cartridge" :value="pricePerCartridge"/>
+        <input type="hidden" name="configure_labor" :value="configureLabor ? 'true' : 'false'"/>
+        <input type="hidden" name="hourly_rate" :value="labor.hourly_rate"/>
+        <input type="hidden" name="overhead_pct" :value="labor.overhead_pct"/>
+        <input type="hidden" name="retail_minimum" :value="margins.retail_minimum"/>
+        <input type="hidden" name="retail_target" :value="margins.retail_target"/>
+        <input type="hidden" name="retail_strong" :value="margins.retail_strong"/>
+
+        <!-- STEP 1: Welcome + Currency -->
+        <section x-show="step === 1" x-cloak>
+          <h1 class="text-2xl font-bold text-slate-100 mb-1">Welcome to {{ app_name }} 👋</h1>
+          <p class="text-sm text-slate-400 mb-6">
+            A few quick questions so your cost and profit numbers are right from day one.
+            You can change everything later in <span class="text-slate-300">Settings</span>.
+          </p>
+          <label class="block text-sm font-medium text-slate-200 mb-2">Currency</label>
+          <p class="text-xs text-slate-400 mb-3">Shown on every price and cost breakdown.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <template x-for="c in currencies" :key="c.code">
+              <button type="button" @click="currencyCode = c.code; onCurrencyChange()"
+                      class="flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all"
+                      :class="currencyCode === c.code ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-800 hover:border-slate-700'">
+                <span class="w-10 text-lg font-semibold text-slate-100" x-text="c.symbol"></span>
+                <span>
+                  <span class="block text-sm font-medium text-slate-100" x-text="c.label"></span>
+                  <span class="block text-xs text-slate-400" x-text="c.code"></span>
+                </span>
+              </button>
+            </template>
+          </div>
+        </section>
+
+        <!-- STEP 2: Printer -->
+        <section x-show="step === 2" x-cloak>
+          <h2 class="text-xl font-bold text-slate-100 mb-1">Your printer</h2>
+          <p class="text-sm text-slate-400 mb-6">
+            Pick your model to pre-fill sensible machine and ink defaults. Different printers use
+            different cartridge sizes, tare weights, and prices — you can fine-tune on the next steps.
+          </p>
+          <label class="block text-sm font-medium text-slate-200 mb-2">Printer model</label>
+          <select x-model="presetSlug" @change="onPresetChange()"
+                  class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <template x-for="p in presets" :key="p.slug">
+              <option :value="p.slug" x-text="p.label"></option>
+            </template>
+          </select>
+          <div class="mt-4 rounded-xl bg-slate-900/60 border border-slate-800 p-4 text-sm text-slate-300">
+            <div class="flex justify-between py-1"><span class="text-slate-400">Cartridge capacity</span><span x-text="ink.cartridge_capacity_ml + ' ml'"></span></div>
+            <div class="flex justify-between py-1"><span class="text-slate-400">Empty cartridge (tare)</span><span x-text="ink.cartridge_tare_g + ' g'"></span></div>
+            <div class="flex justify-between py-1"><span class="text-slate-400">Ink price / cartridge</span><span x-text="currencySymbol + pricePerCartridge"></span></div>
+          </div>
+          <p class="text-xs text-slate-500 mt-3">
+            Not listed? Choose <span class="text-slate-300">Other / Custom</span> and enter your own values.
+          </p>
+        </section>
+
+        <!-- STEP 3: Machine -->
+        <section x-show="step === 3" x-cloak>
+          <h2 class="text-xl font-bold text-slate-100 mb-1">Machine costs</h2>
+          <p class="text-sm text-slate-400 mb-6">
+            Used to spread your printer's cost across jobs. These are examples — adjust to your
+            actual purchase and usage.
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Purchase price (<span x-text="currencySymbol"></span>)</span>
+              <input type="number" step="0.01" x-model.number="machine.purchase_price" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Setup &amp; install (<span x-text="currencySymbol"></span>)</span>
+              <input type="number" step="0.01" x-model.number="machine.setup_cost" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Lifespan (hours)</span>
+              <input type="number" step="1" x-model.number="machine.lifespan_hours" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Annual print hours</span>
+              <input type="number" step="1" x-model.number="machine.annual_hours" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Power draw (watts)</span>
+              <input type="number" step="1" x-model.number="machine.power_watts" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Electricity (<span x-text="currencySymbol"></span>/kWh)</span>
+              <input type="number" step="0.01" x-model.number="machine.electricity_rate" class="setup-input"/>
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="block text-sm text-slate-300 mb-1">Annual maintenance budget (<span x-text="currencySymbol"></span>)</span>
+              <input type="number" step="0.01" x-model.number="machine.annual_maintenance" class="setup-input"/>
+            </label>
+          </div>
+        </section>
+
+        <!-- STEP 4: Ink -->
+        <section x-show="step === 4" x-cloak>
+          <h2 class="text-xl font-bold text-slate-100 mb-1">Ink</h2>
+          <p class="text-sm text-slate-400 mb-6">
+            The price applies to all colour inks and Gloss. You can set per-channel prices later in Settings.
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Price / cartridge (<span x-text="currencySymbol"></span>)</span>
+              <input type="number" step="0.01" x-model.number="pricePerCartridge" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Cartridge capacity (ml)</span>
+              <input type="number" step="1" x-model.number="ink.cartridge_capacity_ml" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Empty cartridge weight / tare (g)</span>
+              <input type="number" step="0.1" x-model.number="ink.cartridge_tare_g" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">White channel loaded</span>
+              <select x-model="ink.white_loaded" class="setup-input">
+                <option value="W">White (W)</option>
+                <option value="FW">Flex White (FW)</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <!-- STEP 5: Optional Labor & Margins -->
+        <section x-show="step === 5" x-cloak>
+          <h2 class="text-xl font-bold text-slate-100 mb-1">Labour &amp; margins <span class="text-sm font-normal text-slate-400">(optional)</span></h2>
+          <p class="text-sm text-slate-400 mb-4">
+            Set your hourly rate, overhead, and profit targets — or skip and keep the defaults.
+          </p>
+          <label class="inline-flex items-center gap-2 mb-5 cursor-pointer">
+            <input type="checkbox" x-model="configureLabor" class="w-4 h-4 rounded border-slate-600 bg-slate-900 text-indigo-500"/>
+            <span class="text-sm text-slate-200">Configure these now</span>
+          </label>
+          <div x-show="configureLabor" x-cloak class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Hourly labour rate (<span x-text="currencySymbol"></span>/hr)</span>
+              <input type="number" step="0.01" x-model.number="labor.hourly_rate" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Overhead (%)</span>
+              <input type="number" step="0.1" x-model.number="labor.overhead_pct" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Minimum margin (%)</span>
+              <input type="number" step="0.1" x-model.number="margins.retail_minimum" class="setup-input"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm text-slate-300 mb-1">Target margin (%)</span>
+              <input type="number" step="0.1" x-model.number="margins.retail_target" class="setup-input"/>
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="block text-sm text-slate-300 mb-1">Strong margin (%)</span>
+              <input type="number" step="0.1" x-model.number="margins.retail_strong" class="setup-input"/>
+            </label>
+          </div>
+        </section>
+
+        <!-- STEP 6: Review -->
+        <section x-show="step === 6" x-cloak>
+          <h2 class="text-xl font-bold text-slate-100 mb-1">Review &amp; finish</h2>
+          <p class="text-sm text-slate-400 mb-6">Confirm your setup. You can change anything later in Settings.</p>
+          <div class="rounded-xl bg-slate-900/60 border border-slate-800 divide-y divide-slate-800 text-sm">
+            <div class="flex justify-between px-4 py-3"><span class="text-slate-400">Currency</span><span class="text-slate-100" x-text="currencySymbol + ' · ' + currencyCode"></span></div>
+            <div class="flex justify-between px-4 py-3"><span class="text-slate-400">Printer</span><span class="text-slate-100" x-text="presetLabel(presetSlug)"></span></div>
+            <div class="flex justify-between px-4 py-3"><span class="text-slate-400">Machine purchase</span><span class="text-slate-100" x-text="currencySymbol + machine.purchase_price"></span></div>
+            <div class="flex justify-between px-4 py-3"><span class="text-slate-400">Ink price / cartridge</span><span class="text-slate-100" x-text="currencySymbol + pricePerCartridge"></span></div>
+            <div class="flex justify-between px-4 py-3"><span class="text-slate-400">Cartridge capacity / tare</span><span class="text-slate-100" x-text="ink.cartridge_capacity_ml + ' ml · ' + ink.cartridge_tare_g + ' g'"></span></div>
+            <div class="flex justify-between px-4 py-3"><span class="text-slate-400">Labour &amp; margins</span><span class="text-slate-100" x-text="configureLabor ? (currencySymbol + labor.hourly_rate + '/hr · ' + labor.overhead_pct + '% oh') : 'Defaults'"></span></div>
+          </div>
+        </section>
+
+        <!-- Footer nav -->
+        <div class="flex items-center justify-between mt-8">
+          <button type="button" @click="back()" x-show="step > 1" x-cloak
+                  class="px-4 py-2.5 rounded-xl border border-slate-700 text-sm font-medium text-slate-300 hover:bg-slate-800 transition-colors">
+            Back
+          </button>
+          <span x-show="step === 1"></span>
+          <button type="button" @click="next()" x-show="step < totalSteps"
+                  class="ml-auto px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">
+            Continue
+          </button>
+          <button type="submit" x-show="step === totalSteps" x-cloak
+                  class="ml-auto px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors">
+            Finish setup
+          </button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    .setup-input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.875rem;
+      color: #f1f5f9;
+    }
+    .setup-input:focus { outline: none; box-shadow: 0 0 0 2px #6366f1; }
+  </style>
+</body>
+</html>
