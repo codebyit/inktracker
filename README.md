@@ -70,14 +70,23 @@ Admin & install docs:
 
 ## Windows desktop app
 
-Prefer a native app to Docker? InkTrack also ships as a standalone Windows
-desktop build (the same FastAPI app in a local window — SQLite, no server). Grab
-the installer or the portable ZIP from the [latest release](https://github.com/codebyit/inktracker/releases/latest).
+InkTrack ships as a standalone Windows desktop build — the same FastAPI app in a
+local window (SQLite, no server, no Docker).
+
+**Recommended: get it from the Microsoft Store** (signed by Microsoft, installs
+and updates automatically, no SmartScreen warning):
+
+[![Get it from Microsoft Store](https://get.microsoft.com/images/en-us%20dark.svg)](https://apps.microsoft.com/detail/9N913N963RB1)
+
+<https://apps.microsoft.com/detail/9N913N963RB1>
+
+Prefer a direct download? Grab the installer or the portable ZIP from the
+[latest release](https://github.com/codebyit/inktracker/releases/latest).
 Build details are in [`BUILD.md`](BUILD.md).
 
-> These direct downloads are **not code-signed**, so Windows SmartScreen may warn
-> on first run — click **More info → Run anyway**. A code-signed build via the
-> Microsoft Store is planned.
+> The direct GitHub downloads are **not code-signed**, so Windows SmartScreen may
+> warn on first run — click **More info → Run anyway**. The **Microsoft Store**
+> version above is signed and shows no warning.
 
 ## Security
 
