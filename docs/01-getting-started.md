@@ -36,24 +36,67 @@ areas.
 The first time you open InkTrack on a fresh install, the **Dashboard** shows a
 **"Finish your setup"** banner. Click **Finish setup** to launch the guided setup
 wizard, which walks you through the essentials so your cost and profit numbers are
-accurate from day one:
+accurate from day one.
 
-![First-time setup wizard](images/setup-wizard.png)
+![Dashboard "Finish your setup" banner](images/setup-banner.png)
 
-1. **Currency** — pick from Euro, British Pound, US Dollar, Canadian Dollar, or
-   Australian Dollar. It's shown on every price.
-2. **Printer** — choose your model to pre-fill machine and ink defaults. Cartridge
-   size, tare weight, and ink price differ between printers.
-3. **Machine costs** — purchase price, lifespan, running hours, power, and
-   maintenance.
-4. **Ink** — price per cartridge (applied to all colour inks and Gloss), cartridge
-   capacity, and empty-cartridge (tare) weight.
-5. **Labour & margins** *(optional)* — hourly rate, overhead, and profit targets.
-6. **Review & finish**.
+The wizard has six quick steps with a progress bar along the top. You can go
+**Back** at any point, or **Skip (use defaults)** from the header.
+
+### Step 1 — Currency
+
+Pick from **Euro (€)**, **British Pound (£)**, **US Dollar ($)**, **Canadian
+Dollar (CA$)**, or **Australian Dollar (A$)**. Your choice is shown on every price
+and cost breakdown.
+
+![Setup wizard step 1 — choose your currency](images/setup-01-currency.png)
+
+### Step 2 — Printer
+
+Choose your model to pre-fill machine and ink defaults. Cartridge size, tare
+weight, and ink price differ between printers, so this saves you typing.
+
+![Setup wizard step 2 — choose your printer](images/setup-02-printer.png)
 
 > ⚠️ **Note:** The built-in defaults are for the **Eufymake E1** printer. If you use
-> a different printer, pick **Other / Custom** in the printer step and enter your own
-> cartridge capacity, tare weight, and prices.
+> a different printer, pick **Other / Custom** and enter your own cartridge capacity,
+> tare weight, and prices on the next steps.
+
+### Step 3 — Machine costs
+
+Enter your printer's purchase price, setup cost, lifespan, annual running hours,
+power draw, electricity rate, and maintenance budget. InkTrack uses these to spread
+the machine's cost across every job.
+
+![Setup wizard step 3 — machine costs](images/setup-03-machine.png)
+
+### Step 4 — Ink
+
+Set the price per cartridge (applied to all colour inks and Gloss), cartridge
+capacity, and the empty-cartridge (tare) weight used for weight-based ink
+estimates. Hover the **?** next to *tare* for a quick explanation.
+
+![Setup wizard step 4 — ink](images/setup-04-ink.png)
+
+### Step 5 — Labour & margins *(optional)*
+
+Tick **Configure these now** to set your hourly labour rate, overhead, and profit
+targets — or leave it unticked to keep the defaults. The **?** help icons explain
+overhead and the margin thresholds.
+
+![Setup wizard step 5 — labour and margins](images/setup-05-labour-margins.png)
+
+Hover or tap any **?** to see a plain-language explanation, for example the
+overhead help:
+
+![Floating help tooltip explaining overhead](images/setup-05b-overhead-tip.png)
+
+### Step 6 — Review & finish
+
+Confirm your setup at a glance, then click **Finish setup**. You land back on the
+Dashboard, ready to price your first project.
+
+![Setup wizard step 6 — review and finish](images/setup-06-review.png)
 
 💡 **Tip:** Prefer to skip the wizard? Click **Dismiss** on the banner and adjust
 everything directly in **Settings**. You can re-open the wizard anytime from
