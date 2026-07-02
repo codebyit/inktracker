@@ -111,18 +111,18 @@
               <span class="text-sm font-medium text-slate-700">{{ ink_channel_names[ch] }}</span>
             </div>
             <div class="flex items-center gap-2 mb-2">
-              <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-sky-500 w-24">
-                <span class="text-slate-400 text-xs">{{ currency }}</span>
+              <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-sky-500 w-32">
+                <span class="text-slate-400 text-xs shrink-0">{{ currency }}</span>
                 <input type="number" name="price_{{ ch }}" value="{{ price }}" min="0" step="0.01" class="w-full min-w-0 text-sm text-right focus:outline-none"/>
               </div>
               <span class="text-xs text-slate-400">{{ currency }}{{ '{:.2f}'.format(price / cap) }}/ml</span>
             </div>
             <div class="flex items-center gap-2">
-              <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-sky-500 w-24">
+              <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-sky-500 w-32">
                 <input type="number" name="density_{{ ch }}" value="{{ density }}" min="0.1" step="0.01"
                        title="Ink density (g/ml) for weight-based remaining-ink estimates"
                        class="w-full min-w-0 text-sm text-right focus:outline-none"/>
-                <span class="text-slate-400 text-[11px]">g/ml</span>
+                <span class="text-slate-400 text-[11px] shrink-0">g/ml</span>
               </div>
               <span class="text-xs text-slate-500">Density</span>
             </div>
