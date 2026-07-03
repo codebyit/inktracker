@@ -286,3 +286,35 @@ a per-user folder (overridable via `INKTRACK_DATA_DIR`):
 ```
 
 This is created on first run and preserved across upgrades and uninstalls.
+
+### Installer / portable vs. Microsoft Store (MSIX)
+
+The path above is the **literal** location for the **installer (`.exe`)** and
+**portable (`.zip`)** builds — they write straight to `%LOCALAPPDATA%\InkTrack\`.
+
+A **Microsoft Store (MSIX)** install is different. The app still asks for
+`%LOCALAPPDATA%\InkTrack`, but because the package runs with the default MSIX
+**AppData write-virtualization** on (the manifest sets no
+`FileSystemWriteVirtualization` / `unvirtualizedResources`), Windows transparently
+redirects those writes into the package's private container:
+
+```
+%LOCALAPPDATA%\Packages\codebyit.Inktrack_b9daawj0kezda\LocalCache\Local\InkTrack\
+  inktracker.db
+  uploads\
+  docs_links.yaml
+```
+
+- `codebyit.Inktrack_b9daawj0kezda` is the **PackageFamilyName** — the package
+  identity name `codebyit.Inktrack` plus the publisher hash of
+  `CN=2A567ECF-98F0-42FA-92AA-D9EB5BD60799`.
+- The redirection is invisible to the app (it still "sees" `%LOCALAPPDATA%\InkTrack`),
+  so no code change is needed.
+- **Uninstalling the Store app removes this container**, i.e. the data is deleted —
+  unlike the installer build, which **preserves** `%LOCALAPPDATA%\InkTrack` on
+  uninstall. Back up `inktracker.db` before removing the Store app if you want to
+  keep it.
+- Store data and installer/portable data are **separate stores**; moving between
+  distributions means copying `inktracker.db` across the two locations above.
+- Quick way to open the Store data folder: `Win+R` →
+  `%LOCALAPPDATA%\Packages\codebyit.Inktrack_b9daawj0kezda\LocalCache\Local\InkTrack`
