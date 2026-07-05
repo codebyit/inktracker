@@ -19,4 +19,4 @@ alembic>=1.18.5
 redis>=8.0.1
 pyyaml>=6.0.3
 reportlab>=5.0.0
-pywebview>=5.3
+pywebview>=6.2.1
