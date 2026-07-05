@@ -1,4 +1,4 @@
 # Build-only tooling for packaging the InkTrack Windows desktop app.
 # Installed on top of requirements-desktop.txt in CI before running PyInstaller.
 pyinstaller>=6.21.0
-pyinstaller-hooks-contrib>=2024.10
+pyinstaller-hooks-contrib>=2026.6
