@@ -7,7 +7,7 @@
 #   * pywebview is added to host the app in a native window.
 # redis is kept because app/cache.py imports it unconditionally (it is inert
 # without REDIS_URL). Keep versions in lockstep with requirements.txt.
-fastapi>=0.138.1,<0.140.0
+fastapi>=0.139.0,<0.140.0
 starlette>=1.3.1
 uvicorn[standard]==0.49.0
 sqlalchemy==2.0.32
