@@ -14,7 +14,7 @@ see the [GitHub Releases](https://github.com/codebyit/inktracker/releases).
 
 ---
 
-## Coming soon — v0.14.0 · _GA: TBD_
+## Coming soon — v0.14.0 · _Target GA: July 20, 2026_
 
 **Cartridge-lot expiry management**
 - **Expiry alerts** with a configurable warning window (Settings → Preferences).
