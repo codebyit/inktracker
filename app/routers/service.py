@@ -78,7 +78,9 @@ def service_page(request: Request, db: Session = Depends(get_db)):
     hardware_presets = crud.get_presets(db, kind=PRESET_KIND_HARDWARE)
     replacements     = crud.get_cartridge_replacements(db)
     replacement_counts = crud.get_cartridge_replacement_counts(db)
-    actions          = crud.get_service_actions(db, limit=50)
+    # Load a wider window so archived (older) entries can be revealed via the
+    # "Show archived" filter without a round-trip.
+    actions          = crud.get_service_actions(db, limit=500)
     ink_levels       = crud.get_ink_levels(db)
     auto_sync_status = crud.get_latest_auto_maintenance_sync(db)
     auto_cfg         = crud.get_automation_config(db)
@@ -86,6 +88,10 @@ def service_page(request: Request, db: Session = Depends(get_db)):
     ink_global       = crud.get_ink_global_config(db)
     cartridge_tare_g = float(ink_global.cartridge_tare_g) if ink_global and ink_global.cartridge_tare_g is not None else 75.0
     cartridge_capacity_ml = float(ink_global.cartridge_capacity_ml) if ink_global and ink_global.cartridge_capacity_ml else 100.0
+    white_loaded = (ink_global.white_loaded if ink_global and ink_global.white_loaded else "W")
+    archive_days = int(getattr(auto_cfg, "service_log_archive_days", 60) or 60) if auto_cfg else 60
+    from datetime import timedelta as _timedelta
+    archive_before_iso = (datetime.now() - _timedelta(days=archive_days)).strftime("%Y-%m-%d")
     ink_density_by_channel = {
         ch: float(cfg.ink_density_g_per_ml) if cfg.ink_density_g_per_ml else 1.0
         for ch, cfg in ink_cfgs.items()
@@ -130,6 +136,9 @@ def service_page(request: Request, db: Session = Depends(get_db)):
         "ink_density_by_channel": ink_density_by_channel,
         "cartridge_tare_g":   cartridge_tare_g,
         "cartridge_capacity_ml": cartridge_capacity_ml,
+        "white_loaded":       white_loaded,
+        "archive_days":       archive_days,
+        "archive_before_iso": archive_before_iso,
         "correction_error":    correction_error,
         "correction_saved":    correction_saved,
         "correction_undo_action_id": correction_undo_action_id,

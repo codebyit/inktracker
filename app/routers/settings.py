@@ -62,6 +62,15 @@ def _normalize_hhmm(raw: str) -> str:
     return "03:00"
 
 
+def _positive_int(raw, default: int) -> int:
+    """Coerce a form value to a positive int, falling back to ``default``."""
+    try:
+        val = int(str(raw).strip())
+        return val if val >= 1 else default
+    except (TypeError, ValueError):
+        return default
+
+
 # ── Ink ───────────────────────────────────────────────────────────────────────
 
 @router.post("/settings/ink")
@@ -127,6 +136,7 @@ def save_preferences(
     wholesale_target:  float = Form(...),
     wholesale_strong:  float = Form(...),
     low_inventory_lot_pct: float = Form(25.0),
+    expiry_alert_days: int = Form(30),
     db: Session = Depends(get_db),
 ):
     crud.update_margin_config(
@@ -140,6 +150,7 @@ def save_preferences(
     )
     ink_global = crud.get_ink_global_config(db)
     ink_global.low_inventory_lot_pct = max(0.0, min(100.0, float(low_inventory_lot_pct or 25.0)))
+    ink_global.expiry_alert_days = max(1, min(365, int(expiry_alert_days or 30)))
     db.commit()
     invalidate_dashboard_analytics_cache()
     return RedirectResponse("/settings?tab=preferences&saved=1", status_code=303)
@@ -174,7 +185,12 @@ async def save_automation_settings(request: Request, db: Session = Depends(get_d
     form = await request.form()
     enabled = (form.get("auto_maintenance_log_enabled") or "").strip().lower() in {"1", "true", "on", "yes"}
     run_time = _normalize_hhmm(str(form.get("auto_maintenance_log_time") or "03:00"))
-    crud.update_automation_config(db, enabled=enabled, run_time=run_time)
+    archive_days = _positive_int(form.get("service_log_archive_days"), 60)
+    purge_days = _positive_int(form.get("service_log_purge_days"), 365)
+    crud.update_automation_config(
+        db, enabled=enabled, run_time=run_time,
+        archive_days=archive_days, purge_days=purge_days,
+    )
     return RedirectResponse("/settings?tab=preferences&saved=1", status_code=303)
 
 
