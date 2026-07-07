@@ -92,6 +92,31 @@ freeze internal snapshot
 > gh release edit v0.14.0 --repo codebyit/inktracker --notes-file <notes>.md
 > ```
 
+## Beta channel (Docker-only)
+
+Betas ship as **Docker images only** — no Windows installer, no MSIX, no Store submission.
+A **prerelease tag** is any SemVer tag with a hyphen, e.g. `v0.14.0-beta.1` / `v0.14.0-rc.1`.
+
+- `desktop-windows.yml` **skips** the entire Windows path (build, installer, portable, signing,
+  MSIX) for prerelease push tags, so a beta can never reach the Store.
+- `public-ci` **publishes** the image to GHCR as `ghcr.io/codebyit/inktracker:v0.14.0-beta.1`
+  (+ a `sha-…` tag) but does **not** move `:latest`, so self-hosters on `:latest` stay on the
+  last stable release.
+
+Cut a beta with a plain annotated tag from `main`:
+```bash
+git checkout main && git pull
+git tag -a v0.14.0-beta.1 -m "Beta v0.14.0-beta.1"
+git push origin v0.14.0-beta.1
+```
+Testers pull it explicitly:
+```bash
+docker pull ghcr.io/codebyit/inktracker:v0.14.0-beta.1
+```
+Notes: the **Version Guard** compares `VERSION` vs `package.json` (not the tag), so a `-beta.N`
+suffix on the tag doesn't need a `VERSION` bump. Betas do **not** require the staging gate — the
+beta *is* the wider test. Promote to stable later with the plain `v0.14.0` tag.
+
 ### 5. GATE 2 — MSIX smoke test (parallel with cert)
 - [ ] Install from the `.msix`; app launches and closes cleanly (WebView2).
 - [ ] **Store data redirect** exists:

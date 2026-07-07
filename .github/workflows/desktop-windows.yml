@@ -38,6 +38,12 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 45
+    # Windows/desktop builds are stable-only. A prerelease tag (SemVer with a
+    # hyphen, e.g. v0.14.0-beta.1) is a Docker-only beta channel: skip the whole
+    # Windows path (installer, portable, signing, MSIX/Store) for those tags.
+    # PRs and manual workflow_dispatch runs are unaffected. Downstream sign/msix
+    # jobs need this build, so skipping it here also skips them.
+    if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && contains(github.ref_name, '-')) }}
     outputs:
       version: ${{ steps.ver.outputs.version }}
       signable-artifact-id: ${{ steps.upload_signable.outputs.artifact-id }}
