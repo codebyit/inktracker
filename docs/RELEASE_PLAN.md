@@ -67,6 +67,31 @@ freeze internal snapshot
 - [ ] Submit MSIX to Partner Center with **package rollout < 100%** (safety valve).
 - [ ] Note: Docker image ≠ MSIX. Staging did not validate MSIX-specific behavior.
 
+> **Two tagging paths — pick based on whether `VERSION`/`CHANGELOG` are already bumped:**
+>
+> - **A. `VERSION` + `CHANGELOG` NOT yet bumped** → run the **Release** workflow
+>   (`.github/workflows/release.yml`, `workflow_dispatch` with the version). It bumps
+>   `VERSION`/`package.json`/`CHANGELOG.md`, commits `chore(release): vX.Y.Z`, and creates the
+>   annotated `vX.Y.Z` tag.
+> - **B. `VERSION` + `CHANGELOG` ALREADY bumped on `main`** (e.g. a **port PR** already carried
+>   them, as with v0.14.0) → **do NOT run the Release workflow.** Its commit step runs under
+>   `set -euo pipefail` and would abort with "nothing to commit" (VERSION unchanged, CHANGELOG
+>   entry already present), so the tag would never be created. Instead push a **plain annotated
+>   tag** from `main`:
+>   ```bash
+>   git checkout main && git pull
+>   git tag -a v0.14.0 -m "Release v0.14.0"
+>   git push origin v0.14.0
+>   ```
+>   The `v*` tag alone triggers `desktop-windows.yml` (MSIX) and `public-ci` build-and-publish.
+>
+> **Release body is empty by default.** `desktop-windows.yml` creates the GitHub Release via
+> `softprops/action-gh-release@v2` with only `files:` (no `body:`), so notes must be applied
+> **manually** after the tag build starts:
+> ```bash
+> gh release edit v0.14.0 --repo codebyit/inktracker --notes-file <notes>.md
+> ```
+
 ### 5. GATE 2 — MSIX smoke test (parallel with cert)
 - [ ] Install from the `.msix`; app launches and closes cleanly (WebView2).
 - [ ] **Store data redirect** exists:
