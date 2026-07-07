@@ -43,6 +43,45 @@
 </section>
 {% endif %}
 
+{% if inventory_alerts.expired_lots > 0 or inventory_alerts.expiring_soon_lots > 0 %}
+<section x-data="expiryBanner()" x-show="visible" x-cloak
+         class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+  <div class="flex items-start gap-3">
+    <div class="shrink-0 w-9 h-9 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+      </svg>
+    </div>
+    <div class="min-w-0 flex-1">
+      <div class="font-semibold text-slate-900">Cartridge lots need attention</div>
+      <p class="text-sm text-slate-600 mt-0.5">
+        {% if inventory_alerts.expired_lots > 0 %}<strong>{{ inventory_alerts.expired_lots }}</strong> lot{{ 's' if inventory_alerts.expired_lots != 1 }} already expired{% if inventory_alerts.expiring_soon_lots > 0 %}, and {% endif %}{% endif %}{% if inventory_alerts.expiring_soon_lots > 0 %}<strong>{{ inventory_alerts.expiring_soon_lots }}</strong> expiring within {{ inventory_alerts.expiry_alert_days }} days{% endif %}. Use the earliest-expiring lot first.
+      </p>
+      <div class="flex flex-wrap items-center gap-3 mt-3">
+        <a href="/inventory"
+           class="inline-flex items-center px-3.5 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition-colors">
+          Review lots
+        </a>
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs text-slate-500">Remind me in</label>
+          <select x-model.number="snoozeDays" class="border border-slate-300 rounded-lg px-2 py-1.5 text-xs bg-white">
+            <option value="1">1 day</option>
+            <option value="7">1 week</option>
+            <option value="30">1 month</option>
+          </select>
+          <button type="button" @click="snooze()" class="text-xs font-medium text-slate-600 hover:text-slate-800 px-2 py-1.5">Snooze</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" @click="dismiss()" title="Dismiss" class="shrink-0 text-slate-400 hover:text-slate-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+</section>
+{% endif %}
+
 <section class="bg-white rounded-xl border border-slate-200 p-4 mb-4">
   <div class="flex items-center justify-between gap-3 mb-3">
     <h2 class="text-sm font-semibold text-slate-800">Inventory Alerts</h2>
@@ -54,7 +93,7 @@
       Expired lots: {{ inventory_alerts.expired_lots }}
     </span>
     <span class="px-2.5 py-1 rounded-full text-xs font-semibold {% if inventory_alerts.expiring_soon_lots > 0 %}bg-amber-100 text-amber-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-      Expiring in 30d: {{ inventory_alerts.expiring_soon_lots }}
+      Expiring in {{ inventory_alerts.expiry_alert_days }}d: {{ inventory_alerts.expiring_soon_lots }}
     </span>
     <span class="px-2.5 py-1 rounded-full text-xs font-semibold {% if inventory_alerts.low_stock_lots > 0 %}bg-orange-100 text-orange-700{% else %}bg-slate-100 text-slate-600{% endif %}">
       Low stock lots: {{ inventory_alerts.low_stock_lots }}
@@ -243,5 +282,29 @@
     </div>
   </div>
 </section>
+
+<script>
+function expiryBanner() {
+  return {
+    visible: true,
+    snoozeDays: 7,
+    _key: 'inktrack_expiry_snooze_until',
+    init() {
+      const until = parseInt(localStorage.getItem(this._key) || '0', 10);
+      if (until && Date.now() < until) this.visible = false;
+    },
+    // Snooze persists across reloads for the chosen number of days.
+    snooze() {
+      const ms = (this.snoozeDays || 7) * 86400000;
+      localStorage.setItem(this._key, String(Date.now() + ms));
+      this.visible = false;
+    },
+    // Dismiss hides for this page view only (no persistence).
+    dismiss() {
+      this.visible = false;
+    },
+  };
+}
+</script>
 
 {% endblock %}

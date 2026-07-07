@@ -42,7 +42,7 @@
       <p class="text-2xl font-bold text-indigo-700" x-text="totalUnits"></p>
     </div>
     <div class="bg-white rounded-xl border border-slate-200 p-3">
-      <p class="text-xs text-slate-500">Expiring in 30 days</p>
+      <p class="text-xs text-slate-500">Expiring in <span x-text="expiryAlertDays"></span> days</p>
       <p class="text-2xl font-bold" :class="expiringSoonCount > 0 ? 'text-amber-600' : 'text-slate-800'" x-text="expiringSoonCount"></p>
     </div>
   </section>
@@ -53,77 +53,144 @@
         <h2 class="text-lg font-semibold text-slate-800">Cartridge Lots</h2>
         <p class="text-xs text-slate-500">Each row is one cartridge. Track serial number, chip expiry, box expiry, and active slot per channel.</p>
       </div>
-      <button @click="downloadPdf()" type="button"
-              class="inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">
-        Download Inventory PDF
-      </button>
+      <div class="flex items-center gap-2">
+        <button @click="openAddLot()" type="button"
+                class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+          </svg>
+          Add Cartridge Lot
+        </button>
+        <button @click="downloadPdf()" type="button"
+                class="inline-flex items-center justify-center px-3.5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">
+          Download Inventory PDF
+        </button>
+      </div>
     </div>
 
-    <p class="text-xs text-slate-500 mb-3">
-      1 unit = <span x-text="fmt(cartridgeCapacityMl)"></span> ml (configurable from Ink settings).
-    </p>
+    <!-- Add Cartridge Lot modal -->
+    <div x-show="showAddLot" x-cloak class="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-slate-900/60 p-0 sm:p-4"
+         @keydown.escape.window="showAddLot = false">
+      <div class="bg-white w-full sm:max-w-3xl sm:rounded-2xl rounded-t-2xl shadow-xl border border-slate-200 max-h-[92vh] overflow-y-auto"
+           @click.outside="showAddLot = false">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <div>
+            <h3 class="text-base font-semibold text-slate-800">Add Cartridge Lot</h3>
+            <p class="text-xs text-slate-500">1 unit = <span x-text="fmt(cartridgeCapacityMl)"></span> ml (configurable from Ink settings).</p>
+          </div>
+          <button type="button" @click="showAddLot = false" class="text-slate-400 hover:text-slate-600 p-1" aria-label="Close">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
 
-    <form @submit.prevent="createLot" class="grid grid-cols-1 sm:grid-cols-7 gap-2 mb-4">
-      <div class="relative group">
-        <select x-model="newLot.channel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm pr-8">
-          {% for ch in service_channels %}
-          <option value="{{ ch }}">{{ ink_channel_names.get(ch, ch) }} ({{ ch }})</option>
-          {% endfor %}
-        </select>
-        <span class="absolute right-2 top-2 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full w-4 h-4 hidden sm:inline-flex items-center justify-center cursor-help">?</span>
-        <div class="hidden group-hover:block absolute z-20 right-0 -top-2 -translate-y-full w-56 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-2 py-1.5 shadow-lg">Choose the cartridge slot/channel for this lot.</div>
+        <form @submit.prevent="createLot" class="p-5">
+          <div class="flex flex-col md:flex-row gap-5">
+            <!-- Left block: identity + expiry, column-aligned -->
+            <div class="flex-1 min-w-0 space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="newLotChannel" class="block text-xs font-medium text-slate-700 mb-1">Channel</label>
+                  <select id="newLotChannel" x-model="newLot.channel" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm">
+                    {% for ch in service_channels %}
+                    <option value="{{ ch }}">{{ ink_channel_names.get(ch, ch) }} ({{ ch }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <label for="newLotSerial" class="block text-xs font-medium text-slate-700 mb-1">Serial number</label>
+                  <div class="flex items-center gap-1.5">
+                    <input id="newLotSerial" x-model="newLot.serial_number" type="text" inputmode="text" autocomplete="off" placeholder="Serial number"
+                           class="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2.5 text-sm"/>
+                    <button type="button" @click="startSerialCameraScan('serial')"
+                            class="shrink-0 border border-slate-300 rounded-lg p-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            :disabled="scannerBusy" title="Scan serial with camera" aria-label="Scan serial with camera">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/>
+                      </svg>
+                    </button>
+                    <button type="button" @click="scanMode='serial'; $refs.serialQrUpload.click()"
+                            class="shrink-0 border border-slate-300 rounded-lg p-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            :disabled="scannerBusy" title="Scan serial from image" aria-label="Scan serial from image">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+                      </svg>
+                    </button>
+                    <input x-ref="serialQrUpload" @change="scanFromUpload($event, scanMode)" type="file" accept="image/*" class="hidden"/>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="newLotChipExpiry" class="block text-xs font-medium text-slate-700 mb-1">Chip Expiry <span class="text-slate-400 font-normal">(D-M-Y)</span></label>
+                  <input id="newLotChipExpiry" x-model="newLot.expires_on" type="date"
+                         class="date-input w-full min-w-0 appearance-none bg-white text-slate-900 border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
+                </div>
+                <div>
+                  <label for="newLotBoxExpiry" class="block text-xs font-medium text-slate-700 mb-1">Box Expiry <span class="text-slate-400 font-normal">(D-M-Y)</span></label>
+                  <div class="flex items-center gap-1.5">
+                    <input id="newLotBoxExpiry" x-model="newLot.box_expires_on" type="date"
+                           class="date-input flex-1 min-w-0 appearance-none bg-white text-slate-900 border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
+                    <button type="button" @click="startSerialCameraScan('boxExpiry')"
+                            class="shrink-0 border border-slate-300 rounded-lg p-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            :disabled="scannerBusy" title="Scan box expiry with camera" aria-label="Scan box expiry with camera">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/>
+                      </svg>
+                    </button>
+                    <button type="button" @click="scanMode='boxExpiry'; $refs.serialQrUpload.click()"
+                            class="shrink-0 border border-slate-300 rounded-lg p-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            :disabled="scannerBusy" title="Scan box expiry from image" aria-label="Scan box expiry from image">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <p class="text-[11px] text-slate-400 mt-1">Scan a cartridge code to auto-fill the date.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right rail: notes, status, submit -->
+            <div class="md:w-56 shrink-0 space-y-3 md:border-l md:border-slate-100 md:pl-5">
+              <div>
+                <label for="newLotNotes" class="block text-xs font-medium text-slate-700 mb-1">Notes <span class="text-slate-400 font-normal">(optional)</span></label>
+                <textarea id="newLotNotes" x-model="newLot.notes" rows="3" placeholder="Supplier, batch, storage…"
+                          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
+              </div>
+              <label class="flex items-center justify-between gap-2 text-sm text-slate-700 cursor-pointer py-1">
+                <span>Mark in use</span>
+                <span class="relative inline-flex items-center">
+                  <input x-model="newLot.is_in_use" type="checkbox" class="sr-only peer"/>
+                  <span class="w-11 h-6 bg-slate-300 ring-1 ring-inset ring-slate-400/60 rounded-full peer peer-checked:bg-emerald-500 peer-checked:ring-emerald-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:shadow-sm after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5 peer-checked:after:border-emerald-500"></span>
+                </span>
+              </label>
+              <p class="text-[11px] text-slate-400 -mt-1">Set this as the currently installed lot for the channel.</p>
+              <div class="pt-1 space-y-2">
+                <button type="submit" class="w-full bg-indigo-600 text-white rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-indigo-700">Add Lot</button>
+                <button type="button" @click="showAddLot = false" class="w-full border border-slate-300 text-slate-600 rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-50">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </form>
       </div>
-      <div class="relative group">
-        <input x-model="newLot.serial_number" type="text" inputmode="text" autocomplete="off" placeholder="Serial number"
-               class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm pr-8"/>
-        <span class="absolute right-2 top-2 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full w-4 h-4 hidden sm:inline-flex items-center justify-center cursor-help">?</span>
-        <div class="hidden group-hover:block absolute z-20 right-0 -top-2 -translate-y-full w-64 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-2 py-1.5 shadow-lg">Cartridge serial number (letters and numbers).</div>
-      </div>
-      <div class="sm:col-span-2 flex items-center gap-2">
-        <button type="button" @click="startSerialCameraScan()"
-                class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                :disabled="scannerBusy">
-          Scan QR (Camera)
+    </div>
+
+    <div class="flex flex-wrap items-center gap-1.5 mb-3">
+      <span class="text-[11px] text-slate-400 mr-1">Filter:</span>
+      <template x-for="f in lotFilters" :key="f.key">
+        <button type="button" @click="lotFilter = f.key"
+                class="px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors"
+                :class="lotFilter === f.key ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'">
+          <span x-text="f.label"></span>
+          <span x-show="f.count() > 0" x-text="'(' + f.count() + ')'" class="opacity-80"></span>
         </button>
-        <button type="button" @click="$refs.serialQrUpload.click()"
-                class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                :disabled="scannerBusy">
-          Scan QR (Image)
-        </button>
-        <input x-ref="serialQrUpload" @change="scanSerialFromUpload($event)" type="file" accept="image/*" class="hidden"/>
-      </div>
-      <div class="relative group min-w-0">
-        <div class="flex items-center justify-between mb-1">
-          <label for="newLotChipExpiry" class="block text-xs font-medium text-slate-700">Chip Expiry <span class="text-slate-400 font-normal">(Day-Month-Year)</span></label>
-          <span tabindex="0" class="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full w-4 h-4 inline-flex items-center justify-center cursor-help" aria-label="Chip/programmed expiry date">?</span>
-        </div>
-        <input id="newLotChipExpiry" x-model="newLot.expires_on" type="date"
-               class="date-input w-full min-w-0 min-h-[44px] appearance-none bg-white text-slate-900 border border-slate-300 rounded-lg px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
-        <div class="hidden group-hover:block absolute z-20 right-0 -top-2 -translate-y-full w-56 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-2 py-1.5 shadow-lg">Chip/programmed expiry date.</div>
-      </div>
-      <div class="relative group min-w-0">
-        <div class="flex items-center justify-between mb-1">
-          <label for="newLotBoxExpiry" class="block text-xs font-medium text-slate-700">Box Expiry <span class="text-slate-400 font-normal">(Day-Month-Year)</span></label>
-          <span tabindex="0" class="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full w-4 h-4 inline-flex items-center justify-center cursor-help" aria-label="Box-printed expiry date">?</span>
-        </div>
-        <input id="newLotBoxExpiry" x-model="newLot.box_expires_on" type="date"
-               class="date-input w-full min-w-0 min-h-[44px] appearance-none bg-white text-slate-900 border border-slate-300 rounded-lg px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"/>
-        <div class="hidden group-hover:block absolute z-20 right-0 -top-2 -translate-y-full w-64 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-2 py-1.5 shadow-lg">Box-printed expiry date (can differ from chip expiry).</div>
-      </div>
-      <label class="relative group border border-slate-300 rounded-lg px-3 py-2 text-sm flex items-center gap-2 text-slate-700">
-        <input x-model="newLot.is_in_use" type="checkbox" class="rounded border-slate-300"/>
-        Mark in use
-        <span class="ml-auto text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full w-4 h-4 hidden sm:inline-flex items-center justify-center cursor-help">?</span>
-        <div class="hidden group-hover:block absolute z-20 right-0 -top-2 -translate-y-full w-56 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-2 py-1.5 shadow-lg">Mark this as the currently installed lot for that channel.</div>
-      </label>
-      <div class="relative group">
-        <input x-model="newLot.notes" type="text" placeholder="Notes (optional)"
-               class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm pr-8"/>
-        <span class="absolute right-2 top-2 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full w-4 h-4 hidden sm:inline-flex items-center justify-center cursor-help">?</span>
-        <div class="hidden group-hover:block absolute z-20 right-0 -top-2 -translate-y-full w-64 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-2 py-1.5 shadow-lg">Optional context such as supplier, batch, or storage notes.</div>
-      </div>
-      <button type="submit" class="bg-indigo-600 text-white rounded-lg px-3 py-2 text-sm font-medium hover:bg-indigo-700">Add Lot</button>
-    </form>
+      </template>
+    </div>
 
     <div class="overflow-auto border border-slate-200 rounded-lg">
       <table class="min-w-full text-sm">
@@ -139,11 +206,14 @@
           </tr>
         </thead>
         <tbody>
-          <template x-for="lot in cartridgeLots" :key="lot.id">
+          <template x-for="lot in filteredLots" :key="lot.id">
             <tr class="border-t border-slate-100">
               <template x-if="editingLotId !== lot.id">
                 <td class="px-3 py-1.5">
                   <div class="font-medium text-slate-800 text-xs" x-text="(lot.channel_name || lot.channel) + ' (' + lot.channel + ')' "></div>
+                  <span x-show="lot.id === nextLotIdByChannel[lot.channel]"
+                        class="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-semibold"
+                        title="Earliest-expiring available lot — use this one next">Use next</span>
                 </td>
               </template>
               <template x-if="editingLotId === lot.id">
@@ -166,7 +236,8 @@
               <template x-if="editingLotId !== lot.id">
                 <td class="px-3 py-1.5 text-xs">
                   <span x-text="lot.expires_on || '-' "></span>
-                  <span x-show="isExpiringSoon(lot.expires_on)" class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">soon</span>
+                  <span x-show="isExpired(lot.expires_on)" class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">expired</span>
+                  <span x-show="!isExpired(lot.expires_on) && isExpiringSoon(lot.expires_on)" class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">soon</span>
                 </td>
               </template>
               <template x-if="editingLotId === lot.id">
@@ -177,7 +248,8 @@
               <template x-if="editingLotId !== lot.id">
                 <td class="px-3 py-1.5 text-xs">
                   <span x-text="lot.box_expires_on || '-' "></span>
-                  <span x-show="isExpiringSoon(lot.box_expires_on)" class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">soon</span>
+                  <span x-show="isExpired(lot.box_expires_on)" class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">expired</span>
+                  <span x-show="!isExpired(lot.box_expires_on) && isExpiringSoon(lot.box_expires_on)" class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">soon</span>
                 </td>
               </template>
               <template x-if="editingLotId === lot.id">
@@ -217,13 +289,13 @@
               </td>
             </tr>
           </template>
-          <tr x-show="cartridgeLots.length === 0">
+          <tr x-show="filteredLots.length === 0">
             <td colspan="7" class="px-6 py-12 text-center">
               <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-.375c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v.375c0 .621.504 1.125 1.125 1.125z"/>
               </svg>
-              <p class="text-sm text-slate-500 mb-1 font-medium">No cartridge lots yet</p>
-              <p class="text-xs text-slate-400">Use the form above to add your first cartridge lot.</p>
+              <p class="text-sm text-slate-500 mb-1 font-medium" x-text="cartridgeLots.length === 0 ? 'No cartridge lots yet' : 'No lots match this filter'"></p>
+              <p class="text-xs text-slate-400" x-show="cartridgeLots.length === 0">Use the form above to add your first cartridge lot.</p>
             </td>
           </tr>
         </tbody>
@@ -430,10 +502,10 @@
   <div x-show="scannerOpen" x-cloak class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/70 p-4">
     <div class="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-4 space-y-3">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-slate-800">Scan serial from QR</h3>
+        <h3 class="text-sm font-semibold text-slate-800" x-text="scanMode === 'boxExpiry' ? 'Scan box expiry from QR' : 'Scan serial from QR'"></h3>
         <button type="button" @click="stopSerialCameraScan()" class="text-slate-500 hover:text-slate-700">Close</button>
       </div>
-      <p class="text-xs text-slate-500">Fill the framed box with the QR code. Get close — the QR should occupy most of the square. Scanner stops automatically when a valid serial is detected.</p>
+      <p class="text-xs text-slate-500" x-text="scanMode === 'boxExpiry' ? 'Fill the framed box with the cartridge QR/barcode. Scanner stops automatically when a date is detected.' : 'Fill the framed box with the QR code. Get close — the QR should occupy most of the square. Scanner stops automatically when a valid serial is detected.'"></p>
       <div class="relative">
         <video x-ref="serialCameraVideo" class="w-full rounded-lg border border-slate-200 bg-black" autoplay playsinline muted></video>
         <!-- Viewfinder overlay -->
@@ -452,14 +524,18 @@
 function inventoryPage() {
   return {
     cartridgeCapacityMl: Number({{ cartridge_capacity_ml|tojson }} || 100),
+    expiryAlertDays: Number({{ expiry_alert_days|tojson }} || 30),
     cartridgeLots: [],
+    lotFilter: 'all',
     materials: [],
     movements: [],
     error: '',
     editingMaterialId: null,
     newLot: { channel: 'C', serial_number: '', expires_on: '', box_expires_on: '', notes: '', is_in_use: false },
+    showAddLot: false,
     scannerOpen: false,
     scannerBusy: false,
+    scanMode: 'serial',
     serialStream: null,
     serialScanTimer: null,
     newMaterial: { name: '', category: '{{ (material_categories[0].name if material_categories else 'Other')|e }}', unit: 'pcs', unit_cost: '', initial_qty: '' },
@@ -477,7 +553,68 @@ function inventoryPage() {
     },
 
     get expiringSoonCount() {
-      return this.cartridgeLots.filter(l => this.isExpiringSoon(l.expires_on)).length;
+      return this.cartridgeLots.filter(l => this._isLotExpiringSoon(l)).length;
+    },
+
+    get expiredCount() {
+      return this.cartridgeLots.filter(l => this._isLotExpired(l)).length;
+    },
+
+    // Earliest of chip / box expiry (ISO string), whichever comes first.
+    _effectiveExpiry(lot) {
+      const dates = [lot.expires_on, lot.box_expires_on].filter(Boolean);
+      if (!dates.length) return null;
+      return dates.sort()[0];
+    },
+
+    _isLotExpired(lot) {
+      return this.isExpired(this._effectiveExpiry(lot));
+    },
+
+    _isLotExpiringSoon(lot) {
+      const eff = this._effectiveExpiry(lot);
+      return !this.isExpired(eff) && this.isExpiringSoon(eff);
+    },
+
+    // Per-channel FEFO: id of the earliest-expiring AVAILABLE (not in use) lot.
+    // Lots with no expiry sort last. This is the lot to consume next.
+    get nextLotIdByChannel() {
+      const map = {};
+      const byChannel = {};
+      for (const lot of this.cartridgeLots) {
+        if (lot.is_in_use) continue;
+        if (Number(lot.quantity_ml || 0) <= 0) continue;
+        (byChannel[lot.channel] = byChannel[lot.channel] || []).push(lot);
+      }
+      for (const ch of Object.keys(byChannel)) {
+        const sorted = byChannel[ch].slice().sort((a, b) => {
+          const ea = this._effectiveExpiry(a), eb = this._effectiveExpiry(b);
+          if (ea && eb) return ea < eb ? -1 : (ea > eb ? 1 : a.id - b.id);
+          if (ea) return -1;   // dated lots before undated
+          if (eb) return 1;
+          return a.id - b.id;
+        });
+        if (sorted.length) map[ch] = sorted[0].id;
+      }
+      return map;
+    },
+
+    get lotFilters() {
+      return [
+        { key: 'all',      label: 'All',      count: () => this.cartridgeLots.length },
+        { key: 'soon',     label: 'Expiring', count: () => this.expiringSoonCount },
+        { key: 'expired',  label: 'Expired',  count: () => this.expiredCount },
+        { key: 'in_use',   label: 'In use',   count: () => this.lotsInUseCount },
+      ];
+    },
+
+    get filteredLots() {
+      switch (this.lotFilter) {
+        case 'soon':    return this.cartridgeLots.filter(l => this._isLotExpiringSoon(l));
+        case 'expired': return this.cartridgeLots.filter(l => this._isLotExpired(l));
+        case 'in_use':  return this.cartridgeLots.filter(l => l.is_in_use);
+        default:        return this.cartridgeLots;
+      }
     },
 
     async init() {
@@ -493,10 +630,29 @@ function inventoryPage() {
       }
       const data = await resp.json();
       this.cartridgeCapacityMl = Number(data.cartridge_capacity_ml || this.cartridgeCapacityMl || 100);
+      this.expiryAlertDays = Number(data.expiry_alert_days || this.expiryAlertDays || 30);
       this.materials = data.materials || [];
       this.movements = data.movements || [];
       this.cartridgeLots = Object.values(data.cartridges || {}).flat();
       this.cartridgeLots.sort((a, b) => (a.channel + a.id).localeCompare(b.channel + b.id));
+    },
+
+    // ISO date (YYYY-MM-DD) one year from today — a sensible default for
+    // cartridge expiry, which is typically ~6-10 months out at purchase.
+    _oneYearAheadISO() {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 1);
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    },
+
+    // Open the Add Cartridge Lot modal, pre-filling expiry dates one year ahead
+    // when they are empty so the user only adjusts if their cartridge differs.
+    openAddLot() {
+      const oneYear = this._oneYearAheadISO();
+      if (!this.newLot.expires_on) this.newLot.expires_on = oneYear;
+      if (!this.newLot.box_expires_on) this.newLot.box_expires_on = oneYear;
+      this.showAddLot = true;
     },
 
     async createLot() {
@@ -529,10 +685,11 @@ function inventoryPage() {
         return;
       }
       this.newLot.serial_number = '';
-      this.newLot.expires_on = '';
-      this.newLot.box_expires_on = '';
+      this.newLot.expires_on = this._oneYearAheadISO();
+      this.newLot.box_expires_on = this._oneYearAheadISO();
       this.newLot.notes = '';
       this.newLot.is_in_use = false;
+      this.showAddLot = false;
       await this.load();
     },
 
@@ -658,6 +815,8 @@ function inventoryPage() {
         this.error = 'QR scanning is not available. Please reload the page or update your browser.';
         return;
       }
+      // Optional mode arg: 'serial' (default) or 'boxExpiry'.
+      this.scanMode = (arguments.length && arguments[0] === 'boxExpiry') ? 'boxExpiry' : 'serial';
       try {
         this.scannerBusy = true;
         this.scannerOpen = true;
@@ -709,12 +868,21 @@ function inventoryPage() {
               } catch (_err) { /* keep trying */ }
             }
             if (hit) {
-              if (/^[A-Z0-9]+$/.test(hit)) {
+              if (this.scanMode === 'boxExpiry') {
+                const iso = this._parseScannedDate(hit);
+                if (iso) {
+                  this.newLot.box_expires_on = iso;
+                  await this.stopSerialCameraScan();
+                  return;
+                }
+                this.error = 'Code detected, but no expiry date could be read from it.';
+              } else if (/^[A-Z0-9]+$/.test(hit)) {
                 this.newLot.serial_number = hit;
                 await this.stopSerialCameraScan();
                 return;
+              } else {
+                this.error = 'QR code detected, but content is not a valid serial.';
               }
-              this.error = 'QR code detected, but content is not a valid serial.';
             }
           }
           if (useRVFC) {
@@ -769,6 +937,7 @@ function inventoryPage() {
         this.error = 'QR scanning is not available. Please reload the page or update your browser.';
         return;
       }
+      const mode = (arguments.length > 1 && arguments[1] === 'boxExpiry') ? 'boxExpiry' : 'serial';
       try {
         const bitmap = await createImageBitmap(file);
         const { width, height } = this._resizeForDecode(bitmap.width, bitmap.height, 1200);
@@ -780,6 +949,15 @@ function inventoryPage() {
           this.error = 'No QR code detected in the selected image.';
           return;
         }
+        if (mode === 'boxExpiry') {
+          const iso = this._parseScannedDate(raw);
+          if (!iso) {
+            this.error = 'Code detected, but no expiry date could be read from it.';
+            return;
+          }
+          this.newLot.box_expires_on = iso;
+          return;
+        }
         if (!/^[A-Z0-9]+$/.test(raw)) {
           this.error = 'QR code detected, but content is not a valid serial.';
           return;
@@ -788,6 +966,42 @@ function inventoryPage() {
       } catch (err) {
         this.error = err?.message || 'Could not read QR code from image.';
       }
+    },
+
+    // Alias used by the template file input; forwards to scanSerialFromUpload
+    // with the active scan mode ('serial' | 'boxExpiry').
+    async scanFromUpload(event, mode) {
+      return this.scanSerialFromUpload(event, mode);
+    },
+
+    // Best-effort date extraction from a scanned cartridge code. Accepts an
+    // explicit ISO date, a compact YYYYMMDD run, or a 6-digit YYMMDD run
+    // embedded in a longer alphanumeric code. Returns "YYYY-MM-DD" or ''.
+    _parseScannedDate(raw) {
+      if (!raw) return '';
+      const s = String(raw).trim();
+      const valid = (y, m, d) => {
+        if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${y}-${pad(m)}-${pad(d)}`;
+      };
+      // 1) Explicit ISO-like: YYYY-MM-DD or YYYY/MM/DD.
+      let m = s.match(/(\d{4})[-/](\d{2})[-/](\d{2})/);
+      if (m) { const iso = valid(+m[1], +m[2], +m[3]); if (iso) return iso; }
+      // 2) Compact 8-digit YYYYMMDD.
+      const digits = s.replace(/\D+/g, '');
+      for (let i = 0; i + 8 <= digits.length; i++) {
+        const y = +digits.slice(i, i + 4), mo = +digits.slice(i + 4, i + 6), d = +digits.slice(i + 6, i + 8);
+        if (y >= 2000 && y <= 2099) { const iso = valid(y, mo, d); if (iso) return iso; }
+      }
+      // 3) Compact 6-digit YYMMDD (assume 20YY).
+      for (let i = 0; i + 6 <= digits.length; i++) {
+        const y = 2000 + +digits.slice(i, i + 2), mo = +digits.slice(i + 2, i + 4), d = +digits.slice(i + 4, i + 6);
+        const iso = valid(y, mo, d); if (iso) return iso;
+      }
+      return '';
     },
 
     async createMaterial() {
@@ -908,7 +1122,15 @@ function inventoryPage() {
       const exp = new Date(dateValue + 'T00:00:00');
       if (Number.isNaN(exp.getTime())) return false;
       const days = (exp - now) / (1000 * 60 * 60 * 24);
-      return days >= 0 && days <= 30;
+      return days >= 0 && days <= this.expiryAlertDays;
+    },
+
+    isExpired(dateValue) {
+      if (!dateValue) return false;
+      const now = new Date();
+      const exp = new Date(dateValue + 'T00:00:00');
+      if (Number.isNaN(exp.getTime())) return false;
+      return (exp - now) / (1000 * 60 * 60 * 24) < 0;
     },
 
     fmtDate(value) {
