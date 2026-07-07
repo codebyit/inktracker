@@ -1,3 +1,10 @@
 title: InkTrack
 description: Self-hosted UV-print costing, inventory, and profitability tracker.
 theme: jekyll-theme-primer
+
+# Internal process docs live under docs/ so they render locally on GitHub, but they
+# are NOT for end users — keep them out of the published Pages site.
+exclude:
+  - RELEASE_PLAN.md
+  - PORT_MANIFEST_v0.14.0.md
+
