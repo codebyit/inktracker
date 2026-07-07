@@ -61,8 +61,11 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/codebyit/inktracker
+          # Prerelease tags (SemVer with a hyphen, e.g. v0.14.0-beta.1) are the
+          # Docker-only beta channel: publish the exact version + sha tags, but do
+          # NOT move :latest so self-hosters on :latest stay on the last stable.
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
             type=ref,event=tag
             type=sha,format=short
 
