@@ -71,25 +71,34 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     cap_ml = float((ink_global.cartridge_capacity_ml) or 100.0)
     low_lot_threshold_pct = float((ink_global.low_inventory_lot_pct) if ink_global and ink_global.low_inventory_lot_pct is not None else 25.0)
     low_lot_threshold_ml = cap_ml * (max(0.0, min(100.0, low_lot_threshold_pct)) / 100.0)
+    expiry_alert_days = int(ink_global.expiry_alert_days) if ink_global and ink_global.expiry_alert_days else 30
 
     today = datetime.utcnow().date()
-    in_30_days = today + timedelta(days=30)
+    in_window = today + timedelta(days=expiry_alert_days)
     expiring_soon = 0
     expired = 0
     low_stock_lots = 0
 
+    def _effective_expiry(lot):
+        """Earliest of chip / box expiry (whichever expires first)."""
+        dates = []
+        for raw in (lot.expires_on, lot.box_expires_on):
+            if raw:
+                try:
+                    dates.append(datetime.strptime(raw, "%Y-%m-%d").date())
+                except ValueError:
+                    pass
+        return min(dates) if dates else None
+
     for lot in lots:
         if float(lot.quantity_ml or 0.0) <= low_lot_threshold_ml:
             low_stock_lots += 1
-        if lot.expires_on:
-            try:
-                expiry_date = datetime.strptime(lot.expires_on, "%Y-%m-%d").date()
-                if expiry_date < today:
-                    expired += 1
-                elif expiry_date <= in_30_days:
-                    expiring_soon += 1
-            except ValueError:
-                pass
+        expiry_date = _effective_expiry(lot)
+        if expiry_date is not None:
+            if expiry_date < today:
+                expired += 1
+            elif expiry_date <= in_window:
+                expiring_soon += 1
 
     low_materials = sum(1 for item in materials_balance if float(item.get("quantity_available") or 0.0) <= 0.0)
 
@@ -99,6 +108,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "low_stock_lots": low_stock_lots,
         "low_materials": low_materials,
         "low_lot_threshold_pct": low_lot_threshold_pct,
+        "expiry_alert_days": expiry_alert_days,
     }
 
     return templates.TemplateResponse(request, "dashboard.html", {

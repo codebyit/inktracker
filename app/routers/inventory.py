@@ -28,6 +28,7 @@ def inventory_page(request: Request, db: Session = Depends(get_db)):
             "service_channels": SERVICE_CHANNELS,
             "ink_channel_names": INK_CHANNEL_NAMES,
             "cartridge_capacity_ml": float(ink_global.cartridge_capacity_ml or 100.0),
+            "expiry_alert_days": int(ink_global.expiry_alert_days) if ink_global and ink_global.expiry_alert_days else 30,
             "materials": materials,
             "material_categories": categories,
         },
@@ -80,6 +81,7 @@ def inventory_data(db: Session = Depends(get_db)):
         "materials": materials,
         "movements": [_movement_json(m) for m in movements],
         "cartridge_capacity_ml": float(ink_global.cartridge_capacity_ml or 100.0),
+        "expiry_alert_days": int(ink_global.expiry_alert_days) if ink_global and ink_global.expiry_alert_days else 30,
     })
 
 
@@ -349,6 +351,22 @@ def inventory_report_pdf(db: Session = Depends(get_db)):
             box_expiry = lot.box_expires_on or "n/a"
             serial = lot.serial_number or "n/a"
             line(f"- {lot.channel}: SN {serial} | chip exp {chip_expiry} | box exp {box_expiry} | {status}")
+
+    line("", spacer=10)
+    pdf.setFont("Helvetica-Bold", 11)
+    line(f"Expiring & Expired Lots (within {report['expiry_alert_days']} days)")
+    pdf.setFont("Helvetica", 9)
+    if not report["expiring_lots"]:
+        line("- No lots expiring or expired.")
+    else:
+        for eff, kind, days_left, lot in report["expiring_lots"]:
+            serial = lot.serial_number or "n/a"
+            if kind == "EXPIRED":
+                when = f"EXPIRED {abs(days_left)}d ago"
+            else:
+                when = f"in {days_left}d"
+            use = " [IN USE]" if lot.is_in_use else ""
+            line(f"- {lot.channel}: SN {serial} | expires {eff.isoformat()} ({when}){use}")
 
     line("", spacer=10)
     pdf.setFont("Helvetica-Bold", 11)

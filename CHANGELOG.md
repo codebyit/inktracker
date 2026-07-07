@@ -8,6 +8,45 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.14.0] — 2026-07-14
+
+### Added
+
+- **Cartridge-lot expiry alerts.** A configurable **Expiry Alert Window**
+  (Settings → Preferences, default 30 days) drives soon/expired badges across
+  **Inventory**, a filter bar (All / Expiring / Expired / In use), and a **"Use
+  next"** FEFO indicator that points to the earliest-expiring available lot per
+  channel (earliest of chip or box expiry). The **Dashboard** gains a dismissible
+  expiry banner with snooze (1 day / 1 week / 1 month), and the **Inventory PDF**
+  gains an **Expiring & Expired Lots** section, most-urgent first.
+- **eufyMake per-channel maintenance model.** Cleaning (CLN) and moisturizing
+  (ML) consumption is now modelled across **6 active channels** (C, M, Y, K,
+  W|FW, GL), with White as a single slot (`W` XOR `FW`). New service presets:
+  **White Ink Flash Cleaning**, **White Line Swap (Hard ↔ Soft)**, and **Ink
+  Injection (after Moisturizing)**. Canonical reference: `docs/maintenance-rules.md`.
+- **Service Action Log retention.** Configurable **Archive after (days)** and
+  **Delete after (days)** windows (Settings → Preferences) with a daily scheduler
+  purge and a **Show archived** filter, plus date / quick-range / search filtering,
+  sorting, and header help on the log.
+
+### Changed
+
+- **Extended Shutdown Restart** now models an **ink injection** rather than a full
+  15 ml/channel initial fill.
+- **Inventory → Add Cartridge Lot** redesigned as a mobile-friendly modal (aligned
+  identity/expiry blocks + action rail); chip and box expiry default to one year
+  ahead. QR scan controls are now icons, with a **Box Expiry** camera/image scan
+  that auto-extracts the date.
+
+### Fixed
+
+- **Moisturizing Liquid capacity 500 → 125 ml** to match the real UV Cleaning
+  Cartridge compartment (cleaning 255, moisturizer 125, waste 125). CLN/ML are no
+  longer overwritten by the global ink-capacity sync.
+- **Mark-in-use toggle contrast** in light and dark mode (grey off / green on).
+
+Ported from internal v0.13.0 (commit 89b9a1f).
+
 ## [0.13.1] — 2026-07-02
 
 ### Fixed

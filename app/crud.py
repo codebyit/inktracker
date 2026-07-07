@@ -140,8 +140,12 @@ def update_ink_global_config(
     cfg.currency = currency
     if cartridge_tare_g is not None and cartridge_tare_g >= 0:
         cfg.cartridge_tare_g = cartridge_tare_g
-    # Sync capacity to all channels
+    # Sync capacity to ink channels only. CLN and ML are fixed compartments of
+    # the single cleaning cartridge (255 ml / 125 ml) and must not be overwritten
+    # with the shared ink-cartridge capacity.
     for ch_cfg in db.query(models.InkChannelConfig).all():
+        if ch_cfg.channel in ("CLN", "ML"):
+            continue
         ch_cfg.cartridge_capacity_ml = cartridge_capacity_ml
     db.commit()
     _invalidate_dashboard_analytics_cache()
@@ -193,10 +197,22 @@ def get_automation_config(db: Session) -> models.AutomationConfig:
     return cfg
 
 
-def update_automation_config(db: Session, *, enabled: bool, run_time: str) -> None:
+def update_automation_config(
+    db: Session,
+    *,
+    enabled: bool,
+    run_time: str,
+    archive_days: int | None = None,
+    purge_days: int | None = None,
+) -> None:
     cfg = get_automation_config(db)
     cfg.auto_maintenance_log_enabled = bool(enabled)
     cfg.auto_maintenance_log_time = run_time
+    if archive_days is not None:
+        cfg.service_log_archive_days = max(1, int(archive_days))
+    if purge_days is not None:
+        # Purge must never be shorter than archive (would delete before hiding).
+        cfg.service_log_purge_days = max(int(purge_days), cfg.service_log_archive_days)
     db.commit()
 
 
@@ -1363,11 +1379,42 @@ def get_inventory_report_data(db: Session) -> dict:
     lots = get_cartridge_inventory_lots(db)
     materials = get_material_inventory_balance(db)
     movements = get_material_inventory_movements(db, limit=100)
+    ink_global = get_ink_global_config(db)
+    alert_days = int(ink_global.expiry_alert_days) if ink_global and ink_global.expiry_alert_days else 30
+
+    from datetime import date as _date
+
+    def _effective_expiry(lot):
+        dates = []
+        for raw in (lot.expires_on, lot.box_expires_on):
+            if raw:
+                try:
+                    dates.append(datetime.strptime(raw, "%Y-%m-%d").date())
+                except ValueError:
+                    pass
+        return min(dates) if dates else None
+
+    today = _date.today()
+    expiring_lots = []
+    for lot in lots:
+        eff = _effective_expiry(lot)
+        if eff is None:
+            continue
+        days_left = (eff - today).days
+        if days_left < 0:
+            expiring_lots.append((eff, "EXPIRED", days_left, lot))
+        elif days_left <= alert_days:
+            expiring_lots.append((eff, "expiring", days_left, lot))
+    # Soonest first (most urgent at the top).
+    expiring_lots.sort(key=lambda t: t[0])
+
     return {
         "generated_at": datetime.utcnow(),
         "cartridge_lots": lots,
         "materials": materials,
         "movements": movements,
+        "expiry_alert_days": alert_days,
+        "expiring_lots": expiring_lots,
     }
 
 
@@ -1423,62 +1470,94 @@ def _sync_project_substrate_inventory(
 
 # ── Maintenance Presets ───────────────────────────────────────────────────────
 
+# ── Maintenance consumption model (see docs/maintenance-rules.md) ──
+# eufyMake support confirmed cleaning (CLN) and moisturizing (ML) liquids are
+# consumed PER INK CHANNEL, across the machine's 6 ACTIVE channels. The white
+# position is a single slot: W (Hard White) XOR FW (Soft/Flexible White) — never
+# both at once — so maintenance presets target 6 channels (W represents the
+# installed white; FW usage is tracked under the same white line). Per-channel
+# liquid figures from the manufacturer tables are therefore multiplied by 6.
+SERVICE_CHANNEL_COUNT = 6                       # active channels: C, M, Y, K, (W|FW), GL
+_ACTIVE_INK_CHANNELS = ["C", "M", "Y", "K", "W", "GL"]
+
 DEFAULT_PRESETS = [
     # Quick Actions
     {
+        # Post-Deep-Clean injection: 1.5 ml ink/ch, no cleaning liquid.
         "name": "Ink Injection", "kind": models.PRESET_KIND_QUICK,
         "icon": "syringe", "color": "indigo", "is_system": True, "tracks_ink": True,
         "sort_order": 10,
-        "volumes_json": json.dumps({"C":1.5,"M":1.5,"Y":1.5,"K":1.5,"W":1.5,"GL":1.5,"FW":1.5,"CLN":1.5}),
+        "volumes_json": json.dumps({c: 1.5 for c in _ACTIVE_INK_CHANNELS}),
+    },
+    {
+        # Post-Moisturize / post-Shutdown injection: 1.5 ml ink/ch + 1.83 CLN/ch.
+        "name": "Ink Injection (after Moisturizing)", "kind": models.PRESET_KIND_QUICK,
+        "icon": "syringe", "color": "indigo", "is_system": True, "tracks_ink": True,
+        "sort_order": 15,
+        "volumes_json": json.dumps({**{c: 1.5 for c in _ACTIVE_INK_CHANNELS}, "CLN": round(1.83 * SERVICE_CHANNEL_COUNT, 2)}),
     },
     {
         "name": "Flash Clean", "kind": models.PRESET_KIND_QUICK,
         "icon": "bolt", "color": "amber", "is_system": True, "tracks_ink": True,
         "sort_order": 20,
-        "volumes_json": json.dumps({c: 0.0002 for c in ["C","M","Y","K","W","GL","FW"]}),
+        "volumes_json": json.dumps({c: 0.0002 for c in _ACTIVE_INK_CHANNELS}),
     },
     {
         "name": "Automatic Flash Clean", "kind": models.PRESET_KIND_QUICK,
         "icon": "bolt", "color": "amber", "is_system": True, "tracks_ink": True,
         "sort_order": 25,
-        "volumes_json": json.dumps({c: 0.0002 for c in ["C","M","Y","K","W","GL","FW"]}),
+        "volumes_json": json.dumps({c: 0.0002 for c in _ACTIVE_INK_CHANNELS}),
     },
     {
         "name": "Medium Clean", "kind": models.PRESET_KIND_QUICK,
         "icon": "spray", "color": "amber", "is_system": True, "tracks_ink": True,
         "sort_order": 30,
-        "volumes_json": json.dumps({c: 0.2 for c in ["C","M","Y","K","W","GL","FW"]}),
+        "volumes_json": json.dumps({c: 0.2 for c in _ACTIVE_INK_CHANNELS}),
     },
     {
+        # Deep Clean: 1.5 ml ink/ch + 1.83 CLN/ch (× 6 channels).
         "name": "Deep Clean", "kind": models.PRESET_KIND_QUICK,
         "icon": "droplet", "color": "orange", "is_system": True, "tracks_ink": True,
         "sort_order": 40,
-        "volumes_json": json.dumps({"C":1.5,"M":1.5,"Y":1.5,"K":1.5,"W":1.5,"GL":1.5,"FW":1.5,"CLN":1.83}),
+        "volumes_json": json.dumps({**{c: 1.5 for c in _ACTIVE_INK_CHANNELS}, "CLN": round(1.83 * SERVICE_CHANNEL_COUNT, 2)}),
     },
     {
+        # Automatic Deep Clean: 1.5 CLN/ch (× 6 channels), no ink.
         "name": "Automatic Deep Clean", "kind": models.PRESET_KIND_QUICK,
         "icon": "droplet", "color": "orange", "is_system": True, "tracks_ink": True,
         "sort_order": 45,
-        "volumes_json": json.dumps({"CLN": 1.5}),
+        "volumes_json": json.dumps({"CLN": round(1.5 * SERVICE_CHANNEL_COUNT, 2)}),
+    },
+    {
+        # White Ink Flash Cleaning: settled white pigment purge before printing.
+        # Up to 3 ml white ink (single white line) + 1.83 CLN/ch (× 6 channels).
+        "name": "White Ink Flash Cleaning", "kind": models.PRESET_KIND_QUICK,
+        "icon": "bolt", "color": "slate", "is_system": True, "tracks_ink": True,
+        "sort_order": 55,
+        "volumes_json": json.dumps({"W": 3.0, "CLN": round(1.83 * SERVICE_CHANNEL_COUNT, 2)}),
     },
     # Hardware Events
     {
+        # First power-on / factory reset: 15 ml ink/ch + 4.67 CLN/ch (× 6 channels).
         "name": "Initial Startup", "kind": models.PRESET_KIND_HARDWARE,
         "icon": "bolt", "color": "emerald", "is_system": True, "tracks_ink": True,
         "sort_order": 110,
-        "volumes_json": json.dumps({"C":15,"M":15,"Y":15,"K":15,"W":15,"GL":15,"FW":0,"CLN":0}),
+        "volumes_json": json.dumps({**{c: 15 for c in _ACTIVE_INK_CHANNELS}, "CLN": round(4.67 * SERVICE_CHANNEL_COUNT, 2)}),
     },
     {
+        # Print head replacement triggers a full re-initialization fill.
         "name": "Print Head Replacement", "kind": models.PRESET_KIND_HARDWARE,
         "icon": "wrench", "color": "rose", "is_system": True, "tracks_ink": True,
         "sort_order": 120,
-        "volumes_json": json.dumps({"C":15,"M":15,"Y":15,"K":15,"W":15,"GL":15,"FW":0,"CLN":0}),
+        "volumes_json": json.dumps({**{c: 15 for c in _ACTIVE_INK_CHANNELS}, "CLN": round(4.67 * SERVICE_CHANNEL_COUNT, 2)}),
     },
     {
+        # Restart from a safely-shut-down (moisturized) state only needs an
+        # ink injection (1.5 ml ink/ch + 1.83 CLN/ch), NOT a full 15 ml/ch fill.
         "name": "Extended Shutdown Restart", "kind": models.PRESET_KIND_HARDWARE,
         "icon": "power", "color": "violet", "is_system": True, "tracks_ink": True,
         "sort_order": 130,
-        "volumes_json": json.dumps({"C":15,"M":15,"Y":15,"K":15,"W":15,"GL":15,"FW":0,"CLN":0}),
+        "volumes_json": json.dumps({**{c: 1.5 for c in _ACTIVE_INK_CHANNELS}, "CLN": round(1.83 * SERVICE_CHANNEL_COUNT, 2)}),
     },
     {
         "name": "Cleaning Cartridge Replacement", "kind": models.PRESET_KIND_HARDWARE,
@@ -1486,18 +1565,30 @@ DEFAULT_PRESETS = [
         "sort_order": 140,
         "volumes_json": "{}",
     },
+    {
+        # White-line swap (W <-> FW): flushes, refills and recalibrates the white
+        # line. Consumes ~30 ml of the NEW white ink (single white line, flat —
+        # NOT per-channel). Both whites are shown so the user records ~30 ml on
+        # whichever white is being installed (the other stays 0); only one white
+        # is installed at a time. Flush cleaning-solution volume not published.
+        "name": "White Line Swap (Hard <-> Soft)", "kind": models.PRESET_KIND_HARDWARE,
+        "icon": "droplet", "color": "slate", "is_system": True, "tracks_ink": True,
+        "sort_order": 145,
+        "volumes_json": json.dumps({"W": 30.0, "FW": 0.0}),
+    },
     # Moisturizing Liquid
     {
+        # Automatic Moisturizing: 1.83 CLN/ch + 1.33 ML/ch (× 6 channels).
         "name": "Automatic Moisturizing", "kind": models.PRESET_KIND_QUICK,
         "icon": "droplet", "color": "emerald", "is_system": True, "tracks_ink": True,
         "sort_order": 50,
-        "volumes_json": json.dumps({"CLN": 1.83, "ML": 1.33}),
+        "volumes_json": json.dumps({"CLN": round(1.83 * SERVICE_CHANNEL_COUNT, 2), "ML": round(1.33 * SERVICE_CHANNEL_COUNT, 2)}),
     },
     {
         "name": "Safe Shutdown Moisturizing", "kind": models.PRESET_KIND_QUICK,
         "icon": "power", "color": "emerald", "is_system": True, "tracks_ink": True,
         "sort_order": 60,
-        "volumes_json": json.dumps({"CLN": 1.83, "ML": 1.33}),
+        "volumes_json": json.dumps({"CLN": round(1.83 * SERVICE_CHANNEL_COUNT, 2), "ML": round(1.33 * SERVICE_CHANNEL_COUNT, 2)}),
     },
 ]
 
@@ -1606,6 +1697,22 @@ def get_service_actions(db: Session, limit: int = 100) -> list:
         .limit(limit)
         .all()
     )
+
+
+def purge_service_actions_older_than(db: Session, cutoff: datetime) -> int:
+    """Permanently delete service-action log entries older than ``cutoff``.
+
+    Returns the number of rows removed. Used by the retention scheduler.
+    """
+    n = (
+        db.query(models.ServiceAction)
+        .filter(models.ServiceAction.occurred_at < cutoff)
+        .delete(synchronize_session=False)
+    )
+    if n:
+        db.commit()
+        _invalidate_dashboard_analytics_cache()
+    return n
 
 
 def get_latest_auto_maintenance_sync(db: Session) -> dict | None:

@@ -193,6 +193,7 @@ def run_auto_maintenance_for_time(db: Session, run_at: datetime) -> None:
 
 def _scheduler_loop(default_hour: int, default_minute: int) -> None:
     last_checked_date: datetime.date | None = None
+    last_purged_date: datetime.date | None = None
     while True:
         db = SessionLocal()
         try:
@@ -210,6 +211,17 @@ def _scheduler_loop(default_hour: int, default_minute: int) -> None:
                 run_at = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
                 run_auto_maintenance_for_time(db, run_at)
                 last_checked_date = now.date()
+
+            # Retention purge runs once per day at the configured time,
+            # independently of auto-logging being enabled.
+            if should_run_today and last_purged_date != now.date():
+                purge_days = int(getattr(cfg, "service_log_purge_days", 365) or 365)
+                if purge_days >= 1:
+                    cutoff = now - timedelta(days=purge_days)
+                    removed = crud.purge_service_actions_older_than(db, cutoff)
+                    if removed:
+                        log.info("Retention purge removed %d service action(s) older than %d days", removed, purge_days)
+                last_purged_date = now.date()
         except Exception:
             log.exception("Auto maintenance scheduler failed")
         finally:

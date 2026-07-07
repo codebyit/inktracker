@@ -27,11 +27,15 @@ INK_CHANNEL_HEX = {
 }
 
 # Default cartridge capacity (ml) per channel — used on first seed.
+# CLN and ML are the two usable fluid compartments of the single physical
+# "UV Cleaning Cartridge" (cleaning solution 255 ml, moisturizer 125 ml; it also
+# has a separate 125 ml waste-ink compartment, not yet modeled). They are NOT
+# ink cartridges and keep these fixed compartment capacities.
 INK_CHANNEL_DEFAULT_CAPACITY = {
     "C":  100.0, "M":  100.0, "Y":  100.0, "K":  100.0,
     "W":  100.0, "GL": 100.0, "FW": 100.0,
     "CLN": 255.0,
-    "ML":  500.0,
+    "ML":  125.0,
 }
 
 INK_MODES = [
@@ -109,6 +113,7 @@ class InkGlobalConfig(Base):
     white_loaded     = Column(String(4), default="W")     # "W" or "FW"
     low_ink_pct      = Column(Float, default=20.0)        # warn threshold %
     low_inventory_lot_pct = Column(Float, default=25.0)   # low-stock lot threshold %
+    expiry_alert_days = Column(Integer, default=30)       # cartridge-lot expiry warning window (days)
     currency         = Column(String(8), default="€")
 
 
@@ -142,6 +147,11 @@ class AutomationConfig(Base):
     id                           = Column(Integer, primary_key=True, default=1)
     auto_maintenance_log_enabled = Column(Boolean, default=True, nullable=False)
     auto_maintenance_log_time    = Column(String(5), default="03:00", nullable=False)
+    # Service Action Log retention tiers (days). Entries older than the archive
+    # threshold are hidden from the default log view (still retained); entries
+    # older than the purge threshold are permanently deleted by the scheduler.
+    service_log_archive_days     = Column(Integer, default=60,  nullable=False)
+    service_log_purge_days       = Column(Integer, default=365, nullable=False)
 
 
 class FeatureConfig(Base):
