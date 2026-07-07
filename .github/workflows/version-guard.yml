@@ -32,15 +32,22 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           TAG="${GITHUB_REF_NAME#v}"
+          # Prerelease tags (Docker-only betas, e.g. v0.14.0-beta.1) share the
+          # base VERSION; strip the -prerelease suffix before comparing.
+          BASE="${TAG%%-*}"
           FILE="$(tr -d '\n' < VERSION)"
-          if [ "$TAG" != "$FILE" ]; then
-            echo "::error::Release tag v$TAG does not match VERSION file ($FILE)."
+          if [ "$BASE" != "$FILE" ]; then
+            echo "::error::Tag v$TAG (base $BASE) does not match VERSION file ($FILE)."
             exit 1
           fi
-          echo "OK: tag v$TAG matches VERSION ($FILE)"
+          if [ "$TAG" != "$BASE" ]; then
+            echo "OK: prerelease tag v$TAG matches base VERSION ($FILE)"
+          else
+            echo "OK: tag v$TAG matches VERSION ($FILE)"
+          fi
 
-      - name: CHANGELOG entry exists (release tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: CHANGELOG entry exists (stable release tags only)
+        if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
         run: |
           FILE="$(tr -d '\n' < VERSION)"
           if [ ! -f CHANGELOG.md ]; then

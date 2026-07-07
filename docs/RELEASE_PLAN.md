@@ -113,9 +113,11 @@ Testers pull it explicitly:
 ```bash
 docker pull ghcr.io/codebyit/inktracker:v0.14.0-beta.1
 ```
-Notes: the **Version Guard** compares `VERSION` vs `package.json` (not the tag), so a `-beta.N`
-suffix on the tag doesn't need a `VERSION` bump. Betas do **not** require the staging gate — the
-beta *is* the wider test. Promote to stable later with the plain `v0.14.0` tag.
+Notes: the **Version Guard** is prerelease-aware — it matches the tag's *base* version against
+`VERSION` (so `v0.14.0-beta.1` validates against `VERSION` `0.14.0`), and it skips the
+CHANGELOG-entry requirement for prerelease tags. A `-beta.N` suffix therefore needs no `VERSION`
+bump. Betas do **not** require the staging gate — the beta *is* the wider test. Promote to stable
+later with the plain `v0.14.0` tag.
 
 ### 5. GATE 2 — MSIX smoke test (parallel with cert)
 - [ ] Install from the `.msix`; app launches and closes cleanly (WebView2).
