@@ -3,8 +3,6 @@ title: InkTrack — UV-print costing, inventory & profitability
 description: Free, self-hosted cost and inventory tracker for UV printing. Know your true cost and profit per job, keep an eye on ink, and never get caught out by an expired cartridge.
 ---
 
-# InkTrack
-
 **Free, self-hosted cost & inventory tracking for UV printing.** Know your true cost and
 profit on every job, keep an eye on your ink and supplies, and get a heads-up before a
 cartridge expires — all on your own computer, with no subscription and no account.
