@@ -14,6 +14,33 @@ see the [GitHub Releases](https://github.com/codebyit/inktracker/releases).
 
 ---
 
+## Coming soon — v0.15.0 · _Target GA: coming weeks_
+
+A focused polish of the **Service** and **ink-tracking** experience, based on real feedback.
+Nothing changes your data — it just makes correcting ink levels and reading the maintenance
+log clearer and harder to get wrong.
+
+**Ink corrections, reimagined**
+- **"Set Current Ink Level"** — type each cartridge's actual remaining ml (fields start at
+  the current value); the app works out the adjustment. No more +/- guesswork.
+- A live **"→ new value"** preview per channel, and the save button stays disabled until
+  something actually changes — no accidental no-ops.
+- The Service Action Log shows a correction as a **level change** (green = ink added,
+  red = ink removed) and lets you **expand each entry for the per-ink breakdown**.
+- Every correction has an **Undo**; the "saved" pop-up is now dismissible and auto-hides.
+- Ink levels are correctly **capped at 0–100%**, so a correction lands exactly where you set it.
+
+**Cleaning cartridge as one part**
+- **Cleaning + Moisturizing Liquid** now appear as a single **UV Cleaning Cartridge** — one
+  card with both compartments, one replacement count, and one **Replace** that resets both.
+
+**Interface fixes**
+- **Toggle switches are clearly visible** in both light and dark mode.
+- A clearer help tooltip on the cartridge-replacement section, better button spacing, and a
+  more robust maintenance log that keeps displaying correctly even with lots of history.
+
+---
+
 ## Coming soon — v0.14.0 · _Target GA: July 22, 2026_
 
 **Cartridge-lot expiry management**
