@@ -96,7 +96,7 @@ def build() -> None:
         text = convert_links(open(os.path.join(DOCS, f), encoding="utf-8").read())
         open(os.path.join(BUILD, page_name(f) + ".md"), "w", encoding="utf-8").write(text)
     shutil.copytree(os.path.join(DOCS, "images"), os.path.join(BUILD, "images"))
-    sidebar = ["## InkTrack Manual\n", "- [Home](Home)"]
+    sidebar = ["## InkTracker Manual\n", "- [Home](Home)"]
     for f in GUIDES:
         title = open(os.path.join(DOCS, f), encoding="utf-8").readline().lstrip("# ").strip()
         sidebar.append(f"- [{title}]({page_name(f)})")
