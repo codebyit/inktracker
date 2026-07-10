@@ -1,12 +1,12 @@
 # 8. Settings
 
-**Settings** is where you tell InkTrack about your shop. These values power every
+**Settings** is where you tell InkTracker about your shop. These values power every
 cost and profit calculation, so it's worth setting them up carefully once.
 
 ---
 
 ## Machine
-Enter your printer's **purchase price**, **lifespan**, and **annual hours**. InkTrack
+Enter your printer's **purchase price**, **lifespan**, and **annual hours**. InkTracker
 spreads the cost across jobs so each project carries a fair share.
 
 ![Machine configuration](images/settings-machine.png)

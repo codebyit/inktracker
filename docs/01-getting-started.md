@@ -4,9 +4,9 @@ This guide gets you from zero to your first priced project. It takes about 5 min
 
 ---
 
-## Open InkTrack
+## Open InkTracker
 
-InkTrack runs in your web browser. Open it at the address your studio uses
+InkTracker runs in your web browser. Open it at the address your studio uses
 (when running locally, that's **http://localhost:8000**). The first time it starts,
 it sets itself up automatically with sensible defaults — there's nothing to install
 manually.
@@ -17,7 +17,7 @@ On a computer, the **left sidebar** is your main menu. On a phone, tap the
 **hamburger menu (☰)** at the top, or use the **bottom tab bar** for the most common
 areas.
 
-![InkTrack sidebar navigation](images/sidebar-nav.png)
+![InkTracker sidebar navigation](images/sidebar-nav.png)
 
 ![Mobile navigation: hamburger and bottom tabs](images/mobile-bottom-nav.png)
 
@@ -33,7 +33,7 @@ areas.
 
 ## First-run setup (do this once)
 
-The first time you open InkTrack on a fresh install, the **Dashboard** shows a
+The first time you open InkTracker on a fresh install, the **Dashboard** shows a
 **"Finish your setup"** banner. Click **Finish setup** to launch the guided setup
 wizard, which walks you through the essentials so your cost and profit numbers are
 accurate from day one.
@@ -65,7 +65,7 @@ weight, and ink price differ between printers, so this saves you typing.
 ### Step 3 — Machine costs
 
 Enter your printer's purchase price, setup cost, lifespan, annual running hours,
-power draw, electricity rate, and maintenance budget. InkTrack uses these to spread
+power draw, electricity rate, and maintenance budget. InkTracker uses these to spread
 the machine's cost across every job.
 
 ![Setup wizard step 3 — machine costs](images/setup-03-machine.png)
@@ -113,10 +113,10 @@ See the [Creating a Project](03-new-project-wizard.md) guide for the full walkth
 
 ## Install it on your phone or desktop (optional)
 
-InkTrack can be installed like a regular app so it opens full-screen from your home
+InkTracker can be installed like a regular app so it opens full-screen from your home
 screen and works offline.
 
-![Install InkTrack as an app](images/pwa-install.png)
+![Install InkTracker as an app](images/pwa-install.png)
 
 | Device | How to install |
 |---|---|
@@ -124,7 +124,7 @@ screen and works offline.
 | **iPhone (Safari)** | Tap **Share → Add to Home Screen** |
 | **Desktop (Chrome/Edge)** | Click the **install icon (⊕)** in the address bar |
 
-⚠️ **Note:** If you lose internet, InkTrack shows an amber "offline" banner. Pages
+⚠️ **Note:** If you lose internet, InkTracker shows an amber "offline" banner. Pages
 you've already opened keep working; it reconnects automatically when you're back online.
 
 ---

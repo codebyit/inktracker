@@ -14,7 +14,7 @@ When you swap a tank, record it so the level resets correctly:
 
 ![Log a cartridge replacement](images/service-log-cartridge.png)
 
-InkTrack then calculates remaining ink from this point forward.
+InkTracker then calculates remaining ink from this point forward.
 
 ## Quick-action presets
 Common jobs (like a head clean) are one-click **presets**. Tap a preset to log it
@@ -27,7 +27,7 @@ Log bigger upkeep (part replacements, scheduled service) as **hardware events** 
 have a full history.
 
 ## Auto-maintenance sync
-If turned on (in **Settings → Preferences**), InkTrack automatically logs a daily
+If turned on (in **Settings → Preferences**), InkTracker automatically logs a daily
 maintenance ink amount at a set time, and includes it in cartridge levels.
 
 ## Action history & ink corrections

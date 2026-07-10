@@ -13,7 +13,7 @@
 
 ## Optional admin auth
 
-InkTrack runs without authentication by default (LAN-only / behind a VPN or tunnel).
+InkTracker runs without authentication by default (LAN-only / behind a VPN or tunnel).
 To protect the destructive endpoints (`/settings/backup`, `/settings/restore`,
 `/settings/reset`), set `ADMIN_API_TOKEN`. When set, those requests must include the
 header `X-Admin-Token: <value>`. Leave it unset to keep the no-auth default.

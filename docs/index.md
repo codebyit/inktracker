@@ -1,5 +1,5 @@
 ---
-title: InkTrack — UV-print costing, inventory & profitability
+title: InkTracker — UV-print costing, inventory & profitability
 description: Free, self-hosted cost and inventory tracker for UV printing. Know your true cost and profit per job, keep an eye on ink, and never get caught out by an expired cartridge.
 ---
 
@@ -13,7 +13,7 @@ cartridge expires — all on your own computer, with no subscription and no acco
 
 ---
 
-## Why InkTrack?
+## Why InkTracker?
 
 - 💶 **Real cost & profit per job.** Add ink, materials, machine time, and labour, and see a
   clear margin — colour-coded so a losing job is obvious at a glance.
@@ -60,4 +60,4 @@ Questions, ideas, or want to help test? Join the conversation in
 **[GitHub Discussions](https://github.com/codebyit/inktracker/discussions)**, or browse the
 version-anchored notes and downloads on **[Releases](https://github.com/codebyit/inktracker/releases)**.
 
-_InkTrack is open source (GPL-3.0)._
+_InkTracker is open source (GPL-3.0)._

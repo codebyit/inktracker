@@ -1,9 +1,9 @@
-# InkTrack Maintenance Rules — Canonical Reference & Decision Memo
+# InkTracker Maintenance Rules — Canonical Reference & Decision Memo
 
 **Author:** Claude Opus 4.8 (from a multi-LLM audit + arbitration round)  
 **Date:** 2026-07-05 (updated as vendor facts were confirmed)  
 **Status:** Canonical source of truth for the eufyMake E1 maintenance/consumption model in
-InkTrack. Originated as the final arbitration of a three-LLM review (Claude Opus 4.8, xAI Grok
+InkTracker. Originated as the final arbitration of a three-LLM review (Claude Opus 4.8, xAI Grok
 4.3, GPT-5.5); those individual review documents have been retired (see git history) now that
 their conclusions are reconciled here and shipped.
 
@@ -66,12 +66,12 @@ All three reviewers effectively agree on the following:
 **D1 — Per-channel vs shared reservoir for CLN/ML (the crux, items #4–#7). RESOLVED.**
 - Claude (me, original): confident **under-count ~6–7×** based on the literal "per color channel"
   header.
-- Grok: leans **shared, dosed once** (InkTrack likely correct), from the repeated 1.83 value and
+- Grok: leans **shared, dosed once** (InkTracker likely correct), from the repeated 1.83 value and
   single cartridge capacities.
 - GPT-5.5: **unresolved**; both arguments are non-decisive; make it configurable and measure.
 - **RESOLUTION (eufyMake support, 2026-07-05):** consumption **IS per ink channel**, across
   **6 channels (C, M, Y, K, W, G)**. Example: Automatic Deep Clean = **6 × 1.5 = 9.0 ml** cleaning
-  solution. So InkTrack under-counts CLN/ML by **exactly 6×**. My original finding is **confirmed**
+  solution. So InkTracker under-counts CLN/ML by **exactly 6×**. My original finding is **confirmed**
   (though I overstated the certainty *at the time*); Grok's shared-dose hypothesis is **refuted**;
   GPT's "make it configurable" is still the right *mechanism*, now with a **known default of ×6**.
   This is the highest-impact fix because it drives CLN/ML refill warnings.
@@ -111,16 +111,16 @@ Source D (eufyMake wiki, "Introduction to Cleaning Cartridge") confirms `CLN` an
 compartments of a single physical "UV Cleaning Cartridge"**, which also has a **third compartment:
 waste ink**. Verbatim capacities: **Cleaning solution 255 ml, Moisturizer 125 ml, Waste ink
 125 ml** (dimensions 174.5×52×113 mm, 745 g).
-- **Bug found & fixed:** InkTrack seeded **ML capacity at 500 ml** — 4× the real **125 ml** — which
+- **Bug found & fixed:** InkTracker seeded **ML capacity at 500 ml** — 4× the real **125 ml** — which
   overstated moisturizer capacity and delayed low-ML refill warnings. Corrected to 125 ml
   (migration `0020`), and CLN/ML are no longer clobbered by the shared ink-capacity setting.
 - **Refill-timing consequence:** because CLN, ML, and waste share one cartridge, the user must
   replace the whole unit when **any** compartment is exhausted (cleaning empty **OR** moisturizer
-  empty **OR** waste full). InkTrack currently tracks CLN and ML as two independent cartridges and
+  empty **OR** waste full). InkTracker currently tracks CLN and ML as two independent cartridges and
   does **not** model waste ink at all — so it can't warn on the true "replace cleaning cartridge"
   trigger. **Deferred to Phase 2** (waste-ink accumulation + unified cleaning-cartridge model).
 - **Waste ink:** every cleaning/deep-clean/priming purge drains into the 125 ml waste compartment.
-  Its fill rate roughly tracks total CLN + purged-ink volume; modeling it would let InkTrack
+  Its fill rate roughly tracks total CLN + purged-ink volume; modeling it would let InkTracker
   predict cartridge replacement by whichever compartment hits its limit first.
 
 **D5 — Deferred injection modeling scope.** GPT wants it modeled as a **deferred state attributed
@@ -196,7 +196,7 @@ prefer reversible, visible, configurable fixes over silent hidden automation.**
 - **P3.3** Change the **default** maintenance time 03:00 → midnight for fidelity. *(cosmetic)*
 
 ### Explicitly NOT doing (all reviewers agree)
-- A faithful printer state machine for OTA/restart/pause (InkTrack can't observe the device).
+- A faithful printer state machine for OTA/restart/pause (InkTracker can't observe the device).
 - Silent auto-commit of inferred high-volume events.
 - Per-print priming multipliers.
 - Deleting `FW` before hardware confirmation.

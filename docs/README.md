@@ -1,11 +1,11 @@
-# InkTrack User Manual
+# InkTracker User Manual
 
-Welcome! **InkTrack** helps you track ink, costs, maintenance, and profit for your
+Welcome! **InkTracker** helps you track ink, costs, maintenance, and profit for your
 UV print studio — all in one place, with no monthly subscription. This manual is
 written for everyday users: makers, studio operators, and shop owners. You don't need
 any technical knowledge to follow along.
 
-![InkTrack dashboard at a glance](images/dashboard-overview.png)
+![InkTracker dashboard at a glance](images/dashboard-overview.png)
 
 ---
 
@@ -33,15 +33,15 @@ any technical knowledge to follow along.
 
 ## Finding your way around
 
-InkTrack has a menu down the left side on a computer, and a hamburger menu (☰) plus
+InkTracker has a menu down the left side on a computer, and a hamburger menu (☰) plus
 a bottom tab bar on a phone. The main areas are: **Dashboard**, **Projects**,
 **New Project**, **Analytics**, **Service**, **Inventory**, and **Settings**.
 
-![InkTrack sidebar navigation](images/sidebar-nav.png)
+![InkTracker sidebar navigation](images/sidebar-nav.png)
 
 ## Admin & install docs
 
-Setting up or hosting InkTrack yourself? See the operator guides:
+Setting up or hosting InkTracker yourself? See the operator guides:
 
 - [Installation](installation.md)
 - [Configuration](configuration.md)

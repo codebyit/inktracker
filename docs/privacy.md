@@ -4,17 +4,17 @@ layout: default
 permalink: /privacy/
 ---
 
-# InkTrack Privacy Policy
+# InkTracker Privacy Policy
 
 **Last updated:** 1 July 2026
 
-InkTrack ("the App") is a free, open-source (GPL-3.0) desktop and self-hosted
+InkTracker ("the App") is a free, open-source (GPL-3.0) desktop and self-hosted
 application for tracking UV-print production costs, ink and cartridge inventory,
 and profitability. This policy explains how the App handles your information.
 
 ## Summary
 
-**InkTrack does not collect, transmit, sell, or share any personal data.**
+**InkTracker does not collect, transmit, sell, or share any personal data.**
 Everything you enter stays on your own device or your own server. There is no
 account, no sign-up, no telemetry, no analytics, and no advertising.
 
@@ -69,7 +69,7 @@ deleted manually if you also want to remove saved projects.
 
 ## Open source
 
-InkTrack is open source under the **GNU General Public License v3.0**. You can
+InkTracker is open source under the **GNU General Public License v3.0**. You can
 review exactly how it handles data in the source code:
 <https://github.com/codebyit/inktracker>
 
