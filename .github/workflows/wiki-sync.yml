@@ -1,0 +1,60 @@
+name: wiki-sync
+
+# Keeps the GitHub Wiki (a separate inktracker.wiki.git repo that no PR can touch)
+# in sync with docs/. Runs scripts/sync_wiki.py --push, which rebuilds every wiki
+# page and copies docs/images/ as-is. Auth uses a write-enabled deploy key stored
+# in the WIKI_SSH_KEY secret (matches the SSH remote the script already targets).
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+      - "scripts/sync_wiki.py"
+      - ".github/workflows/wiki-sync.yml"
+  workflow_dispatch:
+
+# Never let two wiki pushes race each other.
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Guard - deploy key present
+        run: |
+          if [ -z "${{ secrets.WIKI_SSH_KEY }}" ]; then
+            echo "::error::Secret WIKI_SSH_KEY is not set. Add the wiki deploy key before running this workflow."
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Configure SSH deploy key
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.WIKI_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Configure git identity (required for the wiki commit)
+        run: |
+          git config --global user.name "inktracker-wiki-bot"
+          git config --global user.email "wiki-sync@users.noreply.github.com"
+
+      - name: Sync wiki from docs/
+        run: python scripts/sync_wiki.py --push

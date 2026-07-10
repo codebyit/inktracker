@@ -118,6 +118,9 @@ def push() -> None:
             rmtree(p) if os.path.isdir(p) else os.remove(p)
     shutil.copytree(BUILD, work, dirs_exist_ok=True)
     subprocess.run(["git", "-C", work, "add", "-A"], check=True)
+    if subprocess.run(["git", "-C", work, "diff", "--cached", "--quiet"]).returncode == 0:
+        print("Wiki already up to date; nothing to push.")
+        return
     subprocess.run(["git", "-C", work, "commit", "-m", "docs: sync user manual to wiki"], check=True)
     subprocess.run(["git", "-C", work, "push", "origin", "HEAD"], check=True)
     print("Pushed wiki.")
