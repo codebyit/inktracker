@@ -38,13 +38,15 @@ def rmtree(path: str) -> None:
         os.chmod(p, stat.S_IWRITE)
         func(p)
 
+    # shutil.rmtree renamed the callback kwarg: onerror (<3.12) -> onexc (>=3.12).
+    handler_kw = "onexc" if sys.version_info >= (3, 12) else "onerror"
     for _ in range(5):
         try:
-            shutil.rmtree(path, onexc=on_error)
+            shutil.rmtree(path, **{handler_kw: on_error})
             return
         except (PermissionError, OSError):
             time.sleep(0.5)
-    shutil.rmtree(path, onexc=on_error)
+    shutil.rmtree(path, **{handler_kw: on_error})
 
 
 GUIDES = [
