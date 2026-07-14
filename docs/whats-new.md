@@ -14,11 +14,12 @@ see the [GitHub Releases](https://github.com/codebyit/inktracker/releases).
 
 ---
 
-## Coming soon — v0.15.0 · _Target GA: coming weeks_
+## v0.15.0 — _Available now_
 
-A focused polish of the **Service** and **ink-tracking** experience, based on real feedback.
-Nothing changes your data — it just makes correcting ink levels and reading the maintenance
-log clearer and harder to get wrong.
+The [v0.15.0 release](https://github.com/codebyit/inktracker/releases/tag/v0.15.0) is out. It
+combines the **Service / ink-tracking polish** with the **cartridge-lot expiry & maintenance**
+features (previously a Docker beta), generally available for the first time. It's additive and
+data-safe — existing databases upgrade in place.
 
 **Ink corrections, reimagined**
 - **"Set Current Ink Level"** — type each cartridge's actual remaining ml (fields start at
@@ -34,35 +35,27 @@ log clearer and harder to get wrong.
 - **Cleaning + Moisturizing Liquid** now appear as a single **UV Cleaning Cartridge** — one
   card with both compartments, one replacement count, and one **Replace** that resets both.
 
-**Interface fixes**
-- **Toggle switches are clearly visible** in both light and dark mode.
-- A clearer help tooltip on the cartridge-replacement section, better button spacing, and a
-  more robust maintenance log that keeps displaying correctly even with lots of history.
-
----
-
-## Coming soon — v0.14.0 · _Target GA: July 22, 2026_
-
 **Cartridge-lot expiry management**
 - **Expiry alerts** with a configurable warning window (Settings → Preferences).
 - Inventory **badges and filters** (Expiring / Expired / In use) and a **"Use next"**
   indicator that points you to the earliest-expiring lot so nothing is wasted.
-- A dismissible, snooze-able **dashboard banner** when lots need attention.
-- An **Expiring & Expired Lots** section in the inventory PDF export.
+- A dismissible, snooze-able **dashboard banner** when lots need attention, and an
+  **Expiring & Expired Lots** section in the inventory PDF export.
 
 **Printer maintenance accuracy (eufyMake E1)**
 - Cleaning and moisturizing fluid usage is now modeled **per ink channel** to match the
   manufacturer's published consumption, so cartridge refill timing is accurate.
 - New maintenance actions: **White Ink Flash Cleaning**, **White Line Swap (Hard ↔ Soft)**,
-  and a post-moisturize **Ink Injection**.
+  and a post-moisturize **Ink Injection**. Configurable service-log **archive/delete** windows.
 
-**Service log housekeeping**
-- Configurable **archive** and **delete** windows for the service action log, with a
-  **Show archived** filter.
+**Interface fixes**
+- **Toggle switches are clearly visible** in both light and dark mode.
+- Redesigned mobile-friendly **Add Cartridge Lot** form with **Box Expiry QR scan**, clearer
+  help tooltips, better button spacing, and a more robust maintenance log.
 
-**UI polish**
-- Redesigned **Add Cartridge Lot** form (mobile-friendly), expiry dates default a year ahead,
-  **Box Expiry QR scan**, clearer toggles, and service-log filtering/sorting.
+> **Get it:** Docker / self-hosted — `docker compose pull && up -d`. Windows — via the
+> **Microsoft Store** or the direct downloads on the
+> [release page](https://github.com/codebyit/inktracker/releases/tag/v0.15.0).
 
 ---
 
@@ -75,5 +68,5 @@ dependency hardening.
 
 ---
 
-_Dates on unreleased items are targets, not commitments; the Store build goes live after
-Microsoft Store certification completes._
+_The Store build goes live after Microsoft Store certification completes; Docker / self-hosted
+updates are available immediately on each release._
