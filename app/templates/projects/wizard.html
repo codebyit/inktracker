@@ -341,7 +341,7 @@ function wizardData() {
     fmt(v)   { return parseFloat(v||0).toFixed(2); },
     go(n)    { this.step=n; window.scrollTo(0,0); },
 
-    // ── Multi-craft faces ──────────────────────────────────────────────
+    // ── Multi-craft faces ──────────────────────────────────────
     get isMultiCraftActive() {
       return this.multiCraftFlag && this.multiCraftEnabled && this.extraCrafts.length > 0;
     },
@@ -433,7 +433,7 @@ function wizardData() {
     },
 
     printWorksheet() {
-      const esc = s => (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+      const esc = s => (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');
       const cur = '{{ currency }}';
       const d   = new Date().toLocaleDateString('en-GB');
       const ptS = `${this.printH||0}h ${this.printM||0}m ${this.printS||0}s`;
@@ -649,7 +649,7 @@ ${bomRows}
 
 <div class="max-w-6xl mx-auto" x-data="wizardData()" x-init="init()">
 
-  <!-- ── Top Tab Bar ──────────────────────────────────── -->
+  <!-- ── Top Tab Bar ──────────────────────── -->
   <div class="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 mb-5 w-fit shadow-xs">
     <button type="button" @click="tab='editor'"
             class="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -988,7 +988,7 @@ ${bomRows}
   }
   </script>
 
-  <!-- ── EDITOR TAB ──────────────────────────────────── -->
+  <!-- ── EDITOR TAB ──────────────────────── -->
   <div x-show="tab==='editor'">
 
     <!-- Progress steps + arrow nav -->
@@ -1380,10 +1380,8 @@ ${bomRows}
                 <span class="text-slate-400 font-normal cursor-help" title="Enable when one project has multiple faces/sides with different craft modes (e.g. a 2-sided case where one side is Flat Raised and the other is Flat). Each face tracks its own ink usage; the project cost sums all faces.">&#9432;</span>
               </span>
               <button type="button" @click="multiCraftEnabled=!multiCraftEnabled"
-                      class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0"
-                      :class="multiCraftEnabled?'bg-teal-500':'bg-slate-300'">
-                <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                      :class="multiCraftEnabled?'translate-x-6':'translate-x-1'"></span>
+                      class="ui-toggle" :class="multiCraftEnabled && 'ui-toggle--on'">
+                <span class="ui-toggle__knob"></span>
               </button>
             </label>
 
@@ -1543,10 +1541,8 @@ ${bomRows}
               <div class="flex items-center justify-between mb-1">
                 <span class="text-sm font-medium text-amber-800">Include Pre-Prime Ink</span>
                 <button type="button" @click="includePreprime=!includePreprime"
-                        class="relative inline-flex w-10 h-5 rounded-full transition-colors"
-                        :class="includePreprime?'bg-teal-500':'bg-slate-300'">
-                  <span class="inline-block w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform mt-0.5"
-                        :class="includePreprime?'translate-x-5':'translate-x-0.5'"></span>
+                        class="ui-toggle" :class="includePreprime && 'ui-toggle--on'">
+                  <span class="ui-toggle__knob"></span>
                 </button>
               </div>
               <p class="text-xs text-amber-700">Most UV printer software already includes pre-prime in reported totals. Toggle off to avoid double-counting.</p>
