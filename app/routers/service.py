@@ -1,4 +1,5 @@
 import json
+import math
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Request, Form
@@ -7,9 +8,10 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..cache import invalidate_dashboard_analytics_cache
-from .. import crud, models
+from .. import crud, models, cogs
 from ..models import (
     INK_CHANNELS, SERVICE_CHANNELS, INK_CHANNEL_NAMES,
+    INK_CHANNEL_DEFAULT_CAPACITY,
     PRESET_KIND_QUICK, PRESET_KIND_HARDWARE, PRESET_KINDS,
 )
 from ..templates_config import templates
@@ -17,7 +19,7 @@ from ..templates_config import templates
 router = APIRouter()
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ─────────────────────────────────────────────────────
 
 def _parse_volumes_from_form(form_data: dict) -> dict:
     """Pulls ml_<CHANNEL> form fields into a {channel: ml} dict, omitting blanks."""
@@ -55,22 +57,73 @@ def _parse_occurred_at(raw: str | None) -> datetime | None:
     return None
 
 
-def _parse_ink_correction_volumes(form_data: dict) -> dict[str, float]:
-    """Parses correction ml values for printable channels and keeps non-zero entries only."""
+def _parse_ink_correction_targets(form_data: dict) -> dict[str, float]:
+    """Parses the absolute target remaining-ml for each printable channel the user filled in.
+
+    Only channels with a value present (non-blank) are returned; a value of 0 is a valid
+    target ("set to empty"), so unlike a delta, zero is kept. The handler converts each
+    absolute target into the consumption delta that makes the derived level equal it.
+    """
     out: dict[str, float] = {}
     for ch in INK_CHANNELS:
         raw = form_data.get(f"corr_{ch}")
         if raw is None or str(raw).strip() == "":
             continue
         try:
-            val = float(raw)
+            out[ch] = float(raw)
         except (TypeError, ValueError):
             continue
-        if abs(val) > 1e-9:
-            out[ch] = val
     return out
 
-# ── Page ──────────────────────────────────────────────────────────────────────
+def _finite(value, default: float = 0.0) -> float:
+    """Coerce to a finite float, mapping None/NaN/Infinity to a safe default."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return default
+    return v if math.isfinite(v) else default
+
+
+def _service_actions_json(actions) -> str:
+    """Build the Service Action Log payload as a guaranteed-valid JSON string.
+
+    Rendering the rows inline with Jinja raw-injected total_ml/volumes_json, so a
+    single legacy row with a non-finite float (Infinity/NaN, which json.dumps emits
+    verbatim) broke JSON.parse for the WHOLE array and hid every entry client-side.
+    Sanitising here (coerce non-finite -> 0, re-serialise per-channel volumes) keeps
+    one bad row from taking down the entire log.
+    """
+    rows = []
+    for a in actions:
+        try:
+            raw_vols = json.loads(a.volumes_json or "{}")
+            if not isinstance(raw_vols, dict):
+                raw_vols = {}
+        except (ValueError, TypeError):
+            raw_vols = {}
+        vols = {str(k): _finite(v) for k, v in raw_vols.items()}
+        rows.append({
+            "id": a.id,
+            "name": a.name_snapshot,
+            "date": a.occurred_at.strftime("%Y-%m-%d"),
+            "display": a.occurred_at.strftime("%d %b %Y %H:%M"),
+            "ml": _finite(a.total_ml),
+            "notes": a.notes or "",
+            "vols": vols,
+            "corr": a.name_snapshot == "Ink Correction",
+        })
+    # allow_nan=False is a belt-and-suspenders guard; values are already finite.
+    payload = json.dumps(rows, allow_nan=False)
+    # Escape characters that could terminate the <script> tag or be mis-parsed as
+    # HTML when the payload is embedded inline (matches Jinja's |tojson behaviour).
+    return (
+        payload.replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
+
+
+# ── Page ─────────────────────────────────────────────────────────
 
 @router.get("/service", response_class=HTMLResponse)
 def service_page(request: Request, db: Session = Depends(get_db)):
@@ -98,6 +151,7 @@ def service_page(request: Request, db: Session = Depends(get_db)):
     }
     correction_error = (request.query_params.get("corr_error") or "").strip()
     correction_saved = (request.query_params.get("corr_saved") or "") == "1"
+    correction_nochange = (request.query_params.get("corr_nochange") or "") == "1"
     correction_undo_action_id = None
     if correction_saved:
         undo_raw = request.query_params.get("corr_undo")
@@ -127,6 +181,7 @@ def service_page(request: Request, db: Session = Depends(get_db)):
         "replacements":       replacements,
         "replacement_counts": replacement_counts,
         "actions":            actions,
+        "actions_json":       _service_actions_json(actions),
         "ink_levels":         ink_levels,
         "auto_sync_status":   auto_sync_status,
         "next_auto_run":      next_auto_run,
@@ -141,12 +196,13 @@ def service_page(request: Request, db: Session = Depends(get_db)):
         "archive_before_iso": archive_before_iso,
         "correction_error":    correction_error,
         "correction_saved":    correction_saved,
+        "correction_nochange": correction_nochange,
         "correction_undo_action_id": correction_undo_action_id,
         "active":             "/service",
     })
 
 
-# ── Cartridge replacements ────────────────────────────────────────────────────
+# ── Cartridge replacements ─────────────────────────────────────────────
 
 @router.post("/service/cartridge")
 def log_cartridge(
@@ -154,7 +210,13 @@ def log_cartridge(
     notes:   str = Form(""),
     db: Session = Depends(get_db),
 ):
-    if channel in SERVICE_CHANNELS:
+    if channel == "CLEANING":
+        # Cleaning + Moisturizing Liquid are two compartments of one physical UV
+        # Cleaning Cartridge, so a single replacement resets both channels to full
+        # and counts as one physical swap.
+        crud.log_cartridge_replacement(db, channel="CLN", notes=notes)
+        crud.log_cartridge_replacement(db, channel="ML", notes=notes)
+    elif channel in SERVICE_CHANNELS:
         crud.log_cartridge_replacement(db, channel=channel, notes=notes)
     return RedirectResponse("/service", status_code=303)
 
@@ -169,7 +231,7 @@ def delete_cartridge_log(rid: int, db: Session = Depends(get_db)):
     return RedirectResponse("/service", status_code=303)
 
 
-# ── Quick actions (preset-based) ──────────────────────────────────────────────
+# ── Quick actions (preset-based) ──────────────────────────────────────
 
 @router.post("/service/preset/{preset_id}/log")
 async def log_quick_action(preset_id: int, request: Request, db: Session = Depends(get_db)):
@@ -225,7 +287,7 @@ def reset_presets(db: Session = Depends(get_db)):
     return RedirectResponse("/service", status_code=303)
 
 
-# ── Hardware events (custom volumes per submission) ───────────────────────────
+# ── Hardware events (custom volumes per submission) ──────────────────────────
 
 @router.post("/service/hardware-event")
 async def log_hardware_event(request: Request, db: Session = Depends(get_db)):
@@ -264,13 +326,37 @@ def delete_action(action_id: int, db: Session = Depends(get_db)):
 @router.post("/service/ink-correction")
 async def log_ink_correction(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    volumes = _parse_ink_correction_volumes(dict(form))
+    targets = _parse_ink_correction_targets(dict(form))
     reason = (form.get("reason") or "").strip()
 
-    if not volumes:
+    if not targets:
         return RedirectResponse("/service?corr_error=nonzero_required", status_code=303)
     if not reason:
         return RedirectResponse("/service?corr_error=reason_required", status_code=303)
+
+    # Each field is the desired *current remaining ml* for that channel. Convert it into
+    # the consumption delta that makes the derived level equal the target:
+    #   remaining = capacity - (existing_used + delta)  ->  delta = capacity - target - used
+    # Using the uncapped used total means a channel that silently over-consumed (shown as
+    # 0%) is corrected to exactly the entered level, with no surprise jump.
+    ink_cfgs = crud.get_ink_configs(db)
+    volumes: dict[str, float] = {}
+    for ch, raw_target in targets.items():
+        cfg = ink_cfgs.get(ch)
+        capacity = (
+            float(cfg.cartridge_capacity_ml)
+            if cfg and cfg.cartridge_capacity_ml
+            else INK_CHANNEL_DEFAULT_CAPACITY.get(ch, 100.0)
+        )
+        target = max(0.0, min(capacity, raw_target))
+        used = cogs.ink_channel_used_ml(ch, db)
+        delta = round(capacity - target - used, 4)
+        if abs(delta) > 1e-9:
+            volumes[ch] = delta
+
+    if not volumes:
+        # Every entered level already matches the current level — nothing to change.
+        return RedirectResponse("/service?corr_nochange=1", status_code=303)
 
     action = crud.log_service_action(
         db,
@@ -293,7 +379,7 @@ def undo_ink_correction(action_id: int, db: Session = Depends(get_db)):
     return RedirectResponse("/service", status_code=303)
 
 
-# ── Changelog ─────────────────────────────────────────────────
+# ── Changelog ──────────────────────────────────
 
 @router.get("/changelog", response_class=HTMLResponse)
 def changelog():
