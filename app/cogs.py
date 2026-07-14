@@ -124,15 +124,15 @@ def margin_status(margin_pct: float, margin_cfg: models.MarginConfig) -> str:
     return "Loss"
 
 
-def ink_level_pct(channel: str, capacity_ml: float, db: Session) -> float:
-    """Remaining ink % based on usage since last cartridge replacement.
+def ink_channel_used_ml(channel: str, db: Session) -> float:
+    """Total ml consumed for a channel since the last cartridge replacement.
 
-    Includes both project ink usage and service-action ink usage
-    (quick-action presets and hardware events).
+    Sums project ink usage and service-action ink usage (quick-action presets,
+    hardware events, and ink corrections). This value is *uncapped*: it can exceed
+    the cartridge capacity (over-consumed) or go negative (net negative corrections),
+    which is exactly what the absolute "set current level" correction needs so it can
+    compute the right adjustment without the display floor hiding the true total.
     """
-    if capacity_ml <= 0:
-        return 0.0
-
     last_rep = (
         db.query(models.CartridgeReplacement)
         .filter(models.CartridgeReplacement.channel == channel)
@@ -162,8 +162,22 @@ def ink_level_pct(channel: str, capacity_ml: float, db: Session) -> float:
         except (ValueError, TypeError):
             continue
 
-    total_used = project_used + service_used
-    remaining = max(0.0, capacity_ml - total_used)
+    return project_used + service_used
+
+
+def ink_level_pct(channel: str, capacity_ml: float, db: Session) -> float:
+    """Remaining ink % based on usage since last cartridge replacement.
+
+    Includes both project ink usage and service-action ink usage
+    (quick-action presets and hardware events). The result is clamped to
+    0–100%: the lower clamp floors an over-consumed channel at 0%, and the
+    upper clamp prevents a net-negative correction from reporting >100%.
+    """
+    if capacity_ml <= 0:
+        return 0.0
+
+    total_used = ink_channel_used_ml(channel, db)
+    remaining = min(capacity_ml, max(0.0, capacity_ml - total_used))
     return round(remaining / capacity_ml * 100, 1)
 
 

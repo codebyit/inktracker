@@ -8,6 +8,48 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.15.0] — 2026-07-14
+
+A focused polish of the **Service** and ink-tracking experience. Additive and data-safe;
+no schema changes.
+
+### Added
+
+- **Undo on every ink-correction row.** The Service Action Log now shows a persistent
+  **Undo** button on each ink-correction entry (not just the transient "saved" toast),
+  reverting ink levels to before the correction. (Fixes #97)
+- **Per-ink breakdown in the Service Action Log.** Correction rows are expandable to show
+  the ml change for **each channel**, instead of only the summed total. (Fixes #96)
+
+### Changed
+
+- **Ink corrections are now absolute — "Set Current Ink Level".** Enter each cartridge's
+  actual remaining ml (fields prefilled with the current tracked level) and the app computes
+  the adjustment, replacing the error-prone +/- delta form. A live per-channel **"→ new
+  value"** badge previews the change, and the save button stays disabled (**"No changes to
+  save"**) until a value actually differs.
+- **Cleaning + Moisturizing Liquid are one UV Cleaning Cartridge.** Shown as a single card
+  with both compartments, one replacement count, and one **Replace** that resets both
+  channels — matching the physical hardware.
+- **Dismissible "correction saved" toast** with a close button and an auto-hide countdown
+  that pauses on hover.
+
+### Fixed
+
+- **Ink levels are clamped to 0–100%.** The derived level previously had no upper bound, so a
+  negative correction on an over-consumed channel (displayed as 0%) could jump unexpectedly or
+  exceed 100%. Corrections now land exactly on the entered value. (Fixes #98)
+- **Toggle switches are visible in light mode.** Added a reusable `.ui-toggle` component so
+  on/off switches (Settings, Inventory "mark in use", and the project wizard) render clearly
+  in both light and dark themes.
+- **Robust Service Action Log rendering.** The log payload is now built and sanitized
+  server-side (non-finite floats coerced to 0), so a single legacy row can no longer break
+  `JSON.parse` and hide the entire log.
+
+_Ported from internal `main` (merge commit `038c618`)._
+
+---
+
 ## [0.14.0] — 2026-07-14
 
 ### Added
