@@ -238,7 +238,7 @@ jobs:
       # with signed binaries once SignPath is set up.
       - name: Attach UNSIGNED build to release
         if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_PROJECT_SLUG == ''
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/InkTrack-Setup-*.exe
@@ -267,7 +267,7 @@ jobs:
           output-artifact-directory: signed
 
       - name: Attach SIGNED build to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: signed/*
 
