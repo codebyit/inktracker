@@ -1,0 +1,26 @@
+# Staging / local build override.
+#
+# docker-compose.public.yml pins the app to a prebuilt GHCR image
+# (ghcr.io/codebyit/inktracker:latest), which is only published on a `v*`
+# release tag — NOT on every push to main. To validate an as-yet-untagged
+# commit (e.g. a merged feature PR on the Docker staging gate), layer this
+# file so the app image is BUILT from the local source tree instead of pulled.
+#
+# Usage (from the repo root, on an up-to-date checkout of the target branch):
+#
+#   docker compose -f docker-compose.public.yml -f docker-compose.build.yml up -d --build
+#
+# The Dockerfile runs `npm run build:css` and bakes the local VERSION into the
+# image, so the running container reflects exactly the checked-out source.
+# Confirm with:  docker compose ... exec app cat /app/VERSION
+#
+# For a tagged release, drop this file and just pull the published image:
+#   docker compose -f docker-compose.public.yml pull app && \
+#   docker compose -f docker-compose.public.yml up -d
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: inktracker:local
