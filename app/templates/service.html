@@ -24,13 +24,17 @@
 
 <section class="mb-8"
          x-data="{
-           corr: { {% for ch in ink_channels %}'{{ ch }}': 0{% if not loop.last %}, {% endif %}{% endfor %} },
+           corr: { {% for ch in ink_channels %}'{{ ch }}': {{ (ink_levels[ch].remaining_ml if ink_levels.get(ch) else 0) }}{% if not loop.last %}, {% endif %}{% endfor %} },
+           baseline: { {% for ch in ink_channels %}'{{ ch }}': {{ (ink_levels[ch].remaining_ml if ink_levels.get(ch) else 0) }}{% if not loop.last %}, {% endif %}{% endfor %} },
+           capByChannel: { {% for ch in ink_channels %}'{{ ch }}': {{ (ink_levels[ch].capacity_ml if ink_levels.get(ch) else 100) }}{% if not loop.last %}, {% endif %}{% endfor %} },
            weight_g: '',
            apply_channel: '{{ ink_channels[0] if ink_channels else "C" }}',
            densityByChannel: { {% for ch in ink_channels %}'{{ ch }}': {{ ink_density_by_channel.get(ch, 1.0) }}{% if not loop.last %}, {% endif %}{% endfor %} },
            tareG: {{ cartridge_tare_g }},
            capacityMl: {{ cartridge_capacity_ml }},
-           get net(){ return Object.values(this.corr).reduce((a,b)=>a+(parseFloat(b)||0),0); },
+           get net(){ return Object.keys(this.corr).reduce((a,ch)=>a+((parseFloat(this.baseline[ch])||0)-(parseFloat(this.corr[ch])||0)),0); },
+           changed(ch){ return Math.abs((parseFloat(this.corr[ch])||0) - (parseFloat(this.baseline[ch])||0)) > 0.001; },
+           get hasChanges(){ return Object.keys(this.corr).some(ch => this.changed(ch)); },
            get density(){ const d = this.densityByChannel[this.apply_channel]; return (d && d > 0) ? d : 1.0; },
            get remainingMlByWeight(){
              const raw = ((parseFloat(this.weight_g) || 0) - this.tareG) / this.density;
@@ -56,15 +60,20 @@
          }">
   <div class="bg-white rounded-xl border border-slate-200 p-5">
     <div class="mb-3">
-      <h2 class="text-lg font-semibold text-slate-800">Ink Correction</h2>
-      <p class="text-xs text-slate-500">Adjust ink tracking when numbers don't match reality.</p>
+      <h2 class="text-lg font-semibold text-slate-800">Set Current Ink Level</h2>
+      <p class="text-xs text-slate-500">Enter each cartridge's actual remaining ink to correct tracking when numbers don't match reality.</p>
     </div>
 
     <div class="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-4 leading-relaxed">
-      <p><span class="font-semibold text-emerald-700">+20</span> adds tracked usage (spill or untracked test print).</p>
-      <p><span class="font-semibold text-rose-700">-20</span> subtracts tracked usage (over-estimated project entry).</p>
-      <p class="text-slate-500 mt-1">Positive = less ink remaining. Negative = more ink remaining.</p>
+      <p>Type the <span class="font-semibold text-slate-700">actual ml left</span> in each cartridge. Fields start at the currently tracked level — change only the ones that are off.</p>
+      <p class="text-slate-500 mt-1">This is the remaining amount, <span class="font-semibold">not</span> a +/− adjustment. Leave a field unchanged to keep its current level. Use the weight tool below to estimate remaining ml from a cartridge's weight.</p>
     </div>
+
+    {% if correction_nochange %}
+    <div class="mb-4 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 text-xs font-medium">
+      No changes were made — the levels you entered already match the current tracked levels, so nothing was logged.
+    </div>
+    {% endif %}
 
     <div class="mb-4 bg-indigo-50 border border-indigo-100 rounded-lg p-3">
       <h3 class="text-sm font-semibold text-indigo-800">Weight to Remaining Ink (EufyMake E1)</h3>
@@ -118,7 +127,7 @@
     {% if correction_error %}
     <div class="mb-4 px-3 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 text-xs font-medium">
       {% if correction_error == 'nonzero_required' %}
-      Add at least one non-zero ink amount.
+      Enter a level for at least one ink that differs from its current value.
       {% elif correction_error == 'reason_required' %}
       A reason is required for ink correction.
       {% else %}
@@ -131,13 +140,23 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
         {% for ch in ink_channels %}
         <label class="text-xs">
-          <span class="flex items-center gap-1.5 text-slate-600 mb-1">
-            <span class="w-2.5 h-2.5 rounded-full" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
-            {{ INK_CHANNEL_NAMES[ch] }}
+          <span class="flex items-center justify-between gap-1.5 text-slate-600 mb-1">
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
+              {{ INK_CHANNEL_NAMES[ch] }}
+            </span>
+            <span class="flex items-center gap-1 text-[10px]">
+              <span class="text-slate-400">now {{ '%.1f'|format(ink_levels[ch].remaining_ml) if ink_levels.get(ch) else '0.0' }} ml</span>
+              <span x-show="changed('{{ ch }}')" x-cloak
+                    class="px-1 py-0.5 rounded bg-violet-100 text-violet-700 font-semibold"
+                    x-text="'→ ' + (parseFloat(corr['{{ ch }}'])||0).toFixed(1) + ' ml'"></span>
+            </span>
           </span>
-          <div class="flex items-center gap-1 border border-slate-200 rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-violet-400">
-            <input type="number" step="0.01" name="corr_{{ ch }}" x-model.number="corr['{{ ch }}']"
-                   class="flex-1 text-sm focus:outline-none" placeholder="0"/>
+          <div class="flex items-center gap-1 border rounded-lg px-2 py-1.5 focus-within:ring-2 focus-within:ring-violet-400"
+               :class="changed('{{ ch }}') ? 'border-violet-300 bg-violet-50/40' : 'border-slate-200'">
+            <input type="number" step="0.01" min="0" max="{{ ink_levels[ch].capacity_ml if ink_levels.get(ch) else 100 }}"
+                   name="corr_{{ ch }}" x-model.number="corr['{{ ch }}']"
+                   class="flex-1 text-sm focus:outline-hidden bg-transparent" placeholder="remaining ml"/>
             <span class="text-[11px] text-slate-400">ml</span>
           </div>
         </label>
@@ -145,8 +164,8 @@
       </div>
 
       <div class="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-violet-50 border border-violet-100">
-        <span class="text-violet-700 font-medium">Net Adjustment</span>
-        <span class="font-mono font-semibold text-violet-800" x-text="net.toFixed(2) + ' ml'"></span>
+        <span class="text-violet-700 font-medium">Net consumption change</span>
+        <span class="font-mono font-semibold text-violet-800" x-text="(net >= 0 ? '+' : '') + net.toFixed(2) + ' ml'"></span>
       </div>
 
       <div>
@@ -156,29 +175,47 @@
                   class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></textarea>
       </div>
 
-      <button type="submit"
-              class="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-sm font-semibold py-2 rounded-lg hover:from-violet-600 hover:to-fuchsia-600 transition-colors">
-        Log Correction
+      <button type="submit" :disabled="!hasChanges"
+              class="w-full text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+              :class="hasChanges ? 'bg-linear-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 cursor-pointer' : 'bg-slate-300 cursor-not-allowed'">
+        <span x-text="hasChanges ? 'Save Ink Levels' : 'No changes to save'"></span>
       </button>
     </form>
   </div>
 </section>
 
 {% if correction_saved and correction_undo_action_id %}
-<section class="fixed bottom-4 right-4 z-50 max-w-sm">
-  <div class="bg-emerald-600 text-white rounded-xl shadow-lg px-4 py-3 border border-emerald-500">
+<section x-data="{ show: true, secs: 8, timer: null,
+                   start(){ this.timer = setInterval(() => { if (--this.secs <= 0) { this.show = false; clearInterval(this.timer); } }, 1000); },
+                   stop(){ clearInterval(this.timer); },
+                   resume(){ if (this.show) this.start(); } }"
+         x-init="start()"
+         x-show="show" x-transition
+         @mouseenter="stop()" @mouseleave="resume()"
+         class="fixed bottom-4 right-4 z-50 max-w-sm">
+  <div class="relative bg-emerald-600 text-white rounded-xl shadow-lg pl-4 pr-8 py-3 border border-emerald-500">
+    <button type="button" @click="show = false; stop()"
+            aria-label="Dismiss"
+            class="absolute top-2 right-2 text-emerald-100 hover:text-white">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
     <div class="text-sm font-semibold">Ink correction saved</div>
     <div class="text-xs text-emerald-50 mt-0.5">Cartridge totals were updated.</div>
-    <form method="POST" action="/service/ink-correction/{{ correction_undo_action_id }}/undo" class="mt-2">
-      <button type="submit" class="text-xs font-semibold underline underline-offset-2 hover:text-emerald-100">Undo</button>
-    </form>
+    <div class="mt-2 flex items-center gap-3">
+      <form method="POST" action="/service/ink-correction/{{ correction_undo_action_id }}/undo">
+        <button type="submit" class="text-xs font-semibold underline underline-offset-2 hover:text-emerald-100">Undo</button>
+      </form>
+      <span class="text-[11px] text-emerald-100/80" x-show="secs > 0">Dismissing in <span x-text="secs"></span>s</span>
+    </div>
   </div>
 </section>
 {% endif %}
 
-{# ─────────────────────────────────────────────────────────────────────────── #}
+{# ──────────────────────────────────────────────────────────────── #}
 {# Quick Actions                                                               #}
-{# ─────────────────────────────────────────────────────────────────────────── #}
+{# ──────────────────────────────────────────────────────────────── #}
 <section class="mb-8"
          x-data="{
            edit:null, create:false, log:null, logName:'',
@@ -244,7 +281,7 @@
       </div>
 
       <button type="button" @click='openLog({{ p.id }}, {{ p.name|tojson }})'
-              class="mt-auto w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-semibold py-2 rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-colors">
+              class="mt-auto w-full bg-linear-to-r from-indigo-500 to-purple-500 text-white text-xs font-semibold py-2 rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-colors">
         Log
       </button>
     </div>
@@ -356,7 +393,7 @@
           <button type="button" @click="log=null"
                   class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">Cancel</button>
           <button type="submit"
-                  class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:from-indigo-600 hover:to-purple-600">
+                  class="bg-linear-to-r from-indigo-500 to-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:from-indigo-600 hover:to-purple-600">
             Log
           </button>
         </div>
@@ -365,9 +402,9 @@
   </div>
 </section>
 
-{# ─────────────────────────────────────────────────────────────────────────── #}
+{# ──────────────────────────────────────────────────────────────── #}
 {# Hardware Events                                                             #}
-{# ─────────────────────────────────────────────────────────────────────────── #}
+{# ──────────────────────────────────────────────────────────────── #}
 <section class="mb-8">
   <div class="mb-4">
     <h2 class="text-lg font-semibold text-slate-800">Hardware Events</h2>
@@ -425,26 +462,45 @@
   </div>
 </section>
 
-{# ─────────────────────────────────────────────────────────────────────────── #}
+{# ──────────────────────────────────────────────────────────────── #}
 {# Cartridge Replacements                                                      #}
-{# ─────────────────────────────────────────────────────────────────────────── #}
+{# ──────────────────────────────────────────────────────────────── #}
 <section class="mb-8" x-data="{ replace:null, notes:'' }">
   <div class="mb-4">
-    <h2 class="text-lg font-semibold text-slate-800">Cartridge Replacements</h2>
+    <div class="flex items-center gap-1.5">
+      <h2 class="text-lg font-semibold text-slate-800">Cartridge Replacements</h2>
+      <div class="relative group">
+        <span tabindex="0" class="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full w-4 h-4 inline-flex items-center justify-center cursor-help" aria-label="About Cartridge Replacements">?</span>
+        <div class="hidden group-hover:block group-focus-within:block absolute z-20 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 top-full mt-1 w-72 max-w-[calc(100vw-1rem)] rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-3 py-2 shadow-lg leading-relaxed">
+          The badge on each card counts how many times you've swapped in a new cartridge for that channel. Each replacement resets that cartridge's ink level to full.
+        </div>
+      </div>
+    </div>
     <p class="text-xs text-slate-500">Resets the channel's ink level to full when replaced.</p>
   </div>
 
   <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-    {% for ch in service_channels %}
+    {% for ch in ink_channels %}
     {% set lv = ink_levels[ch] %}
     {% set rep_count = replacement_counts.get(ch, 0) %}
-    <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col items-center gap-2">
-      <span class="absolute top-2 right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300 text-[10px] font-semibold flex items-center justify-center leading-none">
+    {% set is_inactive_white = ch in ['W', 'FW'] and ch != white_loaded %}
+    <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col items-center gap-2 {{ 'opacity-50' if is_inactive_white else '' }}">
+      <span class="absolute top-2 right-2 min-w-5 h-5 px-1 rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300 text-[10px] font-semibold flex items-center justify-center leading-none">
         {{ rep_count }}
       </span>
       <!-- Color indicator with ring for visibility on dark backgrounds -->
       <span class="w-3 h-3 rounded-full ring-1 ring-slate-300 dark:ring-slate-500" style="background-color:{{ INK_CHANNEL_HEX[ch] }}"></span>
       <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 text-center">{{ INK_CHANNEL_NAMES[ch] }}</span>
+      {% if is_inactive_white %}
+      <div class="relative w-6 h-14 bg-slate-100 dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-600 overflow-hidden flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+        </svg>
+      </div>
+      <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 text-center leading-tight">Not in use</span>
+      <a href="/settings?tab=ink" class="w-full text-center text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline py-1"
+         title="Change which white ink is loaded in Settings">Change in Settings</a>
+      {% else %}
       <div class="relative w-6 h-14 bg-slate-100 dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-600 overflow-hidden">
         <div class="absolute bottom-0 left-0 right-0"
              style="height:{{ lv.pct }}%;background-color:{{ INK_CHANNEL_HEX[ch] }}"></div>
@@ -455,8 +511,43 @@
               class="w-full text-xs font-medium text-white bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 py-1.5 rounded-lg transition-colors">
         Replace
       </button>
+      {% endif %}
     </div>
     {% endfor %}
+
+    {# ── UV Cleaning Cartridge: Cleaning + Moisturizing are two compartments of ── #}
+    {# ── one physical part, so they share one card, one count, one Replace.     ── #}
+    {% set cln = ink_levels['CLN'] %}
+    {% set mst = ink_levels['ML'] %}
+    {% set clean_count = [replacement_counts.get('CLN', 0), replacement_counts.get('ML', 0)] | max %}
+    <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col items-center gap-2">
+      <span class="absolute top-2 right-2 min-w-5 h-5 px-1 rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300 text-[10px] font-semibold flex items-center justify-center leading-none">
+        {{ clean_count }}
+      </span>
+      <div class="flex items-center gap-1">
+        <span class="w-3 h-3 rounded-full ring-1 ring-slate-300 dark:ring-slate-500" style="background-color:{{ INK_CHANNEL_HEX['CLN'] }}"></span>
+        <span class="w-3 h-3 rounded-full ring-1 ring-slate-300 dark:ring-slate-500" style="background-color:{{ INK_CHANNEL_HEX['ML'] }}"></span>
+      </div>
+      <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 text-center leading-tight">Cleaning Cartridge</span>
+      <!-- One physical cartridge outline split into two compartments -->
+      <div class="relative w-8 h-14 bg-slate-100 dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-600 overflow-hidden flex"
+           title="One physical cartridge with two compartments: Cleaning and Moisturizing Liquid">
+        <div class="relative flex-1 overflow-hidden border-r border-slate-300 dark:border-slate-600">
+          <div class="absolute bottom-0 left-0 right-0" style="height:{{ cln.pct }}%;background-color:{{ INK_CHANNEL_HEX['CLN'] }}"></div>
+        </div>
+        <div class="relative flex-1 overflow-hidden">
+          <div class="absolute bottom-0 left-0 right-0" style="height:{{ mst.pct }}%;background-color:{{ INK_CHANNEL_HEX['ML'] }}"></div>
+        </div>
+      </div>
+      <div class="text-[10px] text-slate-500 dark:text-slate-300 text-center leading-tight tabular-nums">
+        <div>Clean {{ cln.pct }}%</div>
+        <div>Moist {{ mst.pct }}%</div>
+      </div>
+      <button type="button" @click="replace='CLEANING'; notes=''"
+              class="w-full text-xs font-medium text-white bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 py-1.5 rounded-lg transition-colors">
+        Replace
+      </button>
+    </div>
   </div>
 
   {# Replacement modal #}
@@ -465,8 +556,11 @@
        @keydown.escape.window="replace=null">
     <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6" @click.outside="replace=null">
       <h3 class="text-base font-semibold text-slate-800 mb-3">
-        Replace cartridge: <span class="text-indigo-600" x-text="replace"></span>
+        Replace cartridge: <span class="text-indigo-600" x-text="replace === 'CLEANING' ? 'UV Cleaning Cartridge' : replace"></span>
       </h3>
+      <template x-if="replace === 'CLEANING'">
+        <p class="text-xs text-slate-500 mb-3">Resets both <span class="font-medium">Cleaning</span> and <span class="font-medium">Moisturizing Liquid</span> to full — they're two compartments of one physical cartridge.</p>
+      </template>
       <form method="POST" action="/service/cartridge" class="space-y-3">
         <input type="hidden" name="channel" :value="replace"/>
         <div>
@@ -487,9 +581,9 @@
   </div>
 </section>
 
-{# ─────────────────────────────────────────────────────────────────────────── #}
+{# ──────────────────────────────────────────────────────────────── #}
 {# Service History                                                             #}
-{# ─────────────────────────────────────────────────────────────────────────── #}
+{# ──────────────────────────────────────────────────────────────── #}
 <section class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
   <div class="bg-white rounded-xl border border-slate-200" x-data="serviceLog('{{ archive_before_iso }}')">
@@ -498,7 +592,7 @@
         <h2 class="text-sm font-semibold text-slate-700">Service Action Log</h2>
         <div class="relative group">
           <span tabindex="0" class="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full w-4 h-4 inline-flex items-center justify-center cursor-help" aria-label="About the Service Action Log">?</span>
-          <div class="hidden group-hover:block group-focus-within:block absolute z-20 left-0 -top-2 -translate-y-full w-72 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-3 py-2 shadow-lg leading-relaxed">
+          <div class="hidden group-hover:block group-focus-within:block absolute z-20 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 -top-2 -translate-y-full w-72 max-w-[calc(100vw-1rem)] rounded-lg border border-slate-200 bg-white text-slate-600 text-xs px-3 py-2 shadow-lg leading-relaxed">
             A running log of maintenance actions — both those you log manually and those created automatically by
             <a href="/settings?tab=preferences#auto-maintenance-sync" class="text-indigo-600 hover:underline font-medium">Auto Maintenance Sync</a>.
             Use the filters to narrow by date, search, or sort. Entries older than the archive window are hidden
@@ -553,7 +647,7 @@
                   x-text="r.label"></button>
         </template>
         <label class="ml-auto inline-flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
-          <input type="checkbox" x-model="showArchived" class="rounded border-slate-300"/>
+          <input type="checkbox" x-model="showArchived" class="rounded-sm border-slate-300"/>
           Show archived
           <span x-show="archivedCount" class="text-slate-400" x-text="'(' + archivedCount + ')'"></span>
         </label>
@@ -561,11 +655,7 @@
     </div>
 
     <script type="application/json" id="service-actions-data">
-      [
-      {%- for a in actions %}
-      {"id": {{ a.id }}, "name": {{ a.name_snapshot|tojson }}, "date": "{{ a.occurred_at.strftime('%Y-%m-%d') }}", "display": "{{ a.occurred_at.strftime('%d %b %Y %H:%M') }}", "ml": {{ a.total_ml or 0 }}, "notes": {{ (a.notes or '')|tojson }}}{{ "," if not loop.last }}
-      {%- endfor %}
-      ]
+      {{ actions_json | safe }}
     </script>
 
     <div class="overflow-x-auto">
@@ -576,29 +666,59 @@
             <th class="px-4 py-3 text-left">Date</th>
             <th class="px-4 py-3 text-right">Total ml</th>
             <th class="px-4 py-3 text-left">Notes</th>
-            <th class="px-4 py-3"></th>
+            <th class="sticky right-0 bg-slate-50 z-10 pl-4 pr-6 py-3"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <template x-for="a in filtered" :key="a.id">
-            <tr class="hover:bg-slate-50" :class="a.date < archiveBeforeISO ? 'opacity-60' : ''">
-              <td class="px-4 py-3 font-medium text-slate-700">
-                <span x-text="a.name"></span>
-                <span x-show="a.date < archiveBeforeISO"
-                      class="ml-1.5 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 align-middle">Archived</span>
-              </td>
-              <td class="px-4 py-3 text-slate-500" x-text="a.display"></td>
-              <td class="px-4 py-3 text-right font-mono text-slate-600" x-text="a.ml ? a.ml.toFixed(2) : '—'"></td>
-              <td class="px-4 py-3 text-slate-500" x-text="a.notes || '—'"></td>
-              <td class="px-4 py-3 text-right">
-                <form method="POST" :action="'/service/action/' + a.id + '/delete'"
-                      onsubmit="return confirm('Remove this log entry?')">
-                  <button type="submit" class="text-slate-400 hover:text-red-500 p-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            <tr class="hover:bg-slate-50 group" :class="a.date < archiveBeforeISO ? 'opacity-60' : ''">
+              <td class="px-4 py-3 font-medium text-slate-700 align-top">
+                <div class="flex items-center gap-1.5">
+                  <button type="button" x-show="Object.keys(a.vols || {}).length"
+                          @click="toggleRow(a.id)"
+                          class="text-slate-400 hover:text-slate-600"
+                          :title="isOpen(a.id) ? 'Hide per-ink breakdown' : 'Show per-ink breakdown'">
+                    <svg class="w-3.5 h-3.5 transition-transform" :class="isOpen(a.id) ? 'rotate-90' : ''"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                     </svg>
                   </button>
-                </form>
+                  <span x-text="a.name"></span>
+                  <span x-show="a.date < archiveBeforeISO"
+                        class="ml-1 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 align-middle">Archived</span>
+                </div>
+                <div x-show="isOpen(a.id)" x-cloak class="mt-1.5 flex flex-wrap gap-1">
+                  <template x-for="[ch, ml] in Object.entries(a.vols || {})" :key="ch">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium border border-slate-200 bg-slate-50 text-slate-600">
+                      <span class="font-semibold" x-text="ch"></span>
+                      <span class="font-mono" :class="dispClass(a, ml)" x-text="dispText(a, ml)"></span>
+                    </span>
+                  </template>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-slate-500 align-top" x-text="a.display"></td>
+              <td class="px-4 py-3 text-right font-mono align-top"
+                  :class="a.ml ? dispClass(a, a.ml) : 'text-slate-500'"
+                  :title="a.corr ? 'Level change (ink added/removed)' : 'Ink consumed'"
+                  x-text="a.ml ? dispText(a, a.ml) : '—'"></td>
+              <td class="px-4 py-3 text-slate-500 align-top" x-text="a.notes || '—'"></td>
+              <td class="sticky right-0 bg-white group-hover:bg-slate-50 z-10 pl-4 pr-6 py-3 text-right align-top">
+                <div class="inline-flex items-center gap-2 justify-end">
+                  <template x-if="a.corr">
+                    <form method="POST" :action="'/service/ink-correction/' + a.id + '/undo'"
+                          onsubmit="return confirm('Undo this ink correction? Ink levels will revert to before it was applied.')">
+                      <button type="submit" class="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline">Undo</button>
+                    </form>
+                  </template>
+                  <form method="POST" :action="'/service/action/' + a.id + '/delete'"
+                        onsubmit="return confirm('Remove this log entry?')">
+                    <button type="submit" class="text-slate-400 hover:text-red-500 p-1">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
           </template>
@@ -623,12 +743,12 @@
             <th class="px-4 py-3 text-left">Channel</th>
             <th class="px-4 py-3 text-left">Date</th>
             <th class="px-4 py-3 text-left">Notes</th>
-            <th class="px-4 py-3"></th>
+            <th class="sticky right-0 bg-slate-50 z-10 pl-4 pr-6 py-3"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           {% for r in replacements %}
-          <tr class="hover:bg-slate-50">
+          <tr class="hover:bg-slate-50 group">
             <td class="px-4 py-3">
               <div class="flex items-center gap-2">
                 <span class="w-3 h-3 rounded-full" style="background-color:{{ INK_CHANNEL_HEX[r.channel] }}"></span>
@@ -637,7 +757,7 @@
             </td>
             <td class="px-4 py-3 text-slate-500">{{ r.replaced_at.strftime('%d %b %Y %H:%M') }}</td>
             <td class="px-4 py-3 text-slate-500">{{ r.notes or '—' }}</td>
-            <td class="px-4 py-3 text-right">
+            <td class="sticky right-0 bg-white group-hover:bg-slate-50 z-10 pl-4 pr-6 py-3 text-right">
               <form method="POST" action="/service/cartridge/{{ r.id }}/delete"
                     onsubmit="return confirm('Remove this log entry?')">
                 <button type="submit" class="text-slate-400 hover:text-red-500 p-1">
@@ -665,6 +785,7 @@ function serviceLog(archiveBeforeISO) {
     all: [],
     archiveBeforeISO: archiveBeforeISO || '',
     showArchived: false,
+    openIds: [],
     dateFrom: '',
     dateTo: '',
     search: '',
@@ -683,6 +804,31 @@ function serviceLog(archiveBeforeISO) {
         try { this.all = JSON.parse(el.textContent) || []; }
         catch (_e) { this.all = []; }
       }
+    },
+    toggleRow(id) {
+      const i = this.openIds.indexOf(id);
+      if (i >= 0) this.openIds.splice(i, 1);
+      else this.openIds.push(id);
+    },
+    isOpen(id) {
+      return this.openIds.includes(id);
+    },
+    // Ink Corrections are stored as a consumption delta (negative = used less =
+    // level went UP). Users now enter absolute levels, so for correction rows we
+    // present the LEVEL change (negated) with intuitive colours (+green = ink
+    // added, -red = ink removed). Maintenance rows keep showing consumption.
+    dispVal(a, ml) {
+      return a && a.corr ? -ml : ml;
+    },
+    dispText(a, ml) {
+      const v = this.dispVal(a, ml);
+      return (v > 0 ? '+' : '') + Number(v).toFixed(2) + ' ml';
+    },
+    dispClass(a, ml) {
+      const v = this.dispVal(a, ml);
+      if (v > 0) return a && a.corr ? 'text-emerald-600' : 'text-rose-600';
+      if (v < 0) return a && a.corr ? 'text-rose-600' : 'text-emerald-600';
+      return 'text-slate-500';
     },
     get archivedCount() {
       if (!this.archiveBeforeISO) return 0;
