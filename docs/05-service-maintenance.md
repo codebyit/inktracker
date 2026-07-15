@@ -25,7 +25,7 @@ When you swap a tank, record it so the level resets correctly:
 1. In the **Cartridge Replacements** grid, find the channel and click **Replace**.
 2. Optionally add a note, then confirm.
 
-![Log a cartridge replacement](images/service-log-cartridge.png)
+<p align="center"><img src="images/service-log-cartridge.png" alt="Log a cartridge replacement" width="760"></p>
 
 The **Cleaning + Moisturizing Liquid** compartments are shown as a single **UV Cleaning
 Cartridge** — one card with both levels, one replacement count, and one **Replace** that
@@ -36,7 +36,7 @@ point forward.
 Common jobs (like a head clean) are one-click **presets**. Tap a preset to log it
 instantly. You can create, edit, delete, and reset presets to defaults.
 
-![Quick-action presets](images/service-presets.png)
+<p align="center"><img src="images/service-presets.png" alt="Quick-action presets" width="760"></p>
 
 ## Hardware maintenance events
 Log bigger upkeep (part replacements, scheduled service) as **hardware events** so you
@@ -53,7 +53,7 @@ search filters and configurable archive & delete windows. Ink corrections appear
 to see the per-ink breakdown**. Made a mistake? Every correction row has a persistent
 **Undo** button that reverts the levels to before it was applied.
 
-![Service action history](images/service-action-log.png)
+<p align="center"><img src="images/service-action-log.png" alt="Service action history" width="460"></p>
 
 💡 **Tip:** Log replacements and corrections promptly — accurate ink levels make every
 project's cost correct.

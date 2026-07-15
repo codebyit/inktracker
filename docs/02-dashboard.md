@@ -3,7 +3,7 @@
 The **Dashboard** is your home base. It shows your studio's health in a single glance:
 how much ink you have left, how your projects are doing, and where attention is needed.
 
-![Full dashboard overview](images/dashboard-overview.png)
+<p align="center"><img src="images/dashboard-overview.png" alt="Full dashboard overview" width="780"></p>
 
 ---
 
@@ -16,12 +16,12 @@ tank before it stops a job.
 ### KPI cards
 Quick numbers that matter — totals like projects, revenue, and profit at a glance.
 
-![Dashboard KPI cards](images/dashboard-kpi-cards.png)
+<p align="center"><img src="images/dashboard-kpi-cards.png" alt="Dashboard KPI cards" width="760"></p>
 
 ### Cartridge health grid
 A color-coded grid of every ink cartridge so low tanks are easy to find.
 
-![Cartridge health grid](images/cartridge-health-grid.png)
+<p align="center"><img src="images/cartridge-health-grid.png" alt="Cartridge health grid" width="760"></p>
 
 | Color | Meaning |
 |---|---|

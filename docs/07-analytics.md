@@ -3,7 +3,7 @@
 The **Analytics** page turns your projects into easy-to-read charts so you can spot
 trends, see what's profitable, and plan ink purchases.
 
-![Analytics overview](images/analytics-overview.png)
+<p align="center"><img src="images/analytics-overview.png" alt="Analytics overview" width="780"></p>
 
 ---
 

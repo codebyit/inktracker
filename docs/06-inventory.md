@@ -11,7 +11,7 @@ Track your material items and their stock movements:
 - **Add an item** — name, category, and cost per unit.
 - **Record movements** — log stock coming in or going out to keep counts accurate.
 
-![Inventory materials and movements](images/inventory-materials.png)
+<p align="center"><img src="images/inventory-materials.png" alt="Inventory materials and movements" width="620"></p>
 
 ## Cartridge lots
 Track sealed cartridges you've bought:
@@ -20,7 +20,7 @@ Track sealed cartridges you've bought:
 - **Mark "in use"** — flag a lot as the one currently installed.
 - **Adjust quantity** — update counts as you open or restock.
 
-![Cartridge lots and in-use toggle](images/inventory-cartridge-lots.png)
+<p align="center"><img src="images/inventory-cartridge-lots.png" alt="Cartridge lots and in-use toggle" width="760"></p>
 
 ## Download a report
 Click **Report (PDF)** to export a printable stock summary for your records.

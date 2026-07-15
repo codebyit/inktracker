@@ -9,7 +9,7 @@ cost and profit calculation, so it's worth setting them up carefully once.
 Enter your printer's **purchase price**, **lifespan**, and **annual hours**. InkTracker
 spreads the cost across jobs so each project carries a fair share.
 
-![Machine configuration](images/settings-machine.png)
+<p align="center"><img src="images/settings-machine.png" alt="Machine configuration" width="620"></p>
 
 ## Ink costs
 Each ink color channel is a card where you set its **price per cartridge** and its
@@ -17,7 +17,7 @@ Each ink color channel is a card where you set its **price per cartridge** and i
 weight-based remaining-ink estimate on the Service page (white and gloss inks are denser
 than CMYK, so each channel has its own value). The card also shows the cost **per ml**.
 
-![Ink cost and density per channel](images/settings-ink-costs.png)
+<p align="center"><img src="images/settings-ink-costs.png" alt="Ink cost and density per channel" width="620"></p>
 
 | Channel | Color |
 |---|---|
@@ -49,7 +49,7 @@ without manual entry.
 Optional features you can turn on or off. These settings apply to **both** the web app and
 the Windows desktop app.
 
-![Features settings](images/settings-features.png)
+<p align="center"><img src="images/settings-features.png" alt="Features settings" width="700"></p>
 
 - **Multiple craft modes** - lets a single project define several **craft faces** (for
   example, a 2-sided case with a different craft on each side) in the New Project wizard.
@@ -59,7 +59,7 @@ the Windows desktop app.
 Download a **backup** of your data, or **restore** from one. Admins can also **reset**
 the database.
 
-![Backup and restore](images/settings-backup.png)
+<p align="center"><img src="images/settings-backup.png" alt="Backup and restore" width="700"></p>
 
 **Note:** Reset and restore replace your data. Take a backup first.
 

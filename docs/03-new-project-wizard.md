@@ -13,7 +13,7 @@ Open it from **New Project** in the menu. The wizard has three tabs across the t
 ### Step 1 - Print settings
 Choose how the piece is printed: ink mode, alignment, and ink usage per color channel.
 
-![Wizard step 1: print settings](images/wizard-step1-print.png)
+<p align="center"><img src="images/wizard-step1-print.png" alt="Wizard step 1: print settings" width="620"></p>
 
 **Multiple craft faces:** If **Multiple craft modes** is turned on (in **Settings >
 Preferences > Features** - on by default), you can add more than one **craft face** to a
@@ -27,13 +27,13 @@ Enter the **name**, quantity, notes, and any project details.
 Add the materials used (your "bill of materials"). Pick from your **Materials Library**
 or type items in. Each line adds its cost to the total.
 
-![Wizard step 3: bill of materials](images/wizard-step3-bom.png)
+<p align="center"><img src="images/wizard-step3-bom.png" alt="Wizard step 3: bill of materials" width="620"></p>
 
 ### Step 4 - Pricing
 See the full **COGS breakdown** (ink + materials + machine + labor + overhead), set
 your sell price, and watch the **margin badge** update live.
 
-![Wizard step 4: pricing and margin](images/wizard-step4-pricing.png)
+<p align="center"><img src="images/wizard-step4-pricing.png" alt="Wizard step 4: pricing and margin" width="620"></p>
 
 Click **Save** to create the project.
 
@@ -42,7 +42,7 @@ Click **Save** to create the project.
 Apply a saved **print template** to fill settings instantly, so repeat jobs take
 seconds. You can save the current settings as a new template too.
 
-![Templates tab](images/wizard-templates-tab.png)
+<p align="center"><img src="images/wizard-templates-tab.png" alt="Templates tab" width="620"></p>
 
 ## The Materials tab
 
@@ -53,7 +53,7 @@ Browse and manage your reusable **Materials Library** without leaving the wizard
 After saving, you can print a clean **worksheet** for the shop floor with the job's
 settings, ink, and materials.
 
-![Printable project worksheet](images/print-worksheet.png)
+<p align="center"><img src="images/print-worksheet.png" alt="Printable project worksheet" width="620"></p>
 
 **Note:** Prices come from your **Settings**. If your numbers look off, check ink
 costs, labor, and overhead there first.
