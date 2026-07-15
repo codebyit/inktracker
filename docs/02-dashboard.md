@@ -5,6 +5,12 @@ how much ink you have left, how your projects are doing, and where attention is 
 
 <p align="center"><img src="images/dashboard-overview.png" alt="Full dashboard overview" width="780"></p>
 
+<details><summary>📱 On mobile</summary>
+
+<p align="center"><img src="images/m/dashboard-overview-m.png" alt="Dashboard on mobile" width="300"></p>
+
+</details>
+
 ---
 
 ## What you'll see
@@ -18,10 +24,22 @@ Quick numbers that matter — totals like projects, revenue, and profit at a gla
 
 <p align="center"><img src="images/dashboard-kpi-cards.png" alt="Dashboard KPI cards" width="760"></p>
 
+<details><summary>📱 On mobile</summary>
+
+<p align="center"><img src="images/m/dashboard-kpi-cards-m.png" alt="Dashboard KPI cards on mobile" width="300"></p>
+
+</details>
+
 ### Cartridge health grid
 A color-coded grid of every ink cartridge so low tanks are easy to find.
 
 <p align="center"><img src="images/cartridge-health-grid.png" alt="Cartridge health grid" width="760"></p>
+
+<details><summary>📱 On mobile</summary>
+
+<p align="center"><img src="images/m/cartridge-health-grid-m.png" alt="Cartridge health grid on mobile" width="300"></p>
+
+</details>
 
 | Color | Meaning |
 |---|---|

@@ -19,7 +19,13 @@ areas.
 
 <p align="center"><img src="images/sidebar-nav.png" alt="InkTracker sidebar navigation" width="220"></p>
 
-<p align="center"><img src="images/mobile-bottom-nav.png" alt="Mobile navigation: hamburger and bottom tabs" width="300"></p>
+<details><summary>📱 On mobile</summary>
+
+<p align="center"><img src="images/m/sidebar-nav-m.png" alt="Slide-out menu on mobile" width="300"></p>
+
+</details>
+
+<p align="center"><img src="images/m/mobile-bottom-nav-m.png" alt="Mobile navigation: hamburger and bottom tabs" width="380"></p>
 
 | Menu item | What it's for |
 |---|---|
@@ -116,7 +122,7 @@ See the [Creating a Project](03-new-project-wizard.md) guide for the full walkth
 InkTracker can be installed like a regular app so it opens full-screen from your home
 screen and works offline.
 
-<p align="center"><img src="images/pwa-install.png" alt="Install InkTracker as an app" width="320"></p>
+<p align="center"><img src="images/m/dashboard-overview-m.png" alt="InkTracker running full-screen on a phone" width="300"></p>
 
 | Device | How to install |
 |---|---|
