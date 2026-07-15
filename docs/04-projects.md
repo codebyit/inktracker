@@ -24,6 +24,12 @@ tabs. **Click the status pill** to open the status picker, choose the new status
 
 <p align="center"><img src="images/project-status-modal.png" alt="Set project status" width="360"></p>
 
+<details><summary>📱 On mobile</summary>
+
+<p align="center"><img src="images/m/project-status-modal-m.png" alt="Set project status on mobile" width="300"></p>
+
+</details>
+
 There are six statuses:
 
 | Status | Where it lives | Meaning |
@@ -40,8 +46,6 @@ from the **Pipeline** tab to the **Completed** tab automatically.
 
 ## Common actions
 Open a project, then use the actions menu:
-
-<p align="center"><img src="images/project-actions-menu.png" alt="Project actions menu" width="360"></p>
 
 | Action | What it does |
 |---|---|

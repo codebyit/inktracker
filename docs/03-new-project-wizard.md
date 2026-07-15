@@ -53,7 +53,13 @@ Browse and manage your reusable **Materials Library** without leaving the wizard
 After saving, you can print a clean **worksheet** for the shop floor with the job's
 settings, ink, and materials.
 
-<p align="center"><img src="images/print-worksheet.png" alt="Printable project worksheet" width="620"></p>
+<p align="center"><img src="images/print-worksheet.png" alt="Printable project worksheet" width="700"></p>
+
+<details><summary>📱 On mobile</summary>
+
+<p align="center"><img src="images/m/print-worksheet-m.png" alt="Printable project worksheet on mobile" width="300"></p>
+
+</details>
 
 **Note:** Prices come from your **Settings**. If your numbers look off, check ink
 costs, labor, and overhead there first.
