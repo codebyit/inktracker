@@ -61,6 +61,12 @@ the database.
 
 <p align="center"><img src="images/settings-backup.png" alt="Backup and restore" width="700"></p>
 
+<details><summary>📱 On mobile</summary>
+
+<p align="center"><img src="images/m/settings-backup-m.png" alt="Backup and restore on mobile" width="300"></p>
+
+</details>
+
 **Note:** Reset and restore replace your data. Take a backup first.
 
 **Tip:** Update prices whenever ink or material costs change - new projects use the

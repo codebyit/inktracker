@@ -5,6 +5,12 @@ trends, see what's profitable, and plan ink purchases.
 
 <p align="center"><img src="images/analytics-overview.png" alt="Analytics overview" width="780"></p>
 
+<details><summary>📱 On mobile</summary>
+
+<p align="center"><img src="images/m/analytics-overview-m.png" alt="Analytics overview on mobile" width="300"></p>
+
+</details>
+
 ---
 
 ## What the charts show
