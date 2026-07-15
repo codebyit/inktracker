@@ -17,9 +17,9 @@ On a computer, the **left sidebar** is your main menu. On a phone, tap the
 **hamburger menu (☰)** at the top, or use the **bottom tab bar** for the most common
 areas.
 
-![InkTracker sidebar navigation](images/sidebar-nav.png)
+<p align="center"><img src="images/sidebar-nav.png" alt="InkTracker sidebar navigation" width="220"></p>
 
-![Mobile navigation: hamburger and bottom tabs](images/mobile-bottom-nav.png)
+<p align="center"><img src="images/mobile-bottom-nav.png" alt="Mobile navigation: hamburger and bottom tabs" width="300"></p>
 
 | Menu item | What it's for |
 |---|---|
@@ -38,7 +38,7 @@ The first time you open InkTracker on a fresh install, the **Dashboard** shows a
 wizard, which walks you through the essentials so your cost and profit numbers are
 accurate from day one.
 
-![Dashboard "Finish your setup" banner](images/setup-banner.png)
+<p align="center"><img src="images/setup-banner.png" alt="Dashboard &quot;Finish your setup&quot; banner" width="700"></p>
 
 The wizard has six quick steps with a progress bar along the top. You can go
 **Back** at any point, or **Skip (use defaults)** from the header.
@@ -49,14 +49,14 @@ Pick from **Euro (€)**, **British Pound (£)**, **US Dollar ($)**, **Canadian
 Dollar (CA$)**, or **Australian Dollar (A$)**. Your choice is shown on every price
 and cost breakdown.
 
-![Setup wizard step 1 — choose your currency](images/setup-01-currency.png)
+<p align="center"><img src="images/setup-01-currency.png" alt="Setup wizard step 1 — choose your currency" width="480"></p>
 
 ### Step 2 — Printer
 
 Choose your model to pre-fill machine and ink defaults. Cartridge size, tare
 weight, and ink price differ between printers, so this saves you typing.
 
-![Setup wizard step 2 — choose your printer](images/setup-02-printer.png)
+<p align="center"><img src="images/setup-02-printer.png" alt="Setup wizard step 2 — choose your printer" width="480"></p>
 
 > ⚠️ **Note:** The built-in defaults are for the **Eufymake E1** printer. If you use
 > a different printer, pick **Other / Custom** and enter your own cartridge capacity,
@@ -68,7 +68,7 @@ Enter your printer's purchase price, setup cost, lifespan, annual running hours,
 power draw, electricity rate, and maintenance budget. InkTracker uses these to spread
 the machine's cost across every job.
 
-![Setup wizard step 3 — machine costs](images/setup-03-machine.png)
+<p align="center"><img src="images/setup-03-machine.png" alt="Setup wizard step 3 — machine costs" width="520"></p>
 
 ### Step 4 — Ink
 
@@ -76,7 +76,7 @@ Set the price per cartridge (applied to all colour inks and Gloss), cartridge
 capacity, and the empty-cartridge (tare) weight used for weight-based ink
 estimates. Hover the **?** next to *tare* for a quick explanation.
 
-![Setup wizard step 4 — ink](images/setup-04-ink.png)
+<p align="center"><img src="images/setup-04-ink.png" alt="Setup wizard step 4 — ink" width="480"></p>
 
 ### Step 5 — Labour & margins *(optional)*
 
@@ -84,19 +84,19 @@ Tick **Configure these now** to set your hourly labour rate, overhead, and profi
 targets — or leave it unticked to keep the defaults. The **?** help icons explain
 overhead and the margin thresholds.
 
-![Setup wizard step 5 — labour and margins](images/setup-05-labour-margins.png)
+<p align="center"><img src="images/setup-05-labour-margins.png" alt="Setup wizard step 5 — labour and margins" width="480"></p>
 
 Hover or tap any **?** to see a plain-language explanation, for example the
 overhead help:
 
-![Floating help tooltip explaining overhead](images/setup-05b-overhead-tip.png)
+<p align="center"><img src="images/setup-05b-overhead-tip.png" alt="Floating help tooltip explaining overhead" width="420"></p>
 
 ### Step 6 — Review & finish
 
 Confirm your setup at a glance, then click **Finish setup**. You land back on the
 Dashboard, ready to price your first project.
 
-![Setup wizard step 6 — review and finish](images/setup-06-review.png)
+<p align="center"><img src="images/setup-06-review.png" alt="Setup wizard step 6 — review and finish" width="480"></p>
 
 💡 **Tip:** Prefer to skip the wizard? Click **Dismiss** on the banner and adjust
 everything directly in **Settings**. You can re-open the wizard anytime from
@@ -116,7 +116,7 @@ See the [Creating a Project](03-new-project-wizard.md) guide for the full walkth
 InkTracker can be installed like a regular app so it opens full-screen from your home
 screen and works offline.
 
-![Install InkTracker as an app](images/pwa-install.png)
+<p align="center"><img src="images/pwa-install.png" alt="Install InkTracker as an app" width="320"></p>
 
 | Device | How to install |
 |---|---|

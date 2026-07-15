@@ -3,7 +3,7 @@
 The **Projects** page lists every job you've created. From here you can find, open,
 edit, and organize your work.
 
-![Projects list with filters](images/projects-list.png)
+<p align="center"><img src="images/projects-list.png" alt="Projects list with filters" width="760"></p>
 
 ---
 
@@ -15,14 +15,14 @@ project to open its detail page.
 The project detail page shows the full **COGS breakdown**, materials, ink usage, and a
 **profitability summary** with its margin badge.
 
-![Project detail: COGS breakdown](images/project-detail-cogs.png)
+<p align="center"><img src="images/project-detail-cogs.png" alt="Project detail: COGS breakdown" width="760"></p>
 
 ## Change a project's status
 Every project has a **status** - shown as a coloured pill on the Pipeline and Completed
 tabs. **Click the status pill** to open the status picker, choose the new status, then
 **Save Status**.
 
-![Set project status](images/project-status-modal.png)
+<p align="center"><img src="images/project-status-modal.png" alt="Set project status" width="360"></p>
 
 There are six statuses:
 
@@ -41,7 +41,7 @@ from the **Pipeline** tab to the **Completed** tab automatically.
 ## Common actions
 Open a project, then use the actions menu:
 
-![Project actions menu](images/project-actions-menu.png)
+<p align="center"><img src="images/project-actions-menu.png" alt="Project actions menu" width="360"></p>
 
 | Action | What it does |
 |---|---|
