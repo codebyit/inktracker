@@ -4,7 +4,7 @@ The **Documentation** page is a handy place to keep links you reach for often â€
 supplier sheets, machine manuals, ink specs, or your own how-to notes. Everything lives
 in one tidy list.
 
-![Documentation links page](images/docs-links.png)
+<p align="center"><img src="images/docs-links.png" alt="Documentation links page" width="520"></p>
 
 ---
 
