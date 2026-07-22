@@ -1,5 +1,6 @@
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 import yaml
 from fastapi import APIRouter, Depends, Form, Request
@@ -11,6 +12,30 @@ from ..templates_config import templates
 from ..paths import DOCS_FILE as _DOCS_FILE
 
 router = APIRouter()
+
+# Only these URL schemes are allowed for documentation links. This blocks
+# `javascript:`, `data:`, `vbscript:` and similar payloads that would execute
+# when the link is clicked (the doc URL is rendered directly into an href).
+_ALLOWED_URL_SCHEMES = {"http", "https"}
+
+
+def _sanitize_url(raw: str) -> str:
+    """Return a safe http/https URL, or "" if the scheme is not allowed.
+
+    A bare, scheme-less host (e.g. ``example.com/page``) is upgraded to
+    ``https://`` for convenience; anything with a disallowed scheme
+    (``javascript:``, ``data:``, ...) is rejected.
+    """
+    url = (raw or "").strip()
+    if not url:
+        return ""
+    parsed = urlparse(url)
+    if not parsed.scheme:
+        # No scheme -> assume https for a plausible host-looking value.
+        return f"https://{url}" if "." in url.split("/")[0] else ""
+    if parsed.scheme.lower() in _ALLOWED_URL_SCHEMES:
+        return url
+    return ""
 
 
 def _normalize_document_date(raw: str) -> str:
@@ -35,6 +60,8 @@ def _load_docs() -> list[dict]:
         docs = [d for d in data if isinstance(d, dict)]
         for doc in docs:
             doc["document_date"] = _normalize_document_date(doc.get("document_date", ""))
+            # Defense in depth: neutralize any unsafe URL already on disk.
+            doc["url"] = _sanitize_url(doc.get("url", ""))
         return docs
     except Exception:
         return []
@@ -66,7 +93,7 @@ async def add_doc(
     docs = _load_docs()
     docs.append({
         "name":          name.strip(),
-        "url":           url.strip(),
+        "url":           _sanitize_url(url),
         "document_date": _normalize_document_date(document_date),
     })
     _save_docs(docs)
@@ -93,7 +120,7 @@ async def edit_doc(
     if 0 <= index < len(docs):
         docs[index] = {
             "name":          name.strip(),
-            "url":           url.strip(),
+            "url":           _sanitize_url(url),
             "document_date": _normalize_document_date(document_date),
         }
         _save_docs(docs)

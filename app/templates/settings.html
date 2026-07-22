@@ -199,6 +199,15 @@
     <div class="font-semibold text-slate-900 mb-1">Machine Setup</div>
     <div class="text-sm text-slate-500 mb-6">Printer depreciation, electricity, and maintenance costs</div>
     <form method="POST" action="/settings/machine">
+      <div class="mb-6">
+        <label class="block text-sm text-slate-600 mb-1.5">Printer Profile</label>
+        <select name="printer_profile" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-sky-500 bg-white">
+          {% for p in printer_presets %}
+          <option value="{{ p.slug }}" {% if features.printer_profile == p.slug %}selected{% endif %}>{{ p.label }}</option>
+          {% endfor %}
+        </select>
+        <div class="text-xs text-slate-500 mt-1">Determines printer-specific options such as available print qualities (eufyMake has no “Ultra”).</div>
+      </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
         {% set fields = [
           ('purchase_price',    'Purchase Price',                          'pp', currency, '0.01'),

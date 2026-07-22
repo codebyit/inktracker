@@ -73,6 +73,20 @@ INK_MODE_CHANNELS = {
 
 PRINT_QUALITIES = ["Draft", "Standard", "High", "Ultra"]
 
+# eufyMake Studio has no "Ultra" quality, so it must not be offered for that
+# printer profile. Other / custom printers keep the full list. Keyed by the
+# printer-profile slug stored on FeatureConfig.printer_profile.
+PROFILE_QUALITY_EXCLUSIONS = {
+    "eufymake_e1": {"Ultra"},
+}
+
+
+def qualities_for_profile(profile: str) -> list:
+    """Print quality options available for a given printer-profile slug."""
+    excluded = PROFILE_QUALITY_EXCLUSIONS.get(profile or "", set())
+    return [q for q in PRINT_QUALITIES if q not in excluded]
+
+
 PROJECT_TYPES = ["commercial", "gift", "sample", "internal"]
 PROJECT_TYPE_LABELS = {
     "commercial": "Commercial",
@@ -164,6 +178,10 @@ class FeatureConfig(Base):
     __tablename__ = "feature_config"
     id                  = Column(Integer, primary_key=True, default=1)
     multi_craft_enabled = Column(Boolean, default=True, nullable=False)
+    # Selected printer profile slug (see printer_presets.PRINTER_PRESETS). Drives
+    # per-profile options such as the available print-quality list. Defaults to
+    # the primary eufyMake profile; existing installs are backfilled by migration.
+    printer_profile     = Column(String(40), default="eufymake_e1", nullable=False)
     # First-run onboarding: False on a fresh database (shows the setup wizard
     # prompt); set True once the wizard is completed or dismissed. Existing
     # installs are backfilled to True by migration 0018 so they are never nagged.
@@ -197,6 +215,10 @@ class Project(Base):
     crafts_json         = Column(Text, default="[]")
     substrate           = Column(String(50), default="")
     white_choke_mm      = Column(Float, default=0.20)
+    # Whether the wizard's pre-prime ink overlay was enabled for this project.
+    # Display-only round-trip flag; does not affect stored COGS (server always
+    # computes ink_cost from the raw per-channel ink_usage).
+    include_preprime    = Column(Boolean, default=True)
     layer_stack_json    = Column(Text, default="[]")
     # Stored computed values
     ink_cost      = Column(Float, default=0.0)

@@ -14,12 +14,37 @@ see the [GitHub Releases](https://github.com/codebyit/inktracker/releases).
 
 ---
 
-## v0.15.0 — _Available now_
+## v0.16.0 — _Available now_
 
-The [v0.15.0 release](https://github.com/codebyit/inktracker/releases/tag/v0.15.0) is out. It
-combines the **Service / ink-tracking polish** with the **cartridge-lot expiry & maintenance**
-features (previously a Docker beta), generally available for the first time. It's additive and
-data-safe — existing databases upgrade in place.
+The [v0.16.0 release](https://github.com/codebyit/inktracker/releases/tag/v0.16.0) sharpens the
+project wizard, links your Bill of Materials to the Materials library, and hardens the web app.
+It's additive and data-safe — existing databases upgrade in place.
+
+**Project wizard fixes**
+- **Edit keeps what you saved.** A project saved with **white underbase choke = 0.00 mm** or
+  **Include Pre-Prime Ink = off** now re-opens in Edit with exactly those settings (previously
+  they silently reverted). The pre-prime choice is remembered per project.
+- **Legible in dark mode.** The "White Ink Type" labels (Standard / Flexible White) now read
+  clearly on the New Project screen in dark mode.
+
+**Bill of Materials ↔ Materials library**
+- BOM **Item Name autocompletes** from your Materials library and **prefills** unit cost, unit,
+  and category when you pick a known material.
+- Opt in to **save new BOM items to your library**, and library-linked items **track stock
+  consumption** for the project (reconciled when you edit). Free-text items still work.
+
+**Printer-aware quality list**
+- The **Quality** dropdown now matches your printer: **eufyMake** hides the non-existent
+  **"Ultra"** setting, while Other/Custom printers keep the full list. Set your printer under
+  **Settings → Machine → Printer Profile**.
+
+**Security hardening**
+- Safer rendering of wizard data (no HTML injection), **documentation links restricted to
+  http/https**, and the interactive API docs are **off by default** in production.
+
+---
+
+## v0.15.0 — _Available now_
 
 **Ink corrections, reimagined**
 - **"Set Current Ink Level"** — type each cartridge's actual remaining ml (fields start at

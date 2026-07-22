@@ -8,11 +8,22 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Stre
 from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import crud
-from ..models import INK_MODES, PRINT_QUALITIES, INK_CHANNELS, INK_CHANNEL_HEX
+from ..models import INK_MODES, INK_CHANNELS, INK_CHANNEL_HEX, qualities_for_profile
 from ..templates_config import templates
 from ..paths import UPLOADS_DIR as _UPLOAD_DIR
 
 router = APIRouter()
+
+
+def _edit_quality_options(db, current: str) -> list:
+    """Quality options for the edit form: the active profile's list, plus the
+    project's currently-saved value if it is no longer offered (e.g. a legacy
+    ``Ultra`` project, or after switching to the eufyMake profile) so the select
+    still shows the saved selection instead of silently changing it."""
+    quals = qualities_for_profile(crud.get_printer_profile(db))
+    if current and current not in quals:
+        quals = quals + [current]
+    return quals
 
 
 @router.get("/projects", response_class=HTMLResponse)
@@ -42,9 +53,13 @@ def project_new(request: Request, db: Session = Depends(get_db)):
     settings_json = crud.get_settings_json(db)
     return templates.TemplateResponse(request, "projects/wizard.html", {
         "ink_modes":       INK_MODES,
-        "print_qualities": PRINT_QUALITIES,
-        "settings_json":   json.dumps(settings_json),
+        "print_qualities": qualities_for_profile(crud.get_printer_profile(db)),
+        "settings_json":   settings_json,
         "INK_CHANNEL_HEX": INK_CHANNEL_HEX,
+        "material_library_json": [
+            {"name": m.name, "category": m.category, "unit": m.unit, "unit_cost": float(m.unit_cost or 0.0)}
+            for m in crud.get_material_items(db)
+        ],
         "active":          "/projects/new",
     })
 
@@ -72,10 +87,12 @@ async def project_create(
     craft_mode_params_json: str = Form("{}"),
     substrate:           str   = Form(""),
     white_choke_mm:      float = Form(0.20),
+    include_preprime:    bool  = Form(True),
     layer_stack_json:    str   = Form("[]"),
     crafts_json:         str   = Form("[]"),
     status:              str   = Form("Draft"),
     project_type:        str   = Form("commercial"),
+    bom_add_to_library:  bool  = Form(False),
 ):
     ink_usage = json.loads(ink_usage_json)
     bom_items = json.loads(bom_json)
@@ -106,10 +123,12 @@ async def project_create(
         print_bed=print_bed, alignment=alignment,
         craft_mode=craft_mode, craft_ink_mode=craft_ink_mode,
         craft_mode_params_json=craft_mode_params_json, substrate=substrate,
-        white_choke_mm=white_choke_mm, layer_stack_json=layer_stack_json,
+        white_choke_mm=white_choke_mm, include_preprime=include_preprime,
+        layer_stack_json=layer_stack_json,
         crafts_json=crafts_json,
         status=status,
         project_type=project_type,
+        bom_add_to_library=bom_add_to_library,
     )
     return RedirectResponse(f"/projects/{project.id}", status_code=303)
 
@@ -154,7 +173,8 @@ def project_edit_form(project_id: int, request: Request, db: Session = Depends(g
         "craft_mode_params_json": project.craft_mode_params_json or "{}",
         "crafts_json":         project.crafts_json or "[]",
         "substrate":           project.substrate or "",
-        "white_choke_mm":      project.white_choke_mm or 0.20,
+        "white_choke_mm":      project.white_choke_mm if project.white_choke_mm is not None else 0.20,
+        "include_preprime":    bool(project.include_preprime),
         "layer_stack_json":    project.layer_stack_json or "[]",
         "ink_usage":           ink_usage,
         "bom_items":           bom_items,
@@ -164,11 +184,15 @@ def project_edit_form(project_id: int, request: Request, db: Session = Depends(g
     }
     return templates.TemplateResponse(request, "projects/wizard.html", {
         "ink_modes":       INK_MODES,
-        "print_qualities": PRINT_QUALITIES,
-        "settings_json":   json.dumps(settings_json),
+        "print_qualities": _edit_quality_options(db, project.print_quality),
+        "settings_json":   settings_json,
         "INK_CHANNEL_HEX": INK_CHANNEL_HEX,
+        "material_library_json": [
+            {"name": m.name, "category": m.category, "unit": m.unit, "unit_cost": float(m.unit_cost or 0.0)}
+            for m in crud.get_material_items(db)
+        ],
         "active":          "/projects",
-        "project_json":    json.dumps(project_data),
+        "project_json":    project_data,
         "edit_id":         project.id,
     })
 
@@ -197,10 +221,12 @@ async def project_update(
     craft_mode_params_json: str = Form("{}"),
     substrate:           str   = Form(""),
     white_choke_mm:      float = Form(0.20),
+    include_preprime:    bool  = Form(True),
     layer_stack_json:    str   = Form("[]"),
     crafts_json:         str   = Form("[]"),
     status:              str   = Form("Draft"),
     project_type:        str   = Form("commercial"),
+    bom_add_to_library:  bool  = Form(False),
 ):
     ink_usage = json.loads(ink_usage_json)
     bom_items = json.loads(bom_json)
@@ -230,10 +256,12 @@ async def project_update(
         print_bed=print_bed, alignment=alignment,
         craft_mode=craft_mode, craft_ink_mode=craft_ink_mode,
         craft_mode_params_json=craft_mode_params_json, substrate=substrate,
-        white_choke_mm=white_choke_mm, layer_stack_json=layer_stack_json,
+        white_choke_mm=white_choke_mm, include_preprime=include_preprime,
+        layer_stack_json=layer_stack_json,
         crafts_json=crafts_json,
         status=status,
         project_type=project_type,
+        bom_add_to_library=bom_add_to_library,
     )
     return RedirectResponse(f"/projects/{project_id}", status_code=303)
 

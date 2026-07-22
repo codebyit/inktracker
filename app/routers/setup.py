@@ -156,6 +156,11 @@ async def setup_save(request: Request, db: Session = Depends(get_db)):
         )
 
     crud.mark_setup_completed(db)
+    # Persist the chosen printer profile so per-profile wizard options (e.g. the
+    # print-quality list) can scope to the user's printer.
+    crud.update_feature_config(
+        db, printer_profile=str(form.get("printer_profile", DEFAULT_PRESET))
+    )
     templates.env.globals["currency"] = currency_symbol
     invalidate_dashboard_analytics_cache()
     return RedirectResponse("/?welcome=1", status_code=303)
