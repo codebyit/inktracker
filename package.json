@@ -10,7 +10,7 @@
     "version:check": "node scripts/sync-version.mjs --check"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.3.2",
+    "@tailwindcss/cli": "^4.3.3",
     "jsqr": "^1.4.0",
     "tailwindcss": "^4.3.1"
   }
