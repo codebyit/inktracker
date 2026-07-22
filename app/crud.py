@@ -245,15 +245,28 @@ def get_feature_config(db: Session) -> models.FeatureConfig:
     return cfg
 
 
-def update_feature_config(db: Session, *, multi_craft_enabled: bool) -> None:
+def update_feature_config(
+    db: Session,
+    *,
+    multi_craft_enabled: bool | None = None,
+    printer_profile: str | None = None,
+) -> None:
     cfg = get_feature_config(db)
-    cfg.multi_craft_enabled = bool(multi_craft_enabled)
+    if multi_craft_enabled is not None:
+        cfg.multi_craft_enabled = bool(multi_craft_enabled)
+    if printer_profile is not None:
+        cfg.printer_profile = printer_profile
     db.commit()
 
 
 def is_setup_completed(db: Session) -> bool:
     """True once the first-run setup wizard has been completed or dismissed."""
     return bool(get_feature_config(db).setup_completed)
+
+
+def get_printer_profile(db: Session) -> str:
+    """Selected printer-profile slug (drives per-profile wizard options)."""
+    return get_feature_config(db).printer_profile or "eufymake_e1"
 
 
 def mark_setup_completed(db: Session) -> None:
@@ -456,10 +469,12 @@ def create_project(
     craft_mode_params_json: str = "{}",
     substrate: str = "",
     white_choke_mm: float = 0.20,
+    include_preprime: bool = True,
     layer_stack_json: str = "[]",
     crafts_json: str = "[]",
     status: str = "Draft",
     project_type: str = "commercial",
+    bom_add_to_library: bool = False,
 ) -> models.Project:
     substrate_normalized = (substrate or "").strip()
     crafts, ink_usage, _legacy, crafts_store = _resolve_project_crafts(
@@ -515,7 +530,8 @@ def create_project(
         print_bed=print_bed, alignment=alignment,
         craft_mode=craft_mode, craft_ink_mode=craft_ink_mode,
         craft_mode_params_json=craft_mode_params_json, substrate=substrate_normalized,
-        white_choke_mm=white_choke_mm, layer_stack_json=layer_stack_json,
+        white_choke_mm=white_choke_mm, include_preprime=include_preprime,
+        layer_stack_json=layer_stack_json,
         crafts_json=crafts_store,
         ink_cost=cogs["ink_cost"],      bom_cost=cogs["bom_cost"],
         machine_cost=cogs["machine_cost"], labor_cost=cogs["labor_cost"],
@@ -549,12 +565,27 @@ def create_project(
                 total_cost=round(qty * cost, 4),
             ))
 
+    if bom_add_to_library:
+        _add_bom_items_to_library(db, bom_items)
+
     _sync_project_substrate_inventory(
         db,
         project=project,
         old_substrate="",
         old_units=0,
         notes=f"Auto-consumed from project #{project.id}: {project.name}",
+    )
+
+    _sync_project_bom_inventory(
+        db,
+        project=project,
+        old_map={},
+        new_map=_bom_library_consumption(
+            db,
+            [(i.get("name"), i.get("quantity", 1)) for i in bom_items],
+            substrate_normalized,
+        ),
+        notes=f"BOM auto-consumed from project #{project.id}: {project.name}",
     )
 
     db.commit()
@@ -585,10 +616,12 @@ def update_project(
     craft_mode_params_json: str = "{}",
     substrate: str = "",
     white_choke_mm: float = 0.20,
+    include_preprime: bool = True,
     layer_stack_json: str = "[]",
     crafts_json: str = "[]",
     status: str = None,
     project_type: str = None,
+    bom_add_to_library: bool = False,
 ) -> models.Project | None:
     project = get_project(db, project_id)
     if not project:
@@ -597,6 +630,13 @@ def update_project(
     old_substrate = (project.substrate or "").strip()
     old_units = int(project.units or 0)
     new_substrate = (substrate or "").strip()
+    # Snapshot library-linked BOM consumption BEFORE the BOM rows are replaced,
+    # so the inventory sync can reconcile the delta.
+    old_bom_map = _bom_library_consumption(
+        db,
+        [(b.name, b.quantity) for b in project.bom_items],
+        old_substrate,
+    )
 
     crafts, ink_usage, _legacy, crafts_store = _resolve_project_crafts(
         crafts_json=crafts_json,
@@ -659,6 +699,7 @@ def update_project(
     project.crafts_json         = crafts_store
     project.substrate           = new_substrate
     project.white_choke_mm      = white_choke_mm
+    project.include_preprime    = include_preprime
     project.layer_stack_json    = layer_stack_json
     if photo_path is not None:
         project.photo_path = photo_path
@@ -704,12 +745,27 @@ def update_project(
                 total_cost=round(qty * cost, 4),
             ))
 
+    if bom_add_to_library:
+        _add_bom_items_to_library(db, bom_items)
+
     _sync_project_substrate_inventory(
         db,
         project=project,
         old_substrate=old_substrate,
         old_units=old_units,
         notes=f"Auto-adjusted from project update #{project.id}: {project.name}",
+    )
+
+    _sync_project_bom_inventory(
+        db,
+        project=project,
+        old_map=old_bom_map,
+        new_map=_bom_library_consumption(
+            db,
+            [(i.get("name"), i.get("quantity", 1)) for i in bom_items],
+            new_substrate,
+        ),
+        notes=f"BOM auto-adjusted from project update #{project.id}: {project.name}",
     )
 
     db.commit()
@@ -1454,6 +1510,78 @@ def _sync_project_substrate_inventory(
                 material_item_id=item_id,
                 movement_type="out",
                 quantity=abs(delta),
+                project_id=project.id,
+                notes=notes,
+            )
+        elif delta < 0:
+            create_material_inventory_movement(
+                db,
+                material_item_id=item_id,
+                movement_type="in",
+                quantity=abs(delta),
+                project_id=project.id,
+                notes=f"Inventory rollback from project change #{project.id}: {project.name}",
+            )
+
+
+def _add_bom_items_to_library(db: Session, bom_items: list) -> None:
+    """Create Materials-library entries for BOM item names not already present.
+
+    Opt-in (the wizard 'Save new items to Materials library' toggle). Added
+    inline (flush, no commit) so it stays inside the project's transaction.
+    Matching is case-insensitive; duplicate names within the same submission
+    (including case variants) are collapsed to a single new library entry.
+    """
+    seen: set[str] = set()
+    for item in bom_items:
+        name = (item.get("name") or "").strip()
+        key = name.lower()
+        if not name or key in seen or get_material_item_by_name(db, name):
+            continue
+        seen.add(key)
+        db.add(models.MaterialItem(
+            name=name,
+            category=(item.get("category") or "Other").strip() or "Other",
+            unit_cost=float(item.get("unit_cost", 0) or 0.0),
+            unit=(item.get("unit") or "pcs").strip() or "pcs",
+        ))
+    db.flush()
+
+
+def _bom_library_consumption(db: Session, items: list, exclude_name: str) -> dict:
+    """Map ``{material_item_id: total_qty}`` for BOM items whose name matches a
+    Materials-library entry, excluding the project's substrate (tracked
+    separately by ``_sync_project_substrate_inventory`` to avoid double-counting).
+    ``items`` is a list of ``(name, quantity)`` pairs."""
+    excl = (exclude_name or "").strip().lower()
+    agg: dict[int, float] = {}
+    for name, qty in items:
+        nm = (name or "").strip()
+        if not nm or nm.lower() == excl:
+            continue
+        q = float(qty or 0.0)
+        if q <= 0:
+            continue
+        mi = get_material_item_by_name(db, nm)
+        if mi:
+            agg[mi.id] = agg.get(mi.id, 0.0) + q
+    return agg
+
+
+def _sync_project_bom_inventory(
+    db: Session, *, project: models.Project, old_map: dict, new_map: dict, notes: str
+) -> None:
+    """Reconcile Materials-library stock for library-linked BOM items, mirroring
+    the substrate sync: apply the per-item delta between the previously-consumed
+    and now-consumed quantities as ``out`` (more) / ``in`` (rollback) movements."""
+    for item_id in set(old_map) | set(new_map):
+        delta = new_map.get(item_id, 0.0) - old_map.get(item_id, 0.0)
+        if delta > 0:
+            create_material_inventory_movement(
+                db,
+                material_item_id=item_id,
+                movement_type="out",
+                quantity=delta,
                 project_id=project.id,
                 notes=notes,
             )

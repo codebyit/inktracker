@@ -6,7 +6,7 @@ from ..database import get_db, DB_INFO, _DB_PATH
 from ..cache import invalidate_dashboard_analytics_cache
 from .. import crud
 from ..models import INK_CHANNELS, INK_CHANNEL_NAMES
-from ..printer_presets import CURRENCIES
+from ..printer_presets import CURRENCIES, PRINTER_PRESETS
 from ..cogs import machine_cost_per_hour, machine_cost_breakdown
 from ..security import require_admin
 from ..templates_config import templates
@@ -44,6 +44,7 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
         "ink_channels":      INK_CHANNELS,
         "ink_channel_names": INK_CHANNEL_NAMES,
         "currencies":        CURRENCIES,
+        "printer_presets":   [{"slug": s, "label": p["label"]} for s, p in PRINTER_PRESETS.items()],
         "stats":             stats,
         "active":            "/settings",
         "tab":               request.query_params.get("tab", "ink"),
@@ -110,6 +111,7 @@ def save_machine(
     power_watts:        float = Form(...),
     electricity_rate:   float = Form(...),
     annual_maintenance: float = Form(...),
+    printer_profile:    str   = Form("eufymake_e1"),
     db: Session = Depends(get_db),
 ):
     crud.update_machine_config(
@@ -122,6 +124,8 @@ def save_machine(
         electricity_rate=electricity_rate,
         annual_maintenance=annual_maintenance,
     )
+    if printer_profile in PRINTER_PRESETS:
+        crud.update_feature_config(db, printer_profile=printer_profile)
     return RedirectResponse("/settings?tab=machine&saved=1", status_code=303)
 
 

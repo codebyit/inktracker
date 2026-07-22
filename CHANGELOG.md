@@ -8,6 +8,53 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.16.0] — 2026-07-22
+
+Project-wizard fixes, a Materials-library ↔ BOM link, and web-app security hardening.
+Additive; two additive migrations (`0024`, `0025`), no destructive changes.
+
+### Added
+
+- **BOM ↔ Materials library.** In the New/Edit Project wizard, the Bill-of-Materials
+  **Item Name** now autocompletes from your Materials library and prefills unit cost, unit,
+  and category on a match. An opt-in **"Save new items to my Materials library"** toggle
+  creates library entries for new names, and library-linked BOM items record inventory
+  consumption (reconciled on edit), mirroring the existing substrate sync. Free-text entry
+  still works. (Fixes #116)
+- **Per-printer-profile print qualities.** The selected printer profile is now persisted, and
+  the New Project **Quality** list is scoped to it — **eufyMake** no longer offers the
+  non-existent **"Ultra"** quality, while Other/Custom printers keep it. A **Printer Profile**
+  selector was added to Settings → Machine. (Fixes #115)
+
+### Fixed
+
+- **Edit Project no longer discards saved ink toggles.** A project saved with **white
+  underbase choke = 0.00 mm** or **Include Pre-Prime Ink = off** now round-trips correctly
+  through the Edit form (previously the choke reset to 0.20 mm and pre-prime re-enabled). The
+  pre-prime choice is now persisted per project (display-only; stored COGS is unchanged).
+  (Fixes #113)
+- **Dark-mode contrast.** The "White Ink Type" radio labels (Standard/Flexible White) are now
+  legible on the New Project wizard in dark mode. (Fixes #114)
+
+### Security
+
+- **Wizard JSON is now HTML-safe.** The embedded project/settings/material JSON blobs use
+  Jinja `tojson` instead of `json.dumps | safe`, so a crafted project field can no longer
+  break out of the `<script>` block (stored/self-XSS).
+- **Documentation link URLs are scheme-allowlisted** to `http`/`https` (rejecting
+  `javascript:`/`data:`/`vbscript:`) on add, edit, and load.
+- **Interactive API docs disabled by default** — `/docs`, `/redoc`, and `/openapi.json` are
+  off unless `ENABLE_API_DOCS` is set (local development).
+
+### Internal
+
+- Added a regression test suite (`tests/`) plus a **Tests** CI workflow (pytest + a real
+  PostgreSQL `alembic upgrade head` idempotency smoke test).
+
+Ported from internal source (PedroLageTavares/inventario, commit `c6cc94b`, post-v0.13.0 batch).
+
+---
+
 ## [0.15.0] — 2026-07-14
 
 A focused polish of the **Service** and ink-tracking experience. Additive and data-safe;

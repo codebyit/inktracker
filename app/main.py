@@ -91,7 +91,19 @@ ensure_data_dirs()
 
 from .branding import APP_NAME, APP_OWNER, APP_TITLE
 
-app = FastAPI(title=APP_NAME, description=f"UV Print Cost Tracker{f' — {APP_OWNER}' if APP_OWNER else ''}")
+# The interactive API docs (/docs, /redoc) and the OpenAPI schema
+# (/openapi.json) are disabled by default so a production deployment does not
+# expose its full route/schema surface. Set ENABLE_API_DOCS=true (e.g. for
+# local development) to turn them back on.
+_API_DOCS_ENABLED = (os.environ.get("ENABLE_API_DOCS") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+app = FastAPI(
+    title=APP_NAME,
+    description=f"UV Print Cost Tracker{f' — {APP_OWNER}' if APP_OWNER else ''}",
+    docs_url="/docs" if _API_DOCS_ENABLED else None,
+    redoc_url="/redoc" if _API_DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if _API_DOCS_ENABLED else None,
+)
 
 app.add_middleware(SecurityHeadersMiddleware)
 

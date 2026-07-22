@@ -41,10 +41,11 @@ input[type="range"]::-moz-range-thumb {
   border: 0;
 }
 </style>
-<script id="wizard-settings-json" type="application/json">{{ settings_json | safe }}</script>
-<script id="wizard-ink-hex-json" type="application/json">{{ INK_CHANNEL_HEX | tojson | safe }}</script>
+<script id="wizard-settings-json" type="application/json">{{ settings_json | tojson }}</script>
+<script id="wizard-ink-hex-json" type="application/json">{{ INK_CHANNEL_HEX | tojson }}</script>
+<script id="wizard-material-library-json" type="application/json">{{ (material_library_json or []) | tojson }}</script>
 {% if edit_id %}
-<script id="wizard-project-json" type="application/json">{{ project_json | safe }}</script>
+<script id="wizard-project-json" type="application/json">{{ project_json | tojson }}</script>
 {% endif %}
 <script>
 function parseEmbeddedJson(id, fallback = {}) {
@@ -61,9 +62,14 @@ function wizardData() {
   const cfg = parseEmbeddedJson('wizard-settings-json', {});
   const inkHex = parseEmbeddedJson('wizard-ink-hex-json', {});
   const editProject = parseEmbeddedJson('wizard-project-json', null);
+  const materialLibrary = parseEmbeddedJson('wizard-material-library-json', []);
   return {
     tab: 'editor',
     step: 1,
+
+    // Materials library (from Inventory) for BOM autocomplete + prefill.
+    materialLibrary: Array.isArray(materialLibrary) ? materialLibrary : [],
+    bomAddToLibrary: false,
 
     // Step 1 – Print Settings
     printBed: 'Standard',
@@ -338,6 +344,17 @@ function wizardData() {
     },
     addBom() { this.bomItems.push({name:'',qty:1,unit:'pcs',unitCost:0,category:'Other'}); },
     rmBom(i) { this.bomItems.splice(i,1); },
+    // When a BOM item name matches a library material, prefill its unit cost,
+    // unit and category from the library (Materials list -> BOM).
+    onBomName(item) {
+      const needle = (item.name||'').trim().toLowerCase();
+      if (!needle) return;
+      const m = this.materialLibrary.find(x => (x.name||'').trim().toLowerCase() === needle);
+      if (!m) return;
+      item.unitCost = m.unit_cost;
+      item.unit     = m.unit || item.unit;
+      if (m.category) item.category = m.category;
+    },
     fmt(v)   { return parseFloat(v||0).toFixed(2); },
     go(n)    { this.step=n; window.scrollTo(0,0); },
 
@@ -427,6 +444,8 @@ function wizardData() {
       document.getElementById('f_craft_mode_params_json').value = this.selectedCraftModeParamsJson;
       document.getElementById('f_substrate').value   = this.substrate;
       document.getElementById('f_white_choke').value = this.whiteChoke;
+      document.getElementById('f_include_preprime').value = this.includePreprime ? 'true' : 'false';
+      document.getElementById('f_bom_add_to_library').value = this.bomAddToLibrary ? 'true' : 'false';
       document.getElementById('f_layer_stack').value = JSON.stringify(this.layerStack);
       document.getElementById('f_crafts_json').value = this.buildCraftsJson();
       document.getElementById('wizard-form').submit();
@@ -544,7 +563,8 @@ ${bomRows}
         } catch (_) {}
       }
       this.substrate         = proj.substrate || '';
-      this.whiteChoke        = proj.white_choke_mm || 0.20;
+      this.whiteChoke        = (proj.white_choke_mm != null) ? proj.white_choke_mm : 0.20;
+      this.includePreprime   = proj.include_preprime !== false;
       this.printQuality      = proj.print_quality || 'Standard';
       this.setInkMode(proj.ink_mode || 'CMYK');
       try { const ls = JSON.parse(proj.layer_stack_json || '[]'); if (ls.length) this.layerStack = ls; } catch(e) {}
@@ -1037,6 +1057,8 @@ ${bomRows}
       <input type="hidden" name="craft_mode_params_json" id="f_craft_mode_params_json"/>
       <input type="hidden" name="substrate"         id="f_substrate"/>
       <input type="hidden" name="white_choke_mm"    id="f_white_choke"/>
+      <input type="hidden" name="include_preprime"  id="f_include_preprime"/>
+      <input type="hidden" name="bom_add_to_library" id="f_bom_add_to_library"/>
       <input type="hidden" name="layer_stack_json"  id="f_layer_stack"/>
       <input type="hidden" name="crafts_json"       id="f_crafts_json"/>
       <input type="file" name="photo" id="photo-input"
@@ -1532,8 +1554,8 @@ ${bomRows}
             <div x-show="hasWhiteChannel" class="border border-blue-200 bg-blue-50 rounded-lg p-3 mb-3">
               <div class="text-sm font-medium text-blue-800 mb-2">White Ink Type</div>
               <div class="flex gap-5">
-                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" x-model="whiteLoaded" value="W" class="accent-teal-600"/><span class="text-sm">Standard White</span></label>
-                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" x-model="whiteLoaded" value="FW" class="accent-teal-600"/><span class="text-sm">Flexible White</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" x-model="whiteLoaded" value="W" class="accent-teal-600"/><span class="text-sm text-blue-800">Standard White</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" x-model="whiteLoaded" value="FW" class="accent-teal-600"/><span class="text-sm text-blue-800">Flexible White</span></label>
               </div>
               <p class="text-xs text-blue-600 mt-1.5">Only one white ink type per print</p>
             </div>
@@ -1584,6 +1606,7 @@ ${bomRows}
             <template x-for="(item, i) in bomItems" :key="i">
               <div class="grid grid-cols-12 gap-2 items-center">
                 <input type="text" x-model="item.name" placeholder="Item name"
+                       list="material-library-list" @change="onBomName(item)" @blur="onBomName(item)"
                        class="col-span-4 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500"/>
                 <select x-model="item.category" class="col-span-3 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-white">
                   <template x-for="cat in ['Substrate','Packaging','Finishing','Consumable','Other']" :key="cat">
@@ -1602,6 +1625,15 @@ ${bomRows}
                   class="w-full border-2 border-dashed border-slate-300 text-slate-500 hover:border-teal-400 hover:text-teal-600 rounded-lg py-2.5 text-sm font-medium transition-colors">
             + Add Material
           </button>
+          <datalist id="material-library-list">
+            <template x-for="m in materialLibrary" :key="m.name">
+              <option :value="m.name"></option>
+            </template>
+          </datalist>
+          <label class="mt-3 flex items-start gap-2 text-xs text-slate-500 cursor-pointer">
+            <input type="checkbox" x-model="bomAddToLibrary" class="mt-0.5 accent-teal-600"/>
+            <span>Save new items to my Materials library (so they appear here next time and their stock is tracked when this project consumes them).</span>
+          </label>
           <div class="mt-3 flex justify-between items-center text-sm border-t border-slate-100 pt-3">
             <span class="text-slate-500">BOM Total</span>
             <span class="font-semibold text-slate-900">{{ currency }}<span x-text="fmt(bomTotal)"></span></span>
