@@ -9,7 +9,7 @@
 # without REDIS_URL). Keep versions in lockstep with requirements.txt.
 fastapi>=0.141.1,<0.142.0
 starlette>=1.5.0
-uvicorn[standard]==0.51.0
+uvicorn[standard]==0.52.1
 sqlalchemy==2.0.51
 jinja2>=3.1.6
 python-multipart>=0.0.32
