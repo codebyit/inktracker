@@ -7,7 +7,7 @@ python-multipart>=0.0.32
 aiofiles==25.1.0
 psycopg[binary]>=3.3.4
 python-dotenv>=1.2.2
-alembic>=1.18.5
+alembic>=1.19.0
 redis>=8.1.0
 pyyaml>=6.0.3
 reportlab>=5.0.0
