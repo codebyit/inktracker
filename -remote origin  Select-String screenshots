@@ -1,0 +1,40 @@
+  backup/pre-fresh-start                 [m 1d12925 docs: clarify .env step + untrack build artifacts (#40)
+  chore/public-defaults                  [m 75d7d4a [[34morigin/chore/public-defaults[m: gone] chore: default APP_NAME=InkTracker and MULTI_CRAFT_ENABLED=true
+  chore/release-0.13.1                   [m eabf7fa [[34morigin/chore/release-0.13.1[m: gone] chore(release): 0.13.1 (suppress Store update banner)
+  chore/track-jsqr-vendor                [m 118c0ed [[34morigin/chore/track-jsqr-vendor[m: gone] chore: track static/vendor/jsqr.js like the other vendored assets
+  ci/docker-only-beta-channel            [m a3331a8 [[34morigin/ci/docker-only-beta-channel[m] ci: Docker-only beta channel for prerelease tags
+  ci/version-guard-prerelease-aware      [m 656e519 [[34morigin/ci/version-guard-prerelease-aware[m] ci: make Version Guard prerelease-aware
+  docs/kofi-and-ink-setup                [m f3b8bd6 [[34morigin/docs/kofi-and-ink-setup[m: gone] docs: add Ko-fi support link and document per-channel ink density + cartridge tare
+  docs/pages-fix-duplicate-title         [m e954f2d [[34morigin/docs/pages-fix-duplicate-title[m] docs(pages): drop duplicate H1 on landing page
+  docs/pages-landing-and-exclude-internal[m 39b5523 [[34morigin/docs/pages-landing-and-exclude-internal[m] docs(pages): add landing page; exclude internal process docs from Pages
+  docs/privacy-policy                    [m 3b13a85 [[34morigin/docs/privacy-policy[m: gone] docs: add privacy policy page and Jekyll config for GitHub Pages
+  docs/real-screenshots                  [m 79df78e [[34morigin/docs/real-screenshots[m: gone] docs: use real screenshots for status modal and features card
+  docs/release-hotfix-process            [m 6f16f00 [[34morigin/docs/release-hotfix-process[m: gone] docs: document hotfix fast-track and Store update timing/rollout
+  docs/release-plan-tagging-path         [m e07c69c [[34morigin/docs/release-plan-tagging-path[m] docs(release): record plain-annotated-tag path when VERSION/CHANGELOG already bumped
+  docs/remove-desktop-warning            [m b085105 [[34morigin/docs/remove-desktop-warning[m: gone] docs: remove Windows desktop download warning (fixed in v0.12.0)
+  docs/setup-wizard-screenshots          [m a7224cb [[34morigin/docs/setup-wizard-screenshots[m: gone] docs: add step-by-step setup wizard screenshots to getting started
+  docs/signing-eligibility-note          [m bc9a21d [[34morigin/docs/signing-eligibility-note[m: gone] docs(build): note Azure Artifact Signing rename + EU-individual Public Trust ineligibility
+  docs/signing-status                    [m f891a30 [[34morigin/docs/signing-status[m: gone] docs: reflect that builds are unsigned (SignPath declined)
+  docs/store-data-location               [m 078683c [[34morigin/docs/store-data-location[m: gone] docs(build): document Microsoft Store MSIX data-redirect path in section 6
+  docs/store-live                        [m 91f87b7 [[34morigin/docs/store-live[m: gone] docs: InkTrack is live on the Microsoft Store
+  docs/update-instructions               [m 766e13a [[34morigin/docs/update-instructions[m: gone] docs: add update-to-latest container instructions
+  docs/whats-new-v0.15.0                 [m 7c0ed4d [[34morigin/docs/whats-new-v0.15.0[m] docs(whats-new): add v0.15.0 coming-soon section
+  docs/windows-desktop-unavailable-notice[m 00e967f [[34morigin/docs/windows-desktop-unavailable-notice[m: gone] docs: mark Windows desktop download temporarily unavailable
+  feat/ink-density                       [m 28b1d93 [[34morigin/feat/ink-density[m: gone] feat(ink): configurable per-channel density + cartridge tare
+  feat/multi-craft-setting               [m 7284f93 [[34morigin/feat/multi-craft-setting[m: behind 6] fix(projects): status pill modal opens (pass name via data-* not tojson)
+  feat/setup-wizard                      [m a1731b1 [[34morigin/feat/setup-wizard[m: gone] feat(setup): add floating help tooltips (overhead, margin thresholds, tare)
+  feat/windows-desktop                   [m 58cee70 [[34morigin/feat/windows-desktop[m: gone] feat(desktop): SignPath signing + MSIX packaging; portable = ZIP of onedir
+  fix/desktop-windowed-stdio-launch      [m 99c4884 [[34morigin/fix/desktop-windowed-stdio-launch[m: gone] fix(desktop): guarantee writable stdio so windowed build launches (v0.11.2)
+  fix/ink-cost-input-width               [m 9ac8446 [[34morigin/fix/ink-cost-input-width[m: gone] fix(settings): widen ink cost/density inputs so CA$ values dont clip
+  fix/msix-displayname-reserved-name     [m 2c22b83 [[34morigin/fix/msix-displayname-reserved-name[m: gone] fix(msix): set package DisplayName to reserved name Inktrack
+  fix/msix-manifest-entrypoint           [m cbd876f [[34morigin/fix/msix-manifest-entrypoint[m: gone] fix(msix): use EntryPoint=Windows.FullTrustApplication; allow msix on dispatch
+  fix/portable-zip-extract-first         [m b9fadde [[34morigin/fix/portable-zip-extract-first[m: gone] fix(desktop): portable zip must be extracted before running
+  fix/preprime-overflow                  [m 256785a [[34morigin/fix/preprime-overflow[m: gone] fix(settings): prevent pre-prime input overflow (min-w-0 in flex cell)
+  fix/static-cache-busting               [m a2d006c [[34morigin/fix/static-cache-busting[m: gone] update version to 0.9.2
+  fix/suppress-update-banner-msix        [m 5c7f117 [[34morigin/fix/suppress-update-banner-msix[m: gone] fix(desktop): suppress GitHub update banner for Microsoft Store installs
+* [32mmain                                   [m 1979bc2 [[34morigin/main[m: behind 2] fix(service): hardware-event x-model key breaks Alpine (pre-existing) (#105)
+  release/v0.10.0                        [m b1f9d6c [[34morigin/release/v0.10.0[m: gone] release: v0.10.0 (configurable ink density + cartridge tare)
+  release/v0.11.0                        [m a6aef0a [[34morigin/release/v0.11.0[m: gone] chore(release): v0.11.0
+  release/v0.11.1                        [m 8586bde [[34morigin/release/v0.11.1[m: gone] chore(release): v0.11.1
+  release/v0.9.1                         [m bcee106 [[34morigin/release/v0.9.1[m: gone] release: v0.9.1 (pre-prime inputs overflow fix)
+  release/v0.9.2-fix                     [m 8cf250f [[34morigin/release/v0.9.2-fix[m: gone] release: v0.9.2 (bump VERSION to match the v0.9.2 tag/release)
