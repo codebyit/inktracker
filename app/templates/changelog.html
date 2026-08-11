@@ -7,6 +7,61 @@
 {% block content %}
 <div class="max-w-3xl mx-auto">
   <div class="space-y-8">
+    <!-- v0.16.0 -->
+    <div class="border-l-4 border-sky-600 pl-6 py-4">
+      <h2 class="text-2xl font-bold text-slate-900 mb-2">
+        v0.16.0 - Materials Library, Printer Profiles &amp; Project Fixes
+      </h2>
+      <p class="text-sm text-slate-500 mb-4">Released 2026-08-07</p>
+
+      <div class="space-y-4">
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">New Features</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li><strong>Materials library and BOM integration</strong> - Autocomplete materials in project bills of materials, prefill cost and unit details, optionally save new materials, and track linked-material consumption.</li>
+            <li><strong>Printer-profile quality options</strong> - Quality choices now match the selected printer profile; eufyMake no longer offers the unsupported Ultra option.</li>
+            <li>Added a Printer Profile selector under Settings &gt; Machine.</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Fixes</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li>Edit Project now preserves a 0.00 mm white underbase choke and the Include Pre-Prime Ink setting.</li>
+            <li>Improved dark-mode contrast for White Ink Type labels in the New Project wizard.</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Security</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li>Hardened embedded wizard data and documentation links.</li>
+            <li>Interactive API documentation is disabled by default.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- v0.15.0 -->
+    <div class="border-l-4 border-sky-500 pl-6 py-4">
+      <h2 class="text-2xl font-bold text-slate-900 mb-2">
+        v0.15.0 - Clearer Ink Corrections &amp; Maintenance Workflow
+      </h2>
+      <p class="text-sm text-slate-500 mb-4">Released 2026-07-14</p>
+
+      <div class="space-y-4">
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Improvements</h3>
+          <ul class="list-disc list-inside text-slate-700 space-y-1">
+            <li>Set current ink levels directly instead of calculating +/- corrections manually.</li>
+            <li>Service Action Log entries now support per-channel breakdowns and undo.</li>
+            <li>Cleaning and moisturizing liquid are shown as one UV Cleaning Cartridge.</li>
+            <li>Improved ink-level bounds, correction feedback, and maintenance-log reliability.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <!-- v0.9.0 -->
     <div class="border-l-4 border-sky-600 pl-6 py-4">
       <h2 class="text-2xl font-bold text-slate-900 mb-2">
