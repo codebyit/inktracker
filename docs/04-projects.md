@@ -50,11 +50,22 @@ Open a project, then use the actions menu:
 | Action | What it does |
 |---|---|
 | **Edit** | Reopen the wizard to change settings or pricing |
-| **Duplicate** | Copy the project as a starting point for a similar job |
+| **Duplicate** | Start a new Draft retaining project type, faces, zero white choke, and pre-prime preference |
 | **Status** | Click the status pill to move a job through Draft -> Completed |
 | **Archive** | Hide finished jobs from the main list (**Restore** to bring back) |
 | **Delete** | Move to trash; **Restore** later, or permanently remove |
 | **Export CSV** | Download your projects as a spreadsheet |
+
+### Editing without changing production
+
+Edits preserve each face's usage and the current status/completion date. Metadata and
+selling-price changes preserve historical batch costs after settings change. Changing
+only units adjusts cost per unit without repricing the batch. Ink, print time,
+hands-on time, or BOM-cost changes recalculate using current settings.
+
+Material adjustments reconcile recorded automatic consumption. Removing an old
+unlinked free-text item cannot refund stock it never consumed; manual movements
+remain separate.
 
 **Tip:** Archiving keeps your active list tidy without losing any data.
 

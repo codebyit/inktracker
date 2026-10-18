@@ -14,6 +14,24 @@ see the [GitHub Releases](https://github.com/codebyit/inktracker/releases).
 
 ---
 
+## v0.16.1 — Production integrity fixes
+
+Texture modes now expose White/Flex White, CMYK, and Gloss consistently. Multi-face
+edits keep each face's ink usage; metadata-only edits preserve historical costs and
+status. Stock reconciliation no longer refunds unrecorded consumption, and service
+retention protects usage still needed for the installed cartridges.
+
+The wizard preview and worksheet sum all faces and match saved ink accounting.
+Pre-prime remains display-only; hidden channels and zero-quantity BOM lines no
+longer inflate saved usage. Backups include feature/profile and automation settings,
+installed lots reset their baselines, and startup preserves valid migration history.
+
+See [the changelog](https://github.com/codebyit/inktracker/blob/main/CHANGELOG.md)
+for details. Windows downloads follow the release packaging/signing workflow; Store
+availability remains subject to certification.
+
+---
+
 ## v0.16.0 — _Available now_
 
 The [v0.16.0 release](https://github.com/codebyit/inktracker/releases/tag/v0.16.0) sharpens the

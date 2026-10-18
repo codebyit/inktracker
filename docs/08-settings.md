@@ -59,6 +59,13 @@ the Windows desktop app.
 Download a **backup** of your data, or **restore** from one. Admins can also **reset**
 the database.
 
+Backups include printer/profile, features/onboarding, and automation/retention
+settings. Restoring an older backup preserves the target's settings for configuration
+tables omitted by that older export.
+
+Factory reset clears projects, logs, lots, movements, and material stock balances,
+while preserving settings and library definitions (names, units, and prices).
+
 <p align="center"><img src="images/settings-backup.png" alt="Backup and restore" width="700"></p>
 
 <details><summary>📱 On mobile</summary>

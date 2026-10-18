@@ -8,6 +8,46 @@ records the internal baseline it derives from where applicable (see `VERSIONING.
 
 ---
 
+## [0.16.1] — 2026-10-18
+
+Production integrity fixes, independently adapted and tested for the public fork.
+No new schema migrations; existing databases upgrade in place. Back up before updating.
+
+### Fixed
+
+- **Texture ink channels (#146).** Color Raised includes CMYK, loaded White/Flex
+  White, and Gloss on every texture face, including reopened projects and templates.
+- **Multi-face edits (#147).** Reopening restores each face's own usage instead of
+  copying the aggregate; existing faces survive hiding the multi-craft feature.
+- **Historical COGS (#148).** Metadata and selling-price edits preserve saved costs,
+  including cost-per-unit rounding. Unit-only changes retain batch costs; production
+  input changes still recalculate at current prices.
+- **Lifecycle (#149).** Edits without a submitted status preserve status and completion date.
+- **Material reconciliation (#150).** Substrate/BOM changes use recorded automatic
+  movements, preventing phantom refunds and preserving manual adjustments.
+- **Service retention (#151).** Consumption and corrections remain until newer
+  replacements supersede every affected channel.
+- **Additional review fixes (#152).** Backups include profile/features/onboarding and
+  automation/retention settings; legacy backups retain omitted configuration. Preview
+  and worksheet totals include all faces, exclude display-only pre-prime from COGS,
+  and omit hidden channels from saved payloads. Zero BOM quantities remain zero.
+  Wizard pricing and lots use each channel's capacity. Installing a new lot resets
+  its consumption baseline. Material names match literal `%`/`_`; factory reset
+  clears balances with the ledger. Duplication retains project type, zero choke,
+  and pre-prime preference. Automatic maintenance uses the loaded white channel.
+- **Migration startup (#153).** Preserve valid Alembic history and customized
+  presets on restart; unknown revisions fail rather than rewriting history.
+
+### Internal
+
+- Regression and real PostgreSQL migration/idempotency tests now gate image publication.
+- Internal-only Omni/Studio controls and infrastructure workflows are not ported.
+
+Ported from internal v0.13.0-ng (commit `3fce57a889d6b96dea5c20a446c12d9b6455600e`,
+including priority fixes from `d3aa9593ccee48ffb70a6bb5c969555d9c75a1fd`).
+
+---
+
 ## [0.16.0] — 2026-07-22
 
 Project-wizard fixes, a Materials-library ↔ BOM link, and web-app security hardening.

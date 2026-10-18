@@ -275,7 +275,7 @@ def download_backup(db: Session = Depends(get_db)):
     from .. import models
     export_models = [
         models.MachineConfig, models.InkChannelConfig, models.InkGlobalConfig,
-        models.LaborConfig, models.MarginConfig,
+        models.LaborConfig, models.MarginConfig, models.FeatureConfig, models.AutomationConfig,
         models.Project, models.BOMItem, models.ProjectInkUsage,
         models.CartridgeReplacement, models.MaintenancePreset, models.ServiceAction,
         models.PrintTemplate, models.MaterialCategory, models.MaterialItem,
@@ -314,10 +314,15 @@ async def upload_restore(file: UploadFile = File(...), db: Session = Depends(get
         data = json.loads(content)
     except json.JSONDecodeError:
         return JSONResponse({"error": "Invalid JSON file"}, status_code=400)
-    if data.get("version") != "1.0":
+    if not isinstance(data, dict) or data.get("version") != "1.0":
         return JSONResponse({"error": "Unsupported backup version"}, status_code=400)
 
-    tables_data = data.get("tables", {})
+    tables_data = data.get("tables")
+    if not isinstance(tables_data, dict) or not tables_data or any(
+        not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows)
+        for rows in tables_data.values()
+    ):
+        return JSONResponse({"error": "Invalid backup tables"}, status_code=400)
 
     # Restore order respects FK constraints
     restore_map = [
@@ -326,6 +331,8 @@ async def upload_restore(file: UploadFile = File(...), db: Session = Depends(get
         ("ink_channel_config",     models.InkChannelConfig),
         ("labor_config",           models.LaborConfig),
         ("margin_config",          models.MarginConfig),
+        ("feature_config",         models.FeatureConfig),
+        ("automation_config",      models.AutomationConfig),
         ("material_categories",    models.MaterialCategory),
         ("material_items",         models.MaterialItem),
         ("print_templates",        models.PrintTemplate),
@@ -337,6 +344,11 @@ async def upload_restore(file: UploadFile = File(...), db: Session = Depends(get
         ("cartridge_inventory_lots", models.CartridgeInventoryLot),
         ("maintenance_presets",    models.MaintenancePreset),
         ("service_actions",        models.ServiceAction),
+    ]
+    # Older 1.0 exports omitted these settings; retain the target's configuration.
+    restore_map = [
+        (name, model) for name, model in restore_map
+        if name not in {"feature_config", "automation_config"} or name in tables_data
     ]
 
     try:
@@ -366,6 +378,7 @@ async def upload_restore(file: UploadFile = File(...), db: Session = Depends(get
                 db.add(model_cls(**clean))
 
         db.commit()
+        db.expire_all()
 
         # Reset PostgreSQL sequences so future inserts don't collide
         if DB_INFO.get("type") == "postgresql":
@@ -377,10 +390,10 @@ async def upload_restore(file: UploadFile = File(...), db: Session = Depends(get
             db.commit()
 
         invalidate_dashboard_analytics_cache()
+        templates.env.globals["currency"] = crud.get_currency(db)
 
         return JSONResponse({"ok": True})
     except Exception as e:
         db.rollback()
         log.exception("Restore failed")
         return JSONResponse({"error": str(e)}, status_code=500)
-

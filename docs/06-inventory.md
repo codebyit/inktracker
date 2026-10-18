@@ -38,6 +38,12 @@ Track sealed cartridges you've bought:
 - **Mark "in use"** — flag a lot as the one currently installed.
 - **Adjust quantity** — update counts as you open or restock.
 
+Each new lot uses its channel's configured capacity, including the separate cleaning
+and moisturizing compartments. Adding a lot already marked in use resets that
+channel's consumption baseline, just like installing an existing spare. Adding a
+spare does not reset levels. Material names match literally and case-insensitively:
+`%` and `_` do not match other items.
+
 <p align="center"><img src="images/inventory-cartridge-lots.png" alt="Cartridge lots and in-use toggle" width="620"></p>
 
 <details><summary>📱 On mobile</summary>

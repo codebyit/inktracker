@@ -188,7 +188,7 @@ function wizardData() {
     // Storage for craft mode specific parameters
     selectedCraftInkMode: '',
     craftInkModeMap: {
-      'Color Raised': 'CMYK',
+      'Color Raised': 'White>CMYK>Gloss Varnish',
       'Gloss Raised': 'Gloss Varnish',
       'White (Foil Stamping)': 'White',
     },
@@ -304,20 +304,38 @@ function wizardData() {
     get primeTotal() {
       if(!this.includePreprime) return {ml:0,cost:0};
       let ml=0,cost=0;
-      for(const ch of this.activeChannels){
+      for(const ch of this.projectChannels){
         const p=this.cfg.ink[ch]?.preprime_ml||0, c=this.cfg.ink[ch];
         ml+=p; if(c&&c.capacity>0) cost+=p*c.price/c.capacity;
       }
       return {ml,cost};
     },
-    get projectInkMl()   { let t=0; for(const ch of this.activeChannels) t+=parseFloat(this.inkUsage[ch]||0); return t; },
+    get projectChannels() {
+      const channels = [...this.activeChannels];
+      if (this.isMultiCraftActive) {
+        for (const face of this.extraCrafts) channels.push(...this.extraFaceChannels(face));
+      }
+      return [...new Set(channels)];
+    },
+    get projectInkUsage() {
+      const usage = this.cleanInk(this.inkUsage, this.activeChannels);
+      if (this.isMultiCraftActive) {
+        for (const face of this.extraCrafts) {
+          for (const [ch, ml] of Object.entries(this.cleanInk(face.inkUsage, this.extraFaceChannels(face)))) {
+            usage[ch] = (usage[ch] || 0) + ml;
+          }
+        }
+      }
+      return usage;
+    },
+    get projectInkMl()   { return Object.values(this.projectInkUsage).reduce((sum, ml) => sum + ml, 0); },
     get projectInkCost() {
       let t=0;
-      for(const ch of this.activeChannels){const c=this.cfg.ink[ch]; if(c&&c.capacity>0) t+=parseFloat(this.inkUsage[ch]||0)*c.price/c.capacity;}
+      for(const [ch, ml] of Object.entries(this.projectInkUsage)){const c=this.cfg.ink[ch]; if(c&&c.capacity>0) t+=ml*c.price/c.capacity;}
       return t;
     },
     get bomTotal()    { return this.bomItems.reduce((s,i)=>s+parseFloat(i.qty||0)*parseFloat(i.unitCost||0),0); },
-    get inkCost()     { return this.projectInkCost+this.primeTotal.cost; },
+    get inkCost()     { return this.projectInkCost; },
     get mCostHr() {
       const m=this.cfg.machine;
       if(!m||m.lifespan_hours<=0||m.annual_hours<=0) return 0;
@@ -360,7 +378,7 @@ function wizardData() {
 
     // ── Multi-craft faces ──────────────────────────────────────
     get isMultiCraftActive() {
-      return this.multiCraftFlag && this.multiCraftEnabled && this.extraCrafts.length > 0;
+      return this.multiCraftEnabled && this.extraCrafts.length > 0;
     },
     makeExtraCraft(i) {
       return {
@@ -369,6 +387,7 @@ function wizardData() {
         craftInkMode: '',
         inkMode: 'CMYK',
         thickness: 0.3,
+        layerStack: [],
         inkUsage: {C:0,M:0,Y:0,K:0,W:0,GL:0,FW:0},
       };
     },
@@ -396,14 +415,16 @@ function wizardData() {
       face.inkMode = this.craftInkModeMap[im] || 'CMYK';
     },
     extraFaceChannels(face) {
-      const base = this.inkModeChannels[face.inkMode] || ['C','M','Y','K'];
+      const base = face.inkMode === 'Customize'
+        ? [...new Set((face.layerStack || []).flatMap(group => this.customLayerChannels[group.name] || []))]
+        : (this.inkModeChannels[face.inkMode] || ['C','M','Y','K']);
       const wl = this.whiteLoaded;
       return base.map(ch => (ch==='W'&&wl==='FW')?'FW':(ch==='FW'&&wl==='W')?'W':ch);
     },
-    cleanInk(obj) {
+    cleanInk(obj, channels) {
       const out = {};
-      for (const [ch, ml] of Object.entries(obj || {})) {
-        const v = parseFloat(ml || 0);
+      for (const ch of channels) {
+        const v = parseFloat(obj?.[ch] || 0);
         if (v > 0) out[ch] = v;
       }
       return out;
@@ -418,7 +439,7 @@ function wizardData() {
         craft_mode_params: this.isCraftModeWithParameters
           ? (this.craftModeParams[this.craftMode]?.[this.selectedCraftInkMode] || {}) : {},
         layer_stack: this.layerStack,
-        ink_usage: this.cleanInk(this.inkUsage),
+        ink_usage: this.cleanInk(this.inkUsage, this.activeChannels),
       };
       const extras = this.extraCrafts.map((f, i) => ({
         variant_name: (f.variant_name || '').trim() || ('Side ' + String.fromCharCode(66 + i)),
@@ -426,16 +447,16 @@ function wizardData() {
         craft_ink_mode: f.craftInkMode || '',
         ink_mode: f.inkMode,
         craft_mode_params: this.extraFaceHasParams(f) ? {thickness: parseFloat(f.thickness || 0)} : {},
-        layer_stack: [],
-        ink_usage: this.cleanInk(f.inkUsage),
+        layer_stack: f.layerStack || [],
+        ink_usage: this.cleanInk(f.inkUsage, this.extraFaceChannels(f)),
       }));
       return JSON.stringify([primary, ...extras]);
     },
 
     submit() {
-      document.getElementById('ink_usage_json').value = JSON.stringify(this.inkUsage);
+      document.getElementById('ink_usage_json').value = JSON.stringify(this.projectInkUsage);
       document.getElementById('bom_json').value = JSON.stringify(
-        this.bomItems.map(i=>({name:i.name,quantity:parseFloat(i.qty||1),unit:i.unit||'pcs',unit_cost:parseFloat(i.unitCost||0)}))
+        this.bomItems.map(i=>({name:i.name,quantity:parseFloat(i.qty||0),unit:i.unit||'pcs',unit_cost:parseFloat(i.unitCost||0)}))
       );
       document.getElementById('f_print_bed').value   = this.printBed;
       document.getElementById('f_alignment').value   = this.alignment;
@@ -457,8 +478,8 @@ function wizardData() {
       const d   = new Date().toLocaleDateString('en-GB');
       const ptS = `${this.printH||0}h ${this.printM||0}m ${this.printS||0}s`;
       const hoS = `${this.handsH||0}h ${this.handsM||0}m ${this.handsS||0}s`;
-      const inkRows = this.activeChannels.map(ch =>
-        `<tr><td>${esc(this.channelNames[ch]||ch)}</td><td>${this.fmt(this.inkUsage[ch]||0)}</td><td>${this.fmt(this.cfg.ink[ch]?.preprime_ml||0)}</td></tr>`
+      const inkRows = this.projectChannels.map(ch =>
+        `<tr><td>${esc(this.channelNames[ch]||ch)}</td><td>${this.fmt(this.projectInkUsage[ch]||0)}</td><td>${this.fmt(this.includePreprime ? this.cfg.ink[ch]?.preprime_ml : 0)}</td></tr>`
       ).join('');
       const bomRows = this.bomItems.length
         ? this.bomItems.map(i=>`<tr><td>${esc(i.name||'')}</td><td>${esc(i.category||'Other')}</td><td>${cur}${this.fmt(i.unitCost)}</td><td>${i.qty}</td><td>${cur}${this.fmt(parseFloat(i.qty||0)*parseFloat(i.unitCost||0))}</td></tr>`).join('')
@@ -591,14 +612,23 @@ ${bomRows}
           const arr = JSON.parse(proj.crafts_json || '[]');
           if (Array.isArray(arr) && arr.length > 1) {
             this.multiCraftEnabled = true;
+            this.inkUsage = Object.assign(
+              {C:0,M:0,Y:0,K:0,W:0,GL:0,FW:0,FR:0,FY:0,RW:0}, arr[0].ink_usage || {}
+            );
             this.extraCrafts = arr.slice(1).map((c, i) => ({
               variant_name: c.variant_name || ('Side ' + String.fromCharCode(67 + i)),
               craftMode: c.craft_mode || 'Flat',
               craftInkMode: c.craft_ink_mode || '',
               inkMode: c.ink_mode || 'CMYK',
               thickness: (c.craft_mode_params && c.craft_mode_params.thickness) || 0.3,
+              layerStack: c.layer_stack || [],
               inkUsage: Object.assign({C:0,M:0,Y:0,K:0,W:0,GL:0,FW:0}, c.ink_usage || {}),
             }));
+            for (const face of this.extraCrafts) {
+              if (this.extraFaceHasParams(face) && face.craftInkMode) {
+                this.setExtraCraftInkMode(face, face.craftInkMode);
+              }
+            }
           }
         } catch (_) {}
       }
@@ -1567,7 +1597,7 @@ ${bomRows}
                   <span class="ui-toggle__knob"></span>
                 </button>
               </div>
-              <p class="text-xs text-amber-700">Most UV printer software already includes pre-prime in reported totals. Toggle off to avoid double-counting.</p>
+              <p class="text-xs text-amber-700">Pre-prime is a display-only estimate, excluded from COGS and saved ink usage. Enter the actual totals reported by your printer software.</p>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <template x-for="ch in activeChannels" :key="ch">

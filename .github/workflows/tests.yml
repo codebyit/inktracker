@@ -22,6 +22,7 @@ on:
       - "requirements.txt"
       - ".github/workflows/tests.yml"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -45,11 +46,19 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
       - name: Run tests
         env:
           # Fast, hermetic: models -> in-memory SQLite, seeded via crud.seed_defaults.
           DATABASE_URL: "sqlite:///:memory:"
         run: python -m pytest tests/ -q
+
+      - name: Run wizard regressions
+        run: node --test tests/test_wizard_channels.cjs
 
   migrations-postgres:
     name: Alembic migrations on PostgreSQL
@@ -86,7 +95,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Upgrade to head on PostgreSQL
-        run: python -m alembic upgrade head
+        run: python -m app.migration_runner
 
       - name: Re-run upgrade head (idempotency)
-        run: python -m alembic upgrade head
+        run: python -m app.migration_runner

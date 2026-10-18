@@ -58,6 +58,11 @@ have a full history.
 If turned on (in **Settings → Preferences**), InkTracker automatically logs a daily
 maintenance ink amount at a set time, and includes it in cartridge levels.
 
+Automatic maintenance charges the loaded White/Flex White channel; liquid-only
+presets remain liquid-only. An old log entry is only purged after every channel with
+nonzero usage has a strictly newer cartridge replacement. This protects installed
+cartridge consumption and negative corrections even beyond the configured purge age.
+
 ## Action history & ink corrections
 The **Service Action Log** lists everything that's happened, with date / quick-range /
 search filters and configurable archive & delete windows. Ink corrections appear as a

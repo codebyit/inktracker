@@ -408,7 +408,7 @@
       <div class="flex items-center justify-between py-2 border-t border-slate-100">
         <div>
           <div class="text-sm font-medium text-slate-800">Delete after (days)</div>
-          <div class="text-xs text-slate-500 mt-0.5">Log entries older than this are permanently purged. Must be ≥ archive days.</div>
+          <div class="text-xs text-slate-500 mt-0.5">Old entries are purged after replacements supersede their ink usage. Entries affecting current cartridge levels are retained. Must be ≥ archive days.</div>
         </div>
         <input type="number" name="service_log_purge_days" min="1" step="1"
                value="{{ automation.service_log_purge_days if automation else 365 }}"
@@ -651,7 +651,7 @@
       </svg>
       <span class="font-semibold text-red-600">Danger Zone</span>
     </div>
-    <p class="text-sm text-red-500 mb-4">Factory reset — permanently delete all projects, maintenance logs, and cartridge replacements. Settings are preserved.</p>
+    <p class="text-sm text-red-500 mb-4">Factory reset — permanently delete all projects, maintenance logs, cartridge replacements, lots, and stock movements. Material balances return to zero; library items and settings are preserved.</p>
     <form method="POST" action="/settings/reset"
           onsubmit="return confirm('This will permanently delete ALL projects, replacements, and maintenance events. Settings are kept. Are you sure?')">
       <button type="submit" class="flex items-center gap-2 border border-red-300 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
