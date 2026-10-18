@@ -23,11 +23,18 @@ def _parse_hhmm(raw: str) -> tuple[int, int]:
     return 3, 0
 
 
-def _load_preset_volumes(preset: models.MaintenancePreset) -> dict:
+def _load_preset_volumes(db: Session, preset: models.MaintenancePreset) -> dict:
     try:
-        return json.loads(preset.volumes_json or "{}")
+        volumes = json.loads(preset.volumes_json or "{}")
     except (TypeError, ValueError):
+        log.warning("Auto maintenance: invalid volume JSON for preset %s", preset.id)
         return {}
+    ink_global = crud.get_ink_global_config(db)
+    if ink_global and ink_global.white_loaded == "FW":
+        white_ml = float(volumes.pop("W", 0.0))
+        if white_ml:
+            volumes["FW"] = float(volumes.get("FW", 0.0)) + white_ml
+    return volumes
 
 
 def _find_active_preset(db: Session, names: list[str]) -> models.MaintenancePreset | None:
@@ -127,7 +134,7 @@ def run_auto_flash_clean_for_time(db: Session, run_at: datetime) -> None:
         preset_id=preset.id,
         kind=preset.kind,
         name="Automatic Flash Clean",
-        volumes=_load_preset_volumes(preset),
+        volumes=_load_preset_volumes(db, preset),
         notes=f"[AUTO_FLASH {run_at.isoformat(timespec='minutes')}] trigger=idle>=10m",
         occurred_at=run_at,
     )
@@ -169,7 +176,7 @@ def run_auto_maintenance_for_time(db: Session, run_at: datetime) -> None:
             preset_id=preset.id,
             kind=preset.kind,
             name=preset.name,
-            volumes=_load_preset_volumes(preset),
+            volumes=_load_preset_volumes(db, preset),
             notes=f"{auto_note} | trigger=idle>1d",
             occurred_at=run_at,
         )
@@ -185,7 +192,7 @@ def run_auto_maintenance_for_time(db: Session, run_at: datetime) -> None:
             preset_id=preset.id,
             kind=preset.kind,
             name="Automatic Deep Clean",
-            volumes=_load_preset_volumes(preset),
+            volumes=_load_preset_volumes(db, preset),
             notes=f"{auto_note} | trigger=no_deep_or_moist>=3d",
             occurred_at=run_at,
         )

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from .. import crud
 from ..database import get_db
-from ..models import INK_CHANNEL_NAMES, SERVICE_CHANNELS
+from ..models import INK_CHANNEL_NAMES, INK_CHANNEL_DEFAULT_CAPACITY, SERVICE_CHANNELS
 from ..templates_config import templates
 
 router = APIRouter()
@@ -196,8 +196,8 @@ async def create_cartridge_lot(request: Request, db: Session = Depends(get_db)):
         return JSONResponse({"error": "Serial number must be alphanumeric"}, status_code=422)
 
     # Every lot row represents one full cartridge unit.
-    ink_global = crud.get_ink_global_config(db)
-    quantity_ml = float((ink_global.cartridge_capacity_ml if ink_global else 100.0) or 100.0)
+    cfg = crud.get_ink_configs(db).get(channel)
+    quantity_ml = float(cfg.cartridge_capacity_ml if cfg else INK_CHANNEL_DEFAULT_CAPACITY[channel])
 
     try:
         lot = crud.create_cartridge_inventory_lot(

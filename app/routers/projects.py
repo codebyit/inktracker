@@ -224,7 +224,7 @@ async def project_update(
     include_preprime:    bool  = Form(True),
     layer_stack_json:    str   = Form("[]"),
     crafts_json:         str   = Form("[]"),
-    status:              str   = Form("Draft"),
+    status:         str | None = Form(None),
     project_type:        str   = Form("commercial"),
     bom_add_to_library:  bool  = Form(False),
 ):

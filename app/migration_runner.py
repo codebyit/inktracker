@@ -17,9 +17,13 @@ def _alembic_config() -> Config:
 def migrate_database() -> None:
     """Apply Alembic migrations.
 
-    The migration scripts are written to be fully idempotent (CREATE TABLE IF
-    NOT EXISTS, column-existence checks before ADD COLUMN) so running
-    ``upgrade head`` is safe against both fresh and existing databases.
+    Alembic resolves the stored revision against the migration graph. Unknown
+    revisions fail startup without rewriting history; current databases are a
+    no-op. Unversioned databases use the idempotent bootstrap migrations.
     """
     cfg = _alembic_config()
     command.upgrade(cfg, "head")
+
+
+if __name__ == "__main__":
+    migrate_database()

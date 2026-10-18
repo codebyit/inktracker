@@ -1,4 +1,6 @@
 import json
+import logging
+import math
 import os
 from datetime import datetime
 from collections import defaultdict
@@ -8,6 +10,8 @@ from . import models, schemas
 from .models import INK_CHANNELS, SERVICE_CHANNELS, INK_CHANNEL_DEFAULT_CAPACITY
 from .printer_presets import PRINTER_PRESETS, DEFAULT_PRESET, DEFAULT_CURRENCY_CODE, symbol_for
 from .cogs import calculate_cogs, margin_status, ink_level_pct, ink_level_status
+
+log = logging.getLogger(__name__)
 
 
 def _invalidate_dashboard_analytics_cache() -> None:
@@ -285,12 +289,16 @@ def get_data_stats(db: Session) -> dict:
 
 def factory_reset(db: Session) -> None:
     """Delete all user-generated data. Settings are preserved."""
+    db.query(models.MaterialInventoryMovement).delete()
     db.query(models.ProjectInkUsage).delete()
     db.query(models.BOMItem).delete()
     db.query(models.Project).delete()
     db.query(models.CartridgeReplacement).delete()
     db.query(models.CartridgeInventoryLot).delete()
-    db.query(models.MaterialInventoryMovement).delete()
+    db.query(models.MaterialItem).update({
+        "quantity_added_total": 0.0,
+        "quantity_consumed_total": 0.0,
+    })
     db.query(models.ServiceAction).delete()
     db.commit()
     _invalidate_dashboard_analytics_cache()
@@ -303,7 +311,6 @@ def get_settings_json(db: Session) -> dict:
     ink_global = get_ink_global_config(db)
     labor      = get_labor_config(db)
     margins    = get_margin_config(db)
-    capacity   = ink_global.cartridge_capacity_ml if ink_global else 100.0
     return {
         "machine": {
             "purchase_price":    machine.purchase_price,
@@ -317,7 +324,7 @@ def get_settings_json(db: Session) -> dict:
         "ink": {
             ch: {
                 "price":       cfg.price_per_cartridge,
-                "capacity":    capacity,
+                "capacity":    cfg.cartridge_capacity_ml,
                 "preprime_ml": cfg.preprime_ml if cfg else 0.0,
             }
             for ch, cfg in ink_cfgs.items()
@@ -568,24 +575,10 @@ def create_project(
     if bom_add_to_library:
         _add_bom_items_to_library(db, bom_items)
 
-    _sync_project_substrate_inventory(
+    _sync_project_material_inventory(
         db,
         project=project,
-        old_substrate="",
-        old_units=0,
-        notes=f"Auto-consumed from project #{project.id}: {project.name}",
-    )
-
-    _sync_project_bom_inventory(
-        db,
-        project=project,
-        old_map={},
-        new_map=_bom_library_consumption(
-            db,
-            [(i.get("name"), i.get("quantity", 1)) for i in bom_items],
-            substrate_normalized,
-        ),
-        notes=f"BOM auto-consumed from project #{project.id}: {project.name}",
+        bom_items=bom_items,
     )
 
     db.commit()
@@ -627,16 +620,7 @@ def update_project(
     if not project:
         return None
 
-    old_substrate = (project.substrate or "").strip()
-    old_units = int(project.units or 0)
     new_substrate = (substrate or "").strip()
-    # Snapshot library-linked BOM consumption BEFORE the BOM rows are replaced,
-    # so the inventory sync can reconcile the delta.
-    old_bom_map = _bom_library_consumption(
-        db,
-        [(b.name, b.quantity) for b in project.bom_items],
-        old_substrate,
-    )
 
     crafts, ink_usage, _legacy, crafts_store = _resolve_project_crafts(
         crafts_json=crafts_json,
@@ -660,16 +644,34 @@ def update_project(
 
     bom_total = sum(float(i.get("quantity", 1)) * float(i.get("unit_cost", 0)) for i in bom_items)
 
-    cogs = calculate_cogs(
-        ink_usage=ink_usage,
-        bom_total=bom_total,
-        machine_cfg=machine_cfg,
-        ink_cfgs=ink_cfgs,
-        labor_cfg=labor_cfg,
-        print_time_hours=print_time_hours,
-        hands_on_hours=hands_on_hours,
-        units=units,
+    saved_ink = {u.channel: u.ml_used for u in project.ink_usage if u.ml_used > 0}
+    new_ink = {ch: float(ml) for ch, ml in ink_usage.items() if float(ml) > 0}
+    production_unchanged = (
+        saved_ink == new_ink
+        and project.print_time_hours == float(print_time_hours)
+        and project.hands_on_hours == float(hands_on_hours)
+        and project.bom_cost == round(bom_total, 4)
     )
+    if production_unchanged:
+        cogs = {key: getattr(project, key) for key in (
+            "ink_cost", "bom_cost", "machine_cost", "labor_cost",
+            "overhead_cost", "total_cogs",
+        )}
+        cogs["cogs_per_unit"] = (
+            project.cogs_per_unit if units == project.units
+            else round(project.total_cogs / units, 4) if units > 0 else 0.0
+        )
+    else:
+        cogs = calculate_cogs(
+            ink_usage=ink_usage,
+            bom_total=bom_total,
+            machine_cfg=machine_cfg,
+            ink_cfgs=ink_cfgs,
+            labor_cfg=labor_cfg,
+            print_time_hours=print_time_hours,
+            hands_on_hours=hands_on_hours,
+            units=units,
+        )
 
     effective_type = project_type if project_type is not None else (project.project_type or "commercial")
     is_commercial  = effective_type == "commercial"
@@ -748,24 +750,10 @@ def update_project(
     if bom_add_to_library:
         _add_bom_items_to_library(db, bom_items)
 
-    _sync_project_substrate_inventory(
+    _sync_project_material_inventory(
         db,
         project=project,
-        old_substrate=old_substrate,
-        old_units=old_units,
-        notes=f"Auto-adjusted from project update #{project.id}: {project.name}",
-    )
-
-    _sync_project_bom_inventory(
-        db,
-        project=project,
-        old_map=old_bom_map,
-        new_map=_bom_library_consumption(
-            db,
-            [(i.get("name"), i.get("quantity", 1)) for i in bom_items],
-            new_substrate,
-        ),
-        notes=f"BOM auto-adjusted from project update #{project.id}: {project.name}",
+        bom_items=bom_items,
     )
 
     db.commit()
@@ -871,9 +859,11 @@ def duplicate_project(db: Session, project_id: int) -> models.Project | None:
         craft_mode_params_json=p.craft_mode_params_json or "{}",
         crafts_json=p.crafts_json or "[]",
         substrate=p.substrate or "",
-        white_choke_mm=p.white_choke_mm or 0.20,
+        white_choke_mm=p.white_choke_mm if p.white_choke_mm is not None else 0.20,
+        include_preprime=p.include_preprime,
         layer_stack_json=p.layer_stack_json or "[]",
         status="Draft",
+        project_type=p.project_type,
     )
 
 
@@ -959,7 +949,7 @@ def get_material_item_by_name(db: Session, name: str) -> models.MaterialItem | N
     needle = (name or "").strip()
     if not needle:
         return None
-    return db.query(models.MaterialItem).filter(models.MaterialItem.name.ilike(needle)).first()
+    return db.query(models.MaterialItem).filter(sa_func.lower(models.MaterialItem.name) == needle.lower()).first()
 
 
 def create_material_item(db: Session, name: str, category: str, unit_cost: float, unit: str) -> models.MaterialItem:
@@ -1346,8 +1336,14 @@ def create_cartridge_inventory_lot(
     db.flush()
     if lot.is_in_use:
         _set_other_lots_not_in_use(db, lot.channel, excluded_lot=lot)
+        db.add(models.CartridgeReplacement(
+            channel=lot.channel,
+            replaced_at=lot.installed_at,
+            notes=f"Installed inventory lot {lot.serial_number or lot.id}",
+        ))
     db.commit()
     db.refresh(lot)
+    _invalidate_dashboard_analytics_cache()
     return lot
 
 
@@ -1483,45 +1479,39 @@ def _set_other_lots_not_in_use(db: Session, channel: str, excluded_lot: models.C
     )
 
 
-def _sync_project_substrate_inventory(
-    db: Session,
-    *,
-    project: models.Project,
-    old_substrate: str,
-    old_units: int,
-    notes: str,
+def _sync_project_material_inventory(
+    db: Session, *, project: models.Project, bom_items: list,
 ) -> None:
-    new_substrate = (project.substrate or "").strip()
-    new_units = int(project.units or 0)
-    delta_map: dict[int, float] = {}
+    """Reconcile combined substrate/BOM demand against recorded automatic usage.
 
-    old_item = get_material_item_by_name(db, old_substrate)
-    if old_item and old_units > 0:
-        delta_map[old_item.id] = delta_map.get(old_item.id, 0.0) - float(old_units)
+    Legacy movements identify automatic consumption and refunds by their notes.
+    Keep manual project-linked adjustments separate from this reconciliation.
+    """
+    prefixes = (
+        "Auto-consumed from project #",
+        "Auto-adjusted from project update #",
+        "BOM auto-consumed from project #",
+        "BOM auto-adjusted from project update #",
+        "Inventory rollback from project change #",
+    )
+    old_map: dict[int, float] = {}
+    movements = db.query(models.MaterialInventoryMovement).filter_by(project_id=project.id).all()
+    for movement in movements:
+        if not (movement.notes or "").startswith(prefixes):
+            continue
+        signed_qty = movement.quantity if movement.movement_type == "out" else -movement.quantity
+        old_map[movement.material_item_id] = old_map.get(movement.material_item_id, 0.0) + signed_qty
 
-    new_item = get_material_item_by_name(db, new_substrate)
-    if new_item and new_units > 0:
-        delta_map[new_item.id] = delta_map.get(new_item.id, 0.0) + float(new_units)
-
-    for item_id, delta in delta_map.items():
-        if delta > 0:
-            create_material_inventory_movement(
-                db,
-                material_item_id=item_id,
-                movement_type="out",
-                quantity=abs(delta),
-                project_id=project.id,
-                notes=notes,
-            )
-        elif delta < 0:
-            create_material_inventory_movement(
-                db,
-                material_item_id=item_id,
-                movement_type="in",
-                quantity=abs(delta),
-                project_id=project.id,
-                notes=f"Inventory rollback from project change #{project.id}: {project.name}",
-            )
+    new_map = _bom_library_consumption(
+        db, [(i.get("name"), i.get("quantity", 1)) for i in bom_items], project.substrate,
+    )
+    substrate_item = get_material_item_by_name(db, project.substrate)
+    if substrate_item and project.units > 0:
+        new_map[substrate_item.id] = new_map.get(substrate_item.id, 0.0) + float(project.units)
+    _sync_project_bom_inventory(
+        db, project=project, old_map=old_map, new_map=new_map,
+        notes=f"BOM auto-adjusted from project update #{project.id}: {project.name}",
+    )
 
 
 def _add_bom_items_to_library(db: Session, bom_items: list) -> None:
@@ -1551,7 +1541,7 @@ def _add_bom_items_to_library(db: Session, bom_items: list) -> None:
 def _bom_library_consumption(db: Session, items: list, exclude_name: str) -> dict:
     """Map ``{material_item_id: total_qty}`` for BOM items whose name matches a
     Materials-library entry, excluding the project's substrate (tracked
-    separately by ``_sync_project_substrate_inventory`` to avoid double-counting).
+    separately by ``_sync_project_material_inventory`` to avoid double-counting).
     ``items`` is a list of ``(name, quantity)`` pairs."""
     excl = (exclude_name or "").strip().lower()
     agg: dict[int, float] = {}
@@ -1571,9 +1561,7 @@ def _bom_library_consumption(db: Session, items: list, exclude_name: str) -> dic
 def _sync_project_bom_inventory(
     db: Session, *, project: models.Project, old_map: dict, new_map: dict, notes: str
 ) -> None:
-    """Reconcile Materials-library stock for library-linked BOM items, mirroring
-    the substrate sync: apply the per-item delta between the previously-consumed
-    and now-consumed quantities as ``out`` (more) / ``in`` (rollback) movements."""
+    """Apply the per-item delta for combined substrate/BOM consumption."""
     for item_id in set(old_map) | set(new_map):
         delta = new_map.get(item_id, 0.0) - old_map.get(item_id, 0.0)
         if delta > 0:
@@ -1828,15 +1816,33 @@ def get_service_actions(db: Session, limit: int = 100) -> list:
 
 
 def purge_service_actions_older_than(db: Session, cutoff: datetime) -> int:
-    """Permanently delete service-action log entries older than ``cutoff``.
+    """Delete old log entries only after their consumption is superseded.
 
-    Returns the number of rows removed. Used by the retention scheduler.
+    A cartridge replacement must be strictly newer than the action for every
+    affected channel; otherwise the action still contributes to ink levels.
     """
-    n = (
-        db.query(models.ServiceAction)
-        .filter(models.ServiceAction.occurred_at < cutoff)
-        .delete(synchronize_session=False)
+    replacements = dict(
+        db.query(models.CartridgeReplacement.channel, sa_func.max(models.CartridgeReplacement.replaced_at))
+        .group_by(models.CartridgeReplacement.channel).all()
     )
+    n = 0
+    for action in db.query(models.ServiceAction).filter(models.ServiceAction.occurred_at < cutoff).all():
+        try:
+            volumes = json.loads(action.volumes_json or "{}")
+            if not isinstance(volumes, dict):
+                raise ValueError("expected a channel-to-volume object")
+            volumes = {ch: float(ml) for ch, ml in volumes.items()}
+            if not all(math.isfinite(ml) for ml in volumes.values()):
+                raise ValueError("non-finite channel volume")
+        except (ValueError, TypeError) as exc:
+            log.warning("Retaining service action %s with invalid volumes: %s", action.id, exc)
+            continue
+        if all(
+            ml == 0 or (ch in replacements and replacements[ch] > action.occurred_at)
+            for ch, ml in volumes.items()
+        ):
+            db.delete(action)
+            n += 1
     if n:
         db.commit()
         _invalidate_dashboard_analytics_cache()

@@ -20,12 +20,21 @@ Preferences > Features** - on by default), you can add more than one **craft fac
 single project, each with its own print mode and ink usage. Handy for double-sided or
 multi-part pieces.
 
+Preview and worksheet totals sum every enabled face using each channel's cartridge
+price and capacity. Only channels visible for a face's selected mode are saved.
+Color Raised textures include CMYK, loaded White/Flex White, and Gloss.
+
 ### Step 2 - Details
 Enter the **name**, quantity, notes, and any project details.
+
+Pre-prime is a display-only estimate, excluded from saved consumption and COGS.
+Enter the actual ink totals reported by your printer software.
 
 ### Step 3 - Materials (BOM)
 Add the materials used (your "bill of materials"). Pick from your **Materials Library**
 or type items in. Each line adds its cost to the total.
+
+A zero quantity remains zero when saved and consumes no stock.
 
 <p align="center"><img src="images/wizard-step3-bom.png" alt="Wizard step 3: bill of materials" width="620"></p>
 
