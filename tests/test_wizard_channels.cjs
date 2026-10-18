@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const template = fs.readFileSync(
   path.join(__dirname, '..', 'app', 'templates', 'projects', 'wizard.html'), 'utf8',
 );
-const script = template.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
+const script = template.match(/<script>\s*([\s\S]*?)<\/script>/i)[1];
 const craftModes = ['Flat Raised', 'Pattern Texture', 'Relief Texture', 'Customize Texture'];
 const colorChannels = ['W', 'C', 'M', 'Y', 'K', 'GL'];
 
