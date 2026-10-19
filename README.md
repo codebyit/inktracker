@@ -31,7 +31,7 @@ default to `ghcr.io/codebyit/inktracker:latest`; `docker compose ... up -d` pull
 automatically. To pin a specific version, set `APP_IMAGE` in `.env`:
 
 ```dotenv
-APP_IMAGE=ghcr.io/codebyit/inktracker:v0.9.0
+APP_IMAGE=ghcr.io/codebyit/inktracker:v0.16.1
 ```
 
 Public image is published to:

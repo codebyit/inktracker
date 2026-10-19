@@ -40,5 +40,5 @@ Then visit **http://localhost:8000**.
 
 Both profiles run the prebuilt image `ghcr.io/codebyit/inktracker:latest`, pulled
 automatically by `docker compose ... up -d` (no local build). To pin a version, set
-`APP_IMAGE` in `.env`, e.g. `APP_IMAGE=ghcr.io/codebyit/inktracker:v0.9.0`. Tags:
+`APP_IMAGE` in `.env`, e.g. `APP_IMAGE=ghcr.io/codebyit/inktracker:v0.16.1`. Tags:
 `latest`, `vX.Y.Z`, `vX.Y.Z-<sha7>`.

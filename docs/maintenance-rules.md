@@ -2,10 +2,60 @@
 
 **Author:** Claude Opus 4.8 (from a multi-LLM audit + arbitration round)  
 **Date:** 2026-07-05 (updated as vendor facts were confirmed)  
-**Status:** Canonical source of truth for the eufyMake E1 maintenance/consumption model in
-InkTracker. Originated as the final arbitration of a three-LLM review (Claude Opus 4.8, xAI Grok
-4.3, GPT-5.5); those individual review documents have been retired (see git history) now that
-their conclusions are reconciled here and shipped.
+**Status:** Current public-fork reference as of **v0.16.1**, followed by the historical
+2026-07-05 audit and proposals. The current summary below supersedes historical findings
+and action lists. The original audit combined three reviews (Claude Opus 4.8, xAI Grok
+4.3, GPT-5.5); individual review documents remain in git history.
+
+## Current shipped behavior (v0.16.1)
+
+The public default presets in `app/crud.py` already include the corrections discussed
+in the audit. Values below describe **factory defaults**, not necessarily a user's
+customized presets: startup preserves existing named presets rather than resetting them.
+
+- **Six active ink channels:** C, M, Y, K, one loaded white (`W` or `FW`), and Gloss
+  (`GL`). Flexible White is real but shares the white slot with Standard/Hard White;
+  it is not a seventh simultaneously active ink. Factory ink presets use `W` as the
+  white entry; automatic maintenance routes it to the loaded white channel.
+  For manual logging with `FW` installed, review/edit the preset or hardware-event
+  volumes so consumption is recorded on the intended white, not both.
+- **Cleaning/moisturizing totals already include six channels.** Factory defaults
+  multiply the per-channel liquid figures by `SERVICE_CHANNEL_COUNT = 6`. Do not
+  multiply the displayed preset totals again. There is no user-facing
+  `service_liquid_multiplier` setting; that was an audit proposal.
+- **Ink Injection:** 1.5 ml per active ink channel, no cleaning liquid.
+  **Ink Injection (after Moisturizing)** and **Extended Shutdown Restart** use
+  1.5 ml per active ink channel plus **10.98 ml CLN** (1.83 × 6).
+  Restart is not a full initial fill.
+- **Initial Startup** and **Print Head Replacement** default to 15 ml per active
+  ink channel plus **28.02 ml CLN** (4.67 × 6).
+- **Deep Clean** uses 1.5 ml per active ink channel plus **10.98 ml CLN**;
+  **Automatic Deep Clean** uses **9.00 ml CLN** and no ink.
+  **Automatic Moisturizing** and **Safe Shutdown Moisturizing** use
+  **10.98 ml CLN + 7.98 ml ML**.
+- **White Ink Flash Cleaning** is available as a manual preset, defaulting to
+  **3 ml white + 10.98 ml CLN**. This models the cited upper white-ink estimate,
+  not a measured guarantee for every clean.
+- **White Line Swap (Hard <-> Soft)** is available as a hardware event. Its defaults
+  show **W = 30 ml, FW = 0 ml**; record the approximately 30 ml against the
+  **newly installed white only**, leaving the other at zero. The flush cleaning-liquid
+  volume was not published in the cited source and is not included in that default;
+  do not invent a CLN value.
+- **Cleaning + Moisturizing Liquid** appear as one **UV Cleaning Cartridge** card,
+  with both compartment levels, one replacement count, and one Replace action resetting
+  both channels. Capacities are **255 ml CLN** and **125 ml ML**. Waste-ink accumulation
+  is still not modeled, so the app cannot predict replacement caused by a full waste
+  compartment.
+
+For replacements, logging, corrections, and automatic-maintenance retention, use
+the [Service & Maintenance guide](05-service-maintenance.md).
+
+## Historical audit (2026-07-05)
+
+The sections below retain the evidence, disputed assumptions, and proposed roadmap
+from the original audit. They are **not a current backlog or a description of missing
+v0.16.1 features**. References to a configurable multiplier, deferred-injection review
+queue, or inferred white-flash logging are proposals, not promises of shipped controls.
 
 > This memo reconciles the reviews into one implementation-ready decision. Where an earlier
 > claim was weakened by later evidence, it sides with the evidence.
@@ -29,13 +79,15 @@ their conclusions are reconciled here and shipped.
 > has **6 active channels**, where the white position is **either `W` or `FW`, never both**. `FW`
 > is therefore **not** a phantom channel (my earlier update was wrong); it is a **mutually
 > exclusive alternate** to `W`. **Switching whites triggers a flush + refill + calibration of the
-> white line** — a real, currently-unmodeled consumption event (see new finding W-SWAP below).
+> white line** — identified as an unmodeled event in the audit; a manual W-SWAP preset
+> has since shipped (see the current summary above).
 
 ---
 
-## 1. Consensus Findings
+## 1. Historical Consensus Findings
 
-All three reviewers effectively agree on the following:
+At the time of the audit, all three reviewers effectively agreed on the following.
+Preset omissions and corrections listed here have since been addressed as described above:
 
 - **Ink values match exactly** and need no change: Flash Clean 0.0002, Medium Clean 0.2, Deep
   Clean 1.5, Ink Injection 1.5 ml/ch (items #1, #2, #3, #8).
@@ -56,12 +108,12 @@ All three reviewers effectively agree on the following:
   deferred injection.
 - **Double-counting is a first-class risk** (Q5): any automatic/inferred logging must be tagged,
   reversible, and de-duped against manual logs.
-- **Channel count / `FW` is unverified** (item #19): do not delete `FW` without hardware
-  confirmation.
+- **Channel count / `FW` was initially unverified** (item #19), then resolved by the
+  support confirmation below: six active channels with `W` XOR `FW`.
 
 ---
 
-## 2. Disputed Findings
+## 2. Historical Disputed Findings
 
 **D1 — Per-channel vs shared reservoir for CLN/ML (the crux, items #4–#7). RESOLVED.**
 - Claude (me, original): confident **under-count ~6–7×** based on the literal "per color channel"
@@ -71,7 +123,8 @@ All three reviewers effectively agree on the following:
 - GPT-5.5: **unresolved**; both arguments are non-decisive; make it configurable and measure.
 - **RESOLUTION (eufyMake support, 2026-07-05):** consumption **IS per ink channel**, across
   **6 channels (C, M, Y, K, W, G)**. Example: Automatic Deep Clean = **6 × 1.5 = 9.0 ml** cleaning
-  solution. So InkTracker under-counts CLN/ML by **exactly 6×**. My original finding is **confirmed**
+  solution. The audited model therefore under-counted CLN/ML by **exactly 6×**; shipped defaults
+  now include the multiplier. My original finding is **confirmed**
   (though I overstated the certainty *at the time*); Grok's shared-dose hypothesis is **refuted**;
   GPT's "make it configurable" is still the right *mechanism*, now with a **known default of ×6**.
   This is the highest-impact fix because it drives CLN/ML refill warnings.
@@ -98,7 +151,8 @@ source C (Soft White Ink Usage Guide):** each swap **consumes approximately 30 m
 new cartridge** (aided by a dedicated cleaning solution to flush residual old ink) and takes about
 **10–15 minutes** to prime (the in-app image cited ~10 min; the written step says ~15 min). This
 is a single, flat ~30 ml event, **not** a per-channel value — it applies only to the one white
-line. It is **entirely unmodeled** today and is material for anyone who alternates Hard White (`W`,
+line. It was **unmodeled at the time of the audit**; the shipped manual preset now records it.
+It is material for anyone who alternates Hard White (`W`,
 rigid materials) and Soft/Flexible White (`FW`, fabric/leather/foil-stamping).
 
 > **Terminology (source C):** `W` = **Hard White** (rigid, scratch-resistant; metal/plastic/glass;
@@ -116,9 +170,10 @@ waste ink**. Verbatim capacities: **Cleaning solution 255 ml, Moisturizer 125 ml
   (migration `0020`), and CLN/ML are no longer clobbered by the shared ink-capacity setting.
 - **Refill-timing consequence:** because CLN, ML, and waste share one cartridge, the user must
   replace the whole unit when **any** compartment is exhausted (cleaning empty **OR** moisturizer
-  empty **OR** waste full). InkTracker currently tracks CLN and ML as two independent cartridges and
-  does **not** model waste ink at all — so it can't warn on the true "replace cleaning cartridge"
-  trigger. **Deferred to Phase 2** (waste-ink accumulation + unified cleaning-cartridge model).
+  empty **OR** waste full). The audited UI tracked CLN and ML independently. The shipped UI now
+  combines their levels and replacement action in one card, but still does **not** model
+  waste ink, so it cannot warn on a waste-full replacement trigger. Only waste-ink modeling
+  remains a limitation here; the unified card is no longer deferred.
 - **Waste ink:** every cleaning/deep-clean/priming purge drains into the 125 ml waste compartment.
   Its fill rate roughly tracks total CLN + purged-ink volume; modeling it would let InkTracker
   predict cartridge replacement by whichever compartment hits its limit first.
@@ -131,8 +186,9 @@ not silently, not perfectly attributed.
 
 ---
 
-## 3. Final Recommendation
+## 3. Historical Final Recommendation
 
+The following was the audit's proposed approach, not the current implementation checklist.
 Adopt a **staged, reversible** approach. The per-channel question is now **settled (×6)**, so the
 CLN/ML correction moves into the near-term work rather than waiting on measurement. Concretely:
 
@@ -145,7 +201,7 @@ CLN/ML correction moves into the near-term work rather than waiting on measureme
    mutually exclusive alternate to `W`; do not delete it, but do not count both at once.
 4. Add White Ink Flash Cleaning as a manual preset now; add inference later behind a toggle.
 5. **Add a White-Line Swap (W-SWAP) event** for `W`↔`FW` changes (flush + refill + calibration);
-   volumes TBD from vendor/measurement.
+   the ink estimate is now approximately 30 ml of the new white; flush-liquid volume remains unknown.
 6. Keep all inferred/automatic additions **off by default, tagged, and undoable.**
 7. **Migration care:** applying ×6 changes historical CLN/ML depletion. Make the multiplier change
    effective **going forward** (or clearly annotate the change-over) so past cartridge math isn't
@@ -156,7 +212,11 @@ prefer reversible, visible, configurable fixes over silent hidden automation.**
 
 ---
 
-## 4. Implementation Plan
+## 4. Historical Implementation Plan
+
+These phases preserve the audit's original proposals. Phase 1 preset/value corrections
+are reflected in the shipped defaults above; later proposals must not be read as
+available settings or scheduled work.
 
 ### Phase 1 — Low-risk preset/value fixes (do now; unanimous)
 - **P1.0** **Apply the confirmed ×6 per-channel multiplier to CLN and ML** on every service action
@@ -203,7 +263,10 @@ prefer reversible, visible, configurable fixes over silent hidden automation.**
 
 ---
 
-## 5. Risks and Double-Counting Controls
+## 5. Historical Proposed Risks and Double-Counting Controls
+
+The controls below were design recommendations, not a guarantee that a review queue,
+configurable multiplier, or every inference control exists in the current app.
 
 - **Tag every non-manual event** with a machine-readable marker (e.g. `[AUTO_INFERRED]` /
   `[AUTO_SCHED]`) so it is distinguishable and filterable.
@@ -222,7 +285,7 @@ prefer reversible, visible, configurable fixes over silent hidden automation.**
 
 ---
 
-## 6. Evidence Still Needed (smallest tests to settle assumptions)
+## 6. Historical Evidence Review (smallest tests to settle assumptions)
 
 1. **Per-channel vs shared (D1) — RESOLVED.** eufyMake support confirmed **per ink channel across
    6 channels (C, M, Y, K, W, G)**; e.g. Automatic Deep Clean = 6 × 1.5 = 9.0 ml cleaning. No
@@ -242,7 +305,10 @@ prefer reversible, visible, configurable fixes over silent hidden automation.**
 
 ---
 
-## Prioritized change list (developer-facing)
+## Historical Prioritized Change List (developer-facing)
+
+This is the original ordering, not an outstanding task list. Use the current summary
+for shipped behavior; manual presets and six-channel liquid totals are already available.
 
 1. **P1.0: apply ×6 per-channel CLN/ML multiplier + model white as `W` XOR `FW`** — **highest
    impact, now unblocked** (vendor-confirmed). Fixes CLN/ML refill timing; keeps `FW` as a real

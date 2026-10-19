@@ -11,6 +11,12 @@ Track your material items and their stock movements:
 - **Add an item** — name, category, and cost per unit.
 - **Record movements** — log stock coming in or going out to keep counts accurate.
 
+The [project wizard's BOM](03-new-project-wizard.md) links items to this library by
+name (case-insensitive, with surrounding spaces ignored). Matching existing items
+consumes stock when the project is saved, regardless of the **Save new items to my
+Materials library** option. That option creates entries for previously unknown
+names; leave it off for free-text costing without library stock tracking.
+
 <p align="center"><img src="images/inventory-materials.png" alt="Inventory materials and movements" width="700"></p>
 
 <details><summary>📱 On mobile</summary>
@@ -22,6 +28,17 @@ Track your material items and their stock movements:
 ### Movement logs
 Every stock change is recorded as a **movement** (IN or OUT), optionally tied to a
 project, so your available counts always add up and you can see where stock went.
+
+Project saves automatically record consumption for matching library items. **Do not
+record the same OUT movement manually**, or stock will be deducted twice. Manual
+movements are for separate receipts, usage, and adjustments.
+
+Editing a project compares its new substrate/BOM demand with its recorded automatic
+movements and logs only the difference (OUT for more consumption, IN for a reduction).
+Manual adjustments, even those linked to the project, remain separate. Removing an
+old unlinked free-text item cannot refund stock that was never consumed.
+Zero-quantity BOM lines consume no stock. If a BOM name also matches the project's
+substrate, it is not deducted twice: substrate demand uses the project units.
 
 <p align="center"><img src="images/inventory-materials-mov.png" alt="Material movement logs" width="620"></p>
 
