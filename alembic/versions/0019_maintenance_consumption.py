@@ -1,7 +1,7 @@
 """Correct maintenance consumption values to eufyMake per-channel spec.
 
 Forward-effective corrections to system maintenance presets (see
-``docs/maintenance-rules.md``). eufyMake support confirmed cleaning
+``docs/05-service-maintenance.md`` for usage). eufyMake support confirmed cleaning
 (CLN) and moisturizing (ML) liquids are consumed **per ink channel** across the
 machine's **6 active channels** (C, M, Y, K, W|FW, GL). Per-channel figures are
 therefore multiplied by 6. The white position is a single slot (W XOR FW), so

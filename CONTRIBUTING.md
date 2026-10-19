@@ -16,6 +16,17 @@ Thanks for your interest in contributing.
 - Include clear commit messages
 - Document behavior changes
 
+## Documentation scope
+
+Keep `docs/` focused on public user/operator documentation, release notes, site
+configuration, and supporting assets. Internal plans, audit/decision memos,
+porting manifests, and release-process rules belong in access-controlled private
+storage, not this repository (including dot-folders).
+
+GitHub does not support admin-only files within a public repository. `.gitignore`
+helps prevent accidental additions but is not access control, and removing a file
+does not remove earlier copies from Git history or existing clones.
+
 ## Pull Request Checklist
 
 - [ ] Tests pass locally

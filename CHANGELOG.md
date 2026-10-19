@@ -152,7 +152,7 @@ _Ported from internal `main` (merge commit `038c618`)._
   (ML) consumption is now modelled across **6 active channels** (C, M, Y, K,
   W|FW, GL), with White as a single slot (`W` XOR `FW`). New service presets:
   **White Ink Flash Cleaning**, **White Line Swap (Hard ↔ Soft)**, and **Ink
-  Injection (after Moisturizing)**. Canonical reference: `docs/maintenance-rules.md`.
+  Injection (after Moisturizing)**. Usage: [Service & Maintenance](docs/05-service-maintenance.md).
 - **Service Action Log retention.** Configurable **Archive after (days)** and
   **Delete after (days)** windows (Settings → Preferences) with a daily scheduler
   purge and a **Show archived** filter, plus date / quick-range / search filtering,

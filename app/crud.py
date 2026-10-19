@@ -1586,7 +1586,7 @@ def _sync_project_bom_inventory(
 
 # ── Maintenance Presets ───────────────────────────────────────────────────────
 
-# ── Maintenance consumption model (see docs/maintenance-rules.md) ──
+# ── Maintenance consumption model (see docs/05-service-maintenance.md) ──
 # eufyMake support confirmed cleaning (CLN) and moisturizing (ML) liquids are
 # consumed PER INK CHANNEL, across the machine's 6 ACTIVE channels. The white
 # position is a single slot: W (Hard White) XOR FW (Soft/Flexible White) — never

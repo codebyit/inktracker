@@ -29,6 +29,13 @@ node_modules/
 # generated wiki build
 build/
 
+# Internal planning is maintained outside this public repository.
+.hermes/
+docs/maintenance-rules.md
+docs/RELEASE_PLAN.md
+docs/PORT_MANIFEST_*.md
+docs/images/README.md
+
 # PyInstaller desktop build output
 dist/
 desktop/MicrosoftEdgeWebview2Setup.exe
