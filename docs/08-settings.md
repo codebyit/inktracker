@@ -9,6 +9,13 @@ cost and profit calculation, so it's worth setting them up carefully once.
 Enter your printer's **purchase price**, **lifespan**, and **annual hours**. InkTracker
 spreads the cost across jobs so each project carries a fair share.
 
+Choose and save the **Printer Profile** here too. It persists across sessions and
+controls the [project wizard's Quality choices](03-new-project-wizard.md):
+**eufyMake** offers **Draft**, **Standard**, and **High**; **Other / Custom** also
+permits **Ultra**. Ultra is not an eufyMake quality option.
+When editing an older project, its saved quality remains available even if the
+current profile no longer offers it, so reopening does not silently change it.
+
 <p align="center"><img src="images/settings-machine.png" alt="Machine configuration" width="620"></p>
 
 ## Ink costs
@@ -54,6 +61,8 @@ the Windows desktop app.
 - **Multiple craft modes** - lets a single project define several **craft faces** (for
   example, a 2-sided case with a different craft on each side) in the New Project wizard.
   It's **on by default**; existing single-craft projects are unaffected.
+  Turning it off only hides multi-craft controls; saved faces are retained and still
+  contribute to consumption and costs. See the [project wizard guide](03-new-project-wizard.md).
 
 ## Backup & restore (admin)
 Download a **backup** of your data, or **restore** from one. Admins can also **reset**

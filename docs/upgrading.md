@@ -2,8 +2,11 @@
 
 ## Update to the latest image
 
-The container runs database migrations automatically on start, so updating is just
-pull + recreate. From the folder containing your `docker-compose.public.yml` and `.env`:
+The container runs database migrations automatically on start. **v0.16.1 adds no
+schema migrations**; this is specific to that release, not a guarantee for future
+updates. Back up before updating and check the target release notes.
+
+From the folder containing your `docker-compose.public.yml` and `.env`:
 
 ```bash
 # 1. (Recommended) back up first — see Settings → Data for a DB backup,
@@ -28,7 +31,7 @@ By default the image is `:latest`. To control exactly which version you run, set
 `APP_IMAGE` in `.env`, then re-run the pull/up steps:
 
 ```dotenv
-APP_IMAGE=ghcr.io/codebyit/inktracker:v0.9.1
+APP_IMAGE=ghcr.io/codebyit/inktracker:v0.16.1
 ```
 
 After pinning, `pull` fetches that tag and `up -d` switches to it. Updating later means
@@ -36,8 +39,20 @@ bumping the tag (or returning to `:latest`).
 
 ### Roll back
 
-Set `APP_IMAGE` to the previous tag (e.g. `:v0.9.0`) and run pull + `up -d`. Restore your
-database backup if a migration is not backward compatible (see release notes).
+For example, `:v0.16.0` is the previous-release tag for a v0.16.1 update, **not an
+unconditionally safe rollback**. Before changing `APP_IMAGE` and running pull +
+`up -d`, confirm the older image supports the database's migration history and data.
+If it does not, use a known-good pre-update backup with its matching image after
+reviewing the release notes. Preserve the current database before attempting recovery.
+
+### Migration-history failures
+
+v0.16.1 preserves valid Alembic history and stops startup if the database references
+a revision unknown to the image. Restarting does not rewrite that history.
+Capture the logs and verify the image/database provenance and matching migration
+tree. Do not delete or blindly stamp `alembic_version` to make startup pass.
+Use the [migration troubleshooting guidance](troubleshooting.md) and obtain a reviewed
+recovery path, or restore a known-good backup with a compatible image.
 
 ## Summary
 

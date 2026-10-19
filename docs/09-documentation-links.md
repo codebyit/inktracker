@@ -22,6 +22,11 @@ in one tidy list.
 
 The new reference appears in the list, ready to click.
 
+Use a full **HTTP or HTTPS URL**, such as `https://example.com/manual`.
+Other schemes (including `javascript:`, `data:`, and `file:`) are rejected.
+The same restriction applies when editing a link; unsafe saved URLs are not loaded
+as usable links.
+
 ## Edit or delete
 - Click **Edit** on any row to update its name, link, or date.
 - Click **Delete** to remove a reference you no longer need.
